@@ -62,8 +62,8 @@ def rotate_z(angle):
 def spiral(skeleton, gif, Title, dim, pix, windspeed, period, inclination, big_omega, turn_off, eccentricity, omega_lock, 
            little_omega, periastron, cone_angle, offset, n_circ, theta_lim):
     # Plotting parameters
-    n_p = 500;                      # Number of points per circle
-    n_c = 5000;                     # Number of circles per period
+    n_p = 200;                      # Number of points per circle
+    n_c = 300;                     # Number of circles per period
     
     im_siz = dim;        #360       # Image size (pixels) (square)
     im_res = pix;                   # Image resolution (mas/pix)
@@ -136,7 +136,7 @@ def spiral(skeleton, gif, Title, dim, pix, windspeed, period, inclination, big_o
                     
                     circj = np.zeros((3, len(chi)))
                     for ii in range(len(chi)):
-                        circj[:, ii] = np.matmul(rotate_z(theta[j]), circ[:, ii]) * r2[j]
+                        circj[:, ii] = np.matmul(rotate_z(theta[j]), circ[:, ii] * r2[j])
                     left_ind = j *n_p
                     circfull[:, left_ind:left_ind+n_p-1] = circj
     
