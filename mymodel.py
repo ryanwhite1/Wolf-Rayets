@@ -62,17 +62,17 @@ def kepler_solve(t, P, ecc):
 
 
 def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_periastron, 
-               turn_off, turn_on, cone_angle, phase, n_orbits):
+               turn_off, turn_on, cone_angle, distance, phase, n_orbits):
     '''
     Parameters
     ----------
     period : float
         seconds
+    distance : float
+        pc
     '''
-    if phase >= 1:
-        phase = phase - np.fix(phase)
-    elif phase < 0:
-        phase = np.fix(phase) - phase
+    dist_mult = 60 * 60 * 1000 / (distance * 3.086e13)
+    phase = phase%1
     n_t = 1000       # circles per orbital period
     n_points = 400   # points per circle
     n_particles = int(n_points * n_t * n_orbits)
@@ -101,6 +101,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     positions1 *= -r1      # position in the orbital frame
     positions2 *=  r2     # position in the orbital frame
     
+    widths = windspeed1 * period * (n_orbits - np.arange(n_time)/n_t)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     # plume_direction /= np.linalg.norm(plume_direction)      # normalise it so that we only get the direction
@@ -117,21 +118,16 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
                 # width = times[(n_time - 1) - i] * windspeed1
                 # width = times[(n_time - 1) - i]%(2 * period) * windspeed1
                 # width = (times[(n_time - 1) - i] / (n_orbits+1))%period * windspeed1
-                width = windspeed1 * period * (n_orbits - i/n_t)
+                
                 
                 # width = windspeed1 * period * (n_orbits - nu%(2 * np.pi))   # try this out!!
                 
                 direction = plume_direction[:, i] / np.linalg.norm(plume_direction[:, i])
                 
                 circle = np.array([np.ones(len(theta)) * np.cos(open_angle), np.sin(open_angle) * np.sin(theta), np.sin(open_angle) * np.cos(theta)])
-                circle *= width
+                circle *= widths[i]
                 angle_x = np.arctan2(direction[1], direction[0])
                 circle = np.matmul(rotate_z(angle_x), circle)
-                
-                # for j in range(3):
-                #     # circle[j, :] += positions1[j, i] - plume_direction[j, i] * (1 - ws_ratio)
-                #     circle[j, :] += positions2[j, i]
-                
                 
                 particles[:, left:right] = circle
     
@@ -139,9 +135,11 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     for i in range(n_particles):
         particles[:, i] = np.matmul(rotation, particles[:, i])
         
-    return particles / np.max(particles)
+    return particles * dist_mult
 
 def plot_spiral(particles):
+    '''
+    '''
     im_size = 256
     # im_res = 1
     _, n_points = particles.shape
@@ -154,16 +152,20 @@ def plot_spiral(particles):
     x = x[use_inds]
     y = y[use_inds]
 
-    H, _, _ = np.histogram2d(x, y, bins=im_size)
+    H, xedges, yedges = np.histogram2d(x, y, bins=im_size)
     
     H = gaussian_filter(H, 1)
     
     fig, ax = plt.subplots()
     
-    ax.imshow(H, extent=[0, 1, 0, 1])
+    # ax.imshow(H, extent=[0, 1, 0, 1])
+    ax.pcolormesh(xedges, yedges[::-1], H)
+    ax.set(aspect='equal')
     
 def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle):
+                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance):
+    '''
+    '''
     fig, ax = plt.subplots()
     
     
@@ -172,21 +174,22 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
     n_orbits = 2 
     phase = 0 
     particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
+                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
     x = particles[0, :]
     y = particles[1, :]
     use_inds = np.where((x != 0) & (y != 0))
     x = x[use_inds]
     y = y[use_inds]
-    H, _, _ = np.histogram2d(x, y, bins=im_size)
+    H, xbins, ybins = np.histogram2d(x, y, bins=im_size)
     H = gaussian_filter(H, 1)
     xmin, xmax = np.min(x), np.max(x)
     ymin, ymax = np.min(y), np.max(y)
     border = [[xmin, xmax], [ymin, ymax]]
+    bins = [xbins, ybins]
     
     phase = 0.5 
     particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
+                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
     x = particles[0, :]
     y = particles[1, :]
     use_inds = np.where((x != 0) & (y != 0))
@@ -205,12 +208,13 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
     fps = len(frames) // length  # fps for the final animation
     
     phases = np.linspace(0, 1, nt)
-    
+    ax.set(xlim=(min(xbins), max(xbins)), ylim=(min(ybins), max(ybins)), aspect='equal')
     def animate(i):
         if (i // every)%20 == 0:
             print(f"{i // every} / {len(frames)}")
+        # print(i)
         particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                               asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phases[i] + 0.5, n_orbits)
+                               asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phases[i] + 0.5, n_orbits)
         
         x = particles[0, :]
         y = particles[1, :]
@@ -219,10 +223,13 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
         x = x[use_inds]
         y = y[use_inds]
 
-        H, _, _ = np.histogram2d(x, y, bins=im_size, range=border)
+        H, xedges, yedges = np.histogram2d(x, y, bins=bins)
         H = gaussian_filter(H, 1)
         
-        ax.imshow(H, extent=[0, 1, 0, 1], vmin=vmin, vmax=vmax)
+        # ax.imshow(H, extent=[0, 1, 0, 1], vmin=vmin, vmax=vmax, cmap='Greys')
+        # ax.pcolormesh(xedges, yedges[::-1], H, vmax=vmax)
+        ax.pcolormesh(xedges, yedges[::-1], H, vmax=vmax)
+        
         return fig, 
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
@@ -247,7 +254,7 @@ cone_open_angle = 125   # degrees (full opening angle)
 period = 125            # years
 period_s = period * yr2day * 24 * 60 * 60
 distance = 2400         # pc
-windspeed1 = 3400       # km/s
+windspeed1 = 910       # km/s
 windspeed2 = 2400       # km/s
 turn_on = -114          # true anomaly (degrees)
 turn_off = 150          # true anomaly (degrees)
@@ -279,19 +286,19 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-# n_orbits = 2 
-# phase = 0.93
+n_orbits = 2 
+phase = 0.5
 
 
-# particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
+particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
 
 
-# plot_spiral(particles)
+plot_spiral(particles)
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
 # ax.scatter(particles[0, :], particles[1, :], particles[2, :])
 
-spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle)
+# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
