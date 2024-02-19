@@ -119,6 +119,8 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
                 # width = (times[(n_time - 1) - i] / (n_orbits+1))%period * windspeed1
                 width = windspeed1 * period * (n_orbits - i/n_t)
                 
+                # width = windspeed1 * period * (n_orbits - nu%(2 * np.pi))   # try this out!!
+                
                 direction = plume_direction[:, i] / np.linalg.norm(plume_direction[:, i])
                 
                 circle = np.array([np.ones(len(theta)) * np.cos(open_angle), np.sin(open_angle) * np.sin(theta), np.sin(open_angle) * np.cos(theta)])
@@ -173,20 +175,26 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
                             asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
     x = particles[0, :]
     y = particles[1, :]
-    
     use_inds = np.where((x != 0) & (y != 0))
     x = x[use_inds]
     y = y[use_inds]
-
-    # H, _, _ = np.histogram2d(x, y, bins=im_size)
-    # H = gaussian_filter(H, 1)
-    # vmin, vmax = np.min(H), np.max(H)
-    
+    H, _, _ = np.histogram2d(x, y, bins=im_size)
+    H = gaussian_filter(H, 1)
     xmin, xmax = np.min(x), np.max(x)
     ymin, ymax = np.min(y), np.max(y)
-    
     border = [[xmin, xmax], [ymin, ymax]]
     
+    phase = 0.5 
+    particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
+    x = particles[0, :]
+    y = particles[1, :]
+    use_inds = np.where((x != 0) & (y != 0))
+    x = x[use_inds]
+    y = y[use_inds]
+    H, _, _ = np.histogram2d(x, y, bins=im_size)
+    H = gaussian_filter(H, 1)
+    vmin, vmax = np.min(H), np.max(H)
     
     every = 1
     length = 10
@@ -214,7 +222,7 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
         H, _, _ = np.histogram2d(x, y, bins=im_size, range=border)
         H = gaussian_filter(H, 1)
         
-        ax.imshow(H, extent=[0, 1, 0, 1])
+        ax.imshow(H, extent=[0, 1, 0, 1], vmin=vmin, vmax=vmax)
         return fig, 
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
