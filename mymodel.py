@@ -114,10 +114,10 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
             if transf_nu < turn_off_rad:
                 left = i * n_points
                 right = (i + 1) * n_points
-                width = times[(n_time - 1) - i] * windspeed1
+                # width = times[(n_time - 1) - i] * windspeed1
                 # width = times[(n_time - 1) - i]%(2 * period) * windspeed1
                 # width = (times[(n_time - 1) - i] / (n_orbits+1))%period * windspeed1
-                # width = windspeed1 * period * (n_orbits - i/n_t)
+                width = windspeed1 * period * (n_orbits - i/n_t)
                 
                 direction = plume_direction[:, i] / np.linalg.norm(plume_direction[:, i])
                 
@@ -271,19 +271,19 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 2 
-phase = 0.95
+# n_orbits = 2 
+# phase = 0.93
 
 
-particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
+# particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, phase, n_orbits)
 
 
-plot_spiral(particles)
+# plot_spiral(particles)
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
 # ax.scatter(particles[0, :], particles[1, :], particles[2, :])
 
-# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle)
+spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle)
