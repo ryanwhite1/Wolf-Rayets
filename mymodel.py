@@ -71,7 +71,6 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     distance : float
         pc
     '''
-    dist_mult = 60 * 60 * 1000 / (distance * 3.086e13)
     phase = phase%1
     n_t = 1000       # circles per orbital period
     n_points = 400   # points per circle
@@ -135,7 +134,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     for i in range(n_particles):
         particles[:, i] = np.matmul(rotation, particles[:, i])
         
-    return particles * dist_mult
+    return 60 * 60 * 180 / (2 * np.pi) * np.arctan(particles / (distance * 3.086e13))
 
 def plot_spiral(particles):
     '''
@@ -160,7 +159,7 @@ def plot_spiral(particles):
     
     # ax.imshow(H, extent=[0, 1, 0, 1])
     ax.pcolormesh(xedges, yedges[::-1], H)
-    ax.set(aspect='equal')
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
 def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance):
@@ -208,7 +207,8 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
     fps = len(frames) // length  # fps for the final animation
     
     phases = np.linspace(0, 1, nt)
-    ax.set(xlim=(min(xbins), max(xbins)), ylim=(min(ybins), max(ybins)), aspect='equal')
+    ax.set(xlim=(min(xbins), max(xbins)), ylim=(min(ybins), max(ybins)), aspect='equal', 
+           xlabel='Relative RA (")', ylabel='Relative Dec (")')
     def animate(i):
         if (i // every)%20 == 0:
             print(f"{i // every} / {len(frames)}")
