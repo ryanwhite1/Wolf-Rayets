@@ -35,34 +35,6 @@ def rotate_z(angle):
     return arr
 
 
-# @jit
-# def kepler_solve_sub_sub(E0, ecc, mi):
-#     return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
-
-
-# @jit
-# def kepler_solve_sub(i, ecc, tol, M):
-#     E0 = M[i]
-#     # Newton's formula to solve for eccentric anomoly
-#     for j in range(50):
-#         E0 = kepler_solve_sub_sub(E0, ecc, M[i])
-#     return E0
-
-# @jit
-# def kepler_solve_sub_sub(E0, ecc, mi, j):
-#     if j == 0:
-#         return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
-#     else:
-#         E0 = kepler_solve_sub_sub(E0, ecc, mi, j - 1)
-#         return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
-
-
-# @jit
-# def kepler_solve_sub(i, ecc, tol, M):
-#     # Newton's formula to solve for eccentric anomaly
-#     return kepler_solve_sub_sub(M[i], ecc, M[i], 20)
-
-
 @jit
 def kepler_solve_sub_sub(i, E0_ecc_mi):
     E0, ecc, mi = E0_ecc_mi
@@ -72,9 +44,7 @@ def kepler_solve_sub_sub(i, E0_ecc_mi):
 @jit
 def kepler_solve_sub(i, ecc, tol, M):
     E0 = M[i]
-    # Newton's formula to solve for eccentric anomoly
-    # for j in range(50):
-    #     E0 = kepler_solve_sub_sub(E0, ecc, M[i])
+    # Newton's formula to solve for eccentric anomaly
     E0 = lax.fori_loop(0, 50, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
     return E0
 
