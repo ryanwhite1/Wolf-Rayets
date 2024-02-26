@@ -45,7 +45,7 @@ def kepler_solve_sub_sub(i, E0_ecc_mi):
 def kepler_solve_sub(i, ecc, tol, M):
     E0 = M[i]
     # Newton's formula to solve for eccentric anomaly
-    E0 = lax.fori_loop(0, 50, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
+    E0 = lax.fori_loop(0, 20, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
     return E0
 
 
@@ -103,8 +103,8 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     phase = phase%1
     n_t = 1000       # circles per orbital period
     n_points = 400   # points per circle
-    n_particles = int(n_points * n_t * n_orbits)
-    n_time = int(n_t * n_orbits)
+    n_particles = jnp.round(n_points * n_t * n_orbits)
+    n_time = jnp.round(n_t * n_orbits)
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
@@ -115,7 +115,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     turn_on_rad = jnp.deg2rad(turn_on)
     turn_off_rad = jnp.deg2rad(turn_off)
     
-    t1 = time.time()
+    # t1 = time.time()
     E, true_anomaly = kepler_solve(times, period, ecc)
     # print(time.time() - t1)
     
@@ -131,7 +131,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     positions1 *= -r1      # position in the orbital frame
     positions2 *=  r2     # position in the orbital frame
     
-    widths = windspeed1 * period * (n_orbits - jnp.arange(n_time) / n_t)
+    widths = windspeed1 * period * (n_orbits - jnp.arange(len(true_anomaly)) / n_t)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
@@ -182,7 +182,7 @@ def plot_spiral(particles):
     fig, ax = plt.subplots()
     
     # ax.imshow(H, extent=[0, 1, 0, 1])
-    ax.pcolormesh(xedges, yedges[::-1], H)
+    ax.pcolormesh(xedges[::-1], yedges[::-1], H)
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
 def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
@@ -252,7 +252,7 @@ def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclinati
         
         # ax.imshow(H, extent=[0, 1, 0, 1], vmin=vmin, vmax=vmax, cmap='Greys')
         # ax.pcolormesh(xedges, yedges[::-1], H, vmax=vmax)
-        ax.pcolormesh(xedges, yedges[::-1], H, vmax=vmax)
+        ax.pcolormesh(xedges[::-1], yedges[::-1], H, vmax=vmax)
         
         return fig, 
 
