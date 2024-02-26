@@ -6,61 +6,120 @@ Created on Sun Feb 18 08:36:43 2024
 """
 
 import numpy as np
+import jax.numpy as jnp
+from jax import jit, vmap
+import jax.lax as lax
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter
 from matplotlib import animation
 import time
 
+@jit
 def rotate_x(angle):
-    arr = np.zeros((3, 3))
-    arr[:, 0] = [1, 0, 0]
-    arr[:, 1] = [0, np.cos(angle), np.sin(angle)]
-    arr[:, 2] = [0, -np.sin(angle), np.cos(angle)]
+    arr = jnp.array([[1, 0, 0],
+                     [0, jnp.cos(angle), jnp.sin(angle)],
+                     [0, -jnp.sin(angle), jnp.cos(angle)]])
     return arr
+@jit
 def rotate_y(angle):
-    arr = np.zeros((3, 3))
-    arr[:, 0] = [np.cos(angle), 0, -np.sin(angle)]
-    arr[:, 1] = [0, 1, 0]
-    arr[:, 2] = [np.sin(angle), 0, np.cos(angle)]
+    arr = jnp.array([[jnp.cos(angle), 0, -jnp.sin(angle)],
+                     [0, 1, 0],
+                     [jnp.sin(angle), 0, jnp.cos(angle)]])
     return arr
+@jit
 def rotate_z(angle):
-    arr = np.zeros((3, 3))
-    arr[:, 0] = [np.cos(angle), np.sin(angle), 0]
-    arr[:, 1] = [-np.sin(angle), np.cos(angle), 0]
-    arr[:, 2] = [0, 0, 1]
+    arr = jnp.array([[jnp.cos(angle), jnp.sin(angle), 0],
+                     [-jnp.sin(angle), jnp.cos(angle), 0],
+                     [0, 0, 1]])
     return arr
 
+
+# @jit
+# def kepler_solve_sub_sub(E0, ecc, mi):
+#     return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
+
+
+# @jit
+# def kepler_solve_sub(i, ecc, tol, M):
+#     E0 = M[i]
+#     # Newton's formula to solve for eccentric anomoly
+#     for j in range(50):
+#         E0 = kepler_solve_sub_sub(E0, ecc, M[i])
+#     return E0
+
+# @jit
+# def kepler_solve_sub_sub(E0, ecc, mi, j):
+#     if j == 0:
+#         return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
+#     else:
+#         E0 = kepler_solve_sub_sub(E0, ecc, mi, j - 1)
+#         return E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0))
+
+
+# @jit
+# def kepler_solve_sub(i, ecc, tol, M):
+#     # Newton's formula to solve for eccentric anomaly
+#     return kepler_solve_sub_sub(M[i], ecc, M[i], 20)
+
+
+@jit
+def kepler_solve_sub_sub(i, E0_ecc_mi):
+    E0, ecc, mi = E0_ecc_mi
+    return (E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0)), ecc, mi)
+
+
+@jit
+def kepler_solve_sub(i, ecc, tol, M):
+    E0 = M[i]
+    # Newton's formula to solve for eccentric anomoly
+    # for j in range(50):
+    #     E0 = kepler_solve_sub_sub(E0, ecc, M[i])
+    E0 = lax.fori_loop(0, 50, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
+    return E0
+
+
+@jit
 def kepler_solve(t, P, ecc):
     ''' Solver for Kepler's 2nd law giving the angle of an orbiter (rel. to origin) over time
     '''
     # follow the method in https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
     # to get true anomaly
-    M = 2 * np.pi / P * t
-    E = np.zeros(len(t))
-    
-    max_iter = 50
+    M = 2 * jnp.pi / P * t
     tol = 1e-8
-    
-    for i in range(len(t)):
-        E0 = M[i]
-        
-        # Newton's formula to solve for eccentric anomoly
-        for j in range(max_iter):
-            E1 = E0 - (E0 - ecc * np.sin(E0) - M[i]) / (1 - ecc * np.cos(E0))
-            if abs(E1 - E0) < tol:
-                break
-            E0 = E1
-        
-        if j == max_iter:
-            print('Did not converge')
-        
-        E[i] = E1
-    
+
+    E = vmap(lambda i: kepler_solve_sub(i, ecc, tol, M))(jnp.arange(len(t)))
     # now output true anomaly (rad)
-    return E, 2 * np.arctan2(np.sqrt(1 + ecc) * np.sin(E / 2), np.sqrt(1 - ecc) * np.cos(E / 2))
+    return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
 
 
+@jit 
+def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_direction, widths, n_points):
+    i, nu = i_nu
+    x = nu / (2 * jnp.pi)
+    transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))
+    turned_on = jnp.heaviside(transf_nu - turn_on_rad, 0)
+    turned_off = jnp.heaviside(turn_off_rad - transf_nu, 0)
+    direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
+    # print(direction)
+    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
+                        jnp.sin(open_angle) * jnp.sin(theta), 
+                        jnp.sin(open_angle) * jnp.cos(theta)])
+    circle *= widths[i]
+    angle_x = jnp.arctan2(direction[1], direction[0])
+    circle = jnp.matmul(rotate_z(angle_x), circle)
+    
+    circle *= turned_on * turned_off
+    return circle
+
+
+@jit
+def rotate_particles(arr1, arr2, i, rotation):
+    mask = jnp.arange(arr1.shape[0]) == i
+    return jnp.where(mask, jnp.matmul(rotation, arr2[:, i]), arr1)
+
+
+# @jit
 def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_periastron, 
                turn_off, turn_on, cone_angle, distance, phase, n_orbits):
     '''
@@ -77,64 +136,59 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     n_particles = int(n_points * n_t * n_orbits)
     n_time = int(n_t * n_orbits)
     
-    open_angle = np.deg2rad(cone_angle) / 2
+    open_angle = jnp.deg2rad(cone_angle) / 2
     
-    theta = 2 * np.pi * np.linspace(phase, n_orbits + phase, n_points)
+    theta = 2 * jnp.pi * jnp.linspace(phase, n_orbits + phase, n_points)
     
-    times = period * np.linspace(phase, n_orbits + phase, n_time)
+    times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
-    turn_on_rad = np.deg2rad(turn_on)
-    turn_off_rad = np.deg2rad(turn_off)
+    turn_on_rad = jnp.deg2rad(turn_on)
+    turn_off_rad = jnp.deg2rad(turn_off)
     
+    t1 = time.time()
     E, true_anomaly = kepler_solve(times, period, ecc)
-    true_anomaly = true_anomaly
+    print(time.time() - t1)
     
-    r1 = a1 * (1 - ecc * np.cos(E))
-    r2 = a2 * (1 - ecc * np.cos(E))
+    r1 = a1 * (1 - ecc * jnp.cos(E))
+    r2 = a2 * (1 - ecc * jnp.cos(E))
     ws_ratio = windspeed1 / windspeed2
     
-    positions1 = np.zeros((3, n_time))
-    positions1[0, :] = np.cos(true_anomaly)
-    positions1[1, :] = np.sin(true_anomaly)
-    positions2 = np.copy(positions1)
+    
+    positions1 = jnp.array([jnp.cos(true_anomaly), 
+                            jnp.sin(true_anomaly), 
+                            jnp.zeros(len(true_anomaly))])
+    positions2 = jnp.copy(positions1)
     positions1 *= -r1      # position in the orbital frame
     positions2 *=  r2     # position in the orbital frame
     
-    widths = windspeed1 * period * (n_orbits - np.arange(n_time)/n_t)
+    widths = windspeed1 * period * (n_orbits - jnp.arange(n_time) / n_t)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
-    # plume_direction /= np.linalg.norm(plume_direction)      # normalise it so that we only get the direction
     
-    particles = np.zeros((3, n_particles))
-    for i, nu in enumerate(true_anomaly):
-        x = nu / (2 * np.pi)
-        transf_nu = 2 * np.pi * (x + np.floor(0.5 - x))
-        # transf_nu = nu - 2 * np.pi
-        if transf_nu > turn_on_rad:
-            if transf_nu < turn_off_rad:
-                left = i * n_points
-                right = (i + 1) * n_points
-                # width = times[(n_time - 1) - i] * windspeed1
-                # width = times[(n_time - 1) - i]%(2 * period) * windspeed1
-                # width = (times[(n_time - 1) - i] / (n_orbits+1))%period * windspeed1
-                
-                
-                # width = windspeed1 * period * (n_orbits - nu%(2 * np.pi))   # try this out!!
-                
-                direction = plume_direction[:, i] / np.linalg.norm(plume_direction[:, i])
-                
-                circle = np.array([np.ones(len(theta)) * np.cos(open_angle), np.sin(open_angle) * np.sin(theta), np.sin(open_angle) * np.cos(theta)])
-                circle *= widths[i]
-                angle_x = np.arctan2(direction[1], direction[0])
-                circle = np.matmul(rotate_z(angle_x), circle)
-                
-                particles[:, left:right] = circle
-    
-    rotation = np.matmul(np.matmul(rotate_z(np.deg2rad(asc_node)), rotate_x(np.deg2rad(incl))), rotate_z(np.deg2rad(arg_periastron)))
-    for i in range(n_particles):
-        particles[:, i] = np.matmul(rotation, particles[:, i])
         
-    return 60 * 60 * 180 / (2 * np.pi) * np.arctan(particles / (distance * 3.086e13))
+    particles = vmap(lambda i_nu: dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, 
+                                                  plume_direction, widths, n_points))((jnp.arange(len(true_anomaly)), true_anomaly))
+    # print((jnp.arange(len(true_anomaly)), true_anomaly))
+    # print(jnp.min(particles))
+    print(particles.shape)
+    # particles = jnp.reshape(particles, (3, n_particles))
+    # print(particles.shape)
+    
+    particles = jnp.array([jnp.ravel(particles[:, 0, :]),
+                           jnp.ravel(particles[:, 1, :]),
+                           jnp.ravel(particles[:, 2, :])])
+    print(particles.shape)
+    rotation = jnp.matmul(jnp.matmul(rotate_z(jnp.deg2rad(asc_node)), 
+                                     rotate_x(jnp.deg2rad(incl))), 
+                          rotate_z(jnp.deg2rad(arg_periastron)))
+
+    
+    particles2 = vmap(lambda i: jnp.matmul(rotation, particles[:, i]))(jnp.arange(n_particles))
+    particles = particles2.T
+    # particles = particles2
+        
+    print("done")
+    return 60 * 60 * 180 / (2 * jnp.pi) * jnp.arctan(particles / (distance * 3.086e13))
 
 def plot_spiral(particles):
     '''
@@ -289,10 +343,10 @@ p2 = a2 * (1 - eccentricity**2)
 n_orbits = 2 
 phase = 0.5
 
-
+t1 = time.time()
 particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-
+print(time.time() - t1)
 
 plot_spiral(particles)
 # fig = plt.figure()
