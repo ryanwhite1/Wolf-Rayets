@@ -117,7 +117,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     t1 = time.time()
     E, true_anomaly = kepler_solve(times, period, ecc)
-    print(time.time() - t1)
+    # print(time.time() - t1)
     
     r1 = a1 * (1 - ecc * jnp.cos(E))
     r2 = a2 * (1 - ecc * jnp.cos(E))
@@ -140,14 +140,14 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
                                                   plume_direction, widths, n_points))((jnp.arange(len(true_anomaly)), true_anomaly))
     # print((jnp.arange(len(true_anomaly)), true_anomaly))
     # print(jnp.min(particles))
-    print(particles.shape)
+    # print(particles.shape)
     # particles = jnp.reshape(particles, (3, n_particles))
     # print(particles.shape)
     
     particles = jnp.array([jnp.ravel(particles[:, 0, :]),
                            jnp.ravel(particles[:, 1, :]),
                            jnp.ravel(particles[:, 2, :])])
-    print(particles.shape)
+    # print(particles.shape)
     rotation = jnp.matmul(jnp.matmul(rotate_z(jnp.deg2rad(asc_node)), 
                                      rotate_x(jnp.deg2rad(incl))), 
                           rotate_z(jnp.deg2rad(arg_periastron)))
@@ -157,7 +157,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     particles = particles2.T
     # particles = particles2
         
-    print("done")
+    # print("done")
     return 60 * 60 * 180 / (2 * jnp.pi) * jnp.arctan(particles / (distance * 3.086e13))
 
 def plot_spiral(particles):
@@ -313,16 +313,16 @@ p2 = a2 * (1 - eccentricity**2)
 n_orbits = 2 
 phase = 0.5
 
-t1 = time.time()
-particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-print(time.time() - t1)
+# t1 = time.time()
+# particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
+# print(time.time() - t1)
 
-plot_spiral(particles)
+# plot_spiral(particles)
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
 # ax.scatter(particles[0, :], particles[1, :], particles[2, :])
 
-# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
+spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
