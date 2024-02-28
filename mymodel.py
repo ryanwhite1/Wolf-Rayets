@@ -173,7 +173,8 @@ def plot_spiral(particles):
 
     H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
     
-    H = gaussian_filter(H, 3)
+    # H = np.maximum(H, 4)
+    H = gaussian_filter(H, 2)
     H = H.T
     X, Y = np.meshgrid(xedges, yedges)
     
@@ -287,7 +288,7 @@ turn_off = 150          # true anomaly (degrees)
 # # below are rough params for WR 112
 # m1 = 15                  # solar masses
 # m2 = 10                  # solar masses
-# eccentricity = 0.1
+# eccentricity = 0.
 # inclination = 100        # degrees
 # asc_node = 75          # degrees
 # arg_periastron = 170      # degrees
@@ -299,6 +300,22 @@ turn_off = 150          # true anomaly (degrees)
 # windspeed2 = 2400       # km/s
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
+
+# # below are rough params for WR 140
+# m1 = 8.4                  # solar masses
+# m2 = 20                  # solar masses
+# eccentricity = 0.9
+# inclination = 119        # degrees
+# asc_node = 349          # degrees
+# arg_periastron = 42.3      # degrees
+# cone_open_angle = 80   # degrees (full opening angle)
+# period = 7.9            # years
+# period_s = period * yr2day * 24 * 60 * 60
+# distance = 5600         # pc
+# windspeed1 = 2600       # km/s
+# windspeed2 = 2400       # km/s
+# turn_on = -135          # true anomaly (degrees)
+# turn_off = 135          # true anomaly (degrees)
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -328,7 +345,7 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 1
+n_orbits = 2
 phase = 0.5
 
 t1 = time.time()
