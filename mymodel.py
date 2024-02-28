@@ -108,7 +108,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
-    theta = 2 * jnp.pi * jnp.linspace(phase, n_orbits + phase, n_points)
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
@@ -119,8 +119,8 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     E, true_anomaly = kepler_solve(times, period, ecc)
     # print(time.time() - t1)
     
-    r1 = a1 * (1 - ecc * jnp.cos(E))
-    r2 = a2 * (1 - ecc * jnp.cos(E))
+    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
     ws_ratio = windspeed1 / windspeed2
     
     
@@ -131,13 +131,13 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     positions1 *= -r1      # position in the orbital frame
     positions2 *=  r2     # position in the orbital frame
     
-    widths = windspeed1 * period * (n_orbits - jnp.arange(len(true_anomaly)) / n_t)
+    widths = windspeed1 * period * (n_orbits - jnp.arange(n_time) / n_t)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
         
     particles = vmap(lambda i_nu: dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, 
-                                                  plume_direction, widths, n_points))((jnp.arange(len(true_anomaly)), true_anomaly))
+                                                  plume_direction, widths, n_points))((jnp.arange(n_time), true_anomaly))
     # print((jnp.arange(len(true_anomaly)), true_anomaly))
     # print(jnp.min(particles))
     # print(particles.shape)
@@ -174,6 +174,7 @@ def plot_spiral(particles):
     use_inds = np.where((x != 0) & (y != 0))
     x = x[use_inds]
     y = y[use_inds]
+    
 
     H, xedges, yedges = np.histogram2d(x, y, bins=im_size)
     
@@ -310,19 +311,19 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 2 
-phase = 0.5
+n_orbits = 1
+phase = 0.2
 
-# t1 = time.time()
-# particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-# print(time.time() - t1)
+t1 = time.time()
+particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
+print(time.time() - t1)
 
-# plot_spiral(particles)
+plot_spiral(particles)
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
 # ax.scatter(particles[0, :], particles[1, :], particles[2, :])
 
-spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
+# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
