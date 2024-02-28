@@ -124,10 +124,10 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     positions1 = jnp.array([jnp.cos(true_anomaly), 
                             jnp.sin(true_anomaly), 
-                            jnp.zeros(len(true_anomaly))])
+                            jnp.zeros(n_time)])
     positions2 = jnp.copy(positions1)
     positions1 *= -r1      # position in the orbital frame
-    positions2 *= r2     # position in the orbital frame
+    positions2 *=  r2     # position in the orbital frame
     
     widths = windspeed1 * period * (n_orbits - jnp.arange(n_time) / n_t)
     
@@ -307,8 +307,8 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 1
-phase = 0.2
+n_orbits = 2
+phase = 0.5
 
 t1 = time.time()
 particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
