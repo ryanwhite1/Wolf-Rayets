@@ -77,16 +77,10 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
                         jnp.sin(open_angle) * jnp.cos(theta)])
     circle *= widths[i]
     angle_x = jnp.arctan2(direction[1], direction[0])
-    circle = jnp.matmul(rotate_z(angle_x), circle)
+    circle = rotate_z(angle_x) @ circle
     
     circle *= turned_on * turned_off
     return circle
-
-
-@jit
-def rotate_particles(arr1, arr2, i, rotation):
-    mask = jnp.arange(arr1.shape[0]) == i
-    return jnp.where(mask, jnp.matmul(rotation, arr2[:, i]), arr1)
 
 
 # @jit
@@ -141,13 +135,9 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
                            jnp.ravel(particles[:, 1, :]),
                            jnp.ravel(particles[:, 2, :])])
 
-    rotation = jnp.matmul(jnp.matmul(rotate_z(jnp.deg2rad(-asc_node)), 
-                                     rotate_x(jnp.deg2rad(-incl))), 
-                          rotate_z(jnp.deg2rad(-arg_periastron)))
-
-    
-    particles = vmap(lambda i: jnp.matmul(rotation, particles[:, i]))(jnp.arange(n_particles))
-    particles = particles.T
+    particles = rotate_z(jnp.deg2rad(-asc_node)) @ (
+            rotate_x(jnp.deg2rad(-incl)) @ (
+            rotate_z(jnp.deg2rad(-arg_periastron)) @ particles))
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13))
 
