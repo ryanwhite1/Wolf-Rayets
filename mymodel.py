@@ -173,13 +173,16 @@ def plot_spiral(particles):
 
     H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
     
-    H = gaussian_filter(H, 1)
+    H = gaussian_filter(H, 3)
     H = H.T
     X, Y = np.meshgrid(xedges, yedges)
     
     fig, ax = plt.subplots()
     
-    ax.pcolormesh(X, Y, H)
+    # ax.pcolormesh(X, Y, H)
+    import matplotlib.colors as cols
+    # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
+    ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2))
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
 def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
@@ -265,6 +268,7 @@ c = 299792458
 yr2day = 365.25
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 
+# below are rough params for Apep 
 m1 = 15                  # solar masses
 m2 = 10                  # solar masses
 eccentricity = 0.7
@@ -279,6 +283,23 @@ windspeed1 = 700       # km/s
 windspeed2 = 2400       # km/s
 turn_on = -114          # true anomaly (degrees)
 turn_off = 150          # true anomaly (degrees)
+
+# # below are rough params for WR 112
+# m1 = 15                  # solar masses
+# m2 = 10                  # solar masses
+# eccentricity = 0.1
+# inclination = 100        # degrees
+# asc_node = 75          # degrees
+# arg_periastron = 170      # degrees
+# cone_open_angle = 110   # degrees (full opening angle)
+# period = 19            # years
+# period_s = period * yr2day * 24 * 60 * 60
+# distance = 2400         # pc
+# windspeed1 = 700       # km/s
+# windspeed2 = 2400       # km/s
+# turn_on = -180          # true anomaly (degrees)
+# turn_off = 180          # true anomaly (degrees)
+
 
 m1, m2 = m1 * M_odot, m2 * M_odot
 M = m1 + m2
@@ -307,7 +328,7 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 2
+n_orbits = 1
 phase = 0.5
 
 t1 = time.time()
