@@ -138,42 +138,10 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     particles = rotate_z(jnp.deg2rad(-asc_node)) @ (
             rotate_x(jnp.deg2rad(-incl)) @ (
             rotate_z(jnp.deg2rad(-arg_periastron)) @ particles))
-    
-    
-    
-    ### now calculate densities from azimuthal and orbital variations
-    
-    # start with azimuthal variation
-    densest_angle = 180
-    # % densest angle = 230 -30 +20
-    # % densest_angle = 180 fixed, used in paper
-    sd = 80
-    # % sd = 60 -10 +30;
-    # % sd = 80 -20 +20;
-    dist_chi = jnp.min(jnp.array([abs(theta / jnp.pi * 180 - densest_angle), 
-                    abs(theta / jnp.pi * 180 + 360 - densest_angle), 
-                    abs(theta / jnp.pi * 180 - 360 - densest_angle)]), axis=0)
-    d1 = jnp.exp(-((dist_chi / 180 * jnp.pi) / (sd / 180 * jnp.pi))**2 )
-    
-    # now do orbital variation
-    # % Double Gaussian
-    sd = 40;
-    # % sd = 40 -10 +30
-    
-    dist_theta1 = jnp.min(jnp.array([abs(true_anomaly / jnp.pi * 180 - turn_on),
-                       abs(true_anomaly / jnp.pi * 180 + 360 - turn_on),
-                       abs(true_anomaly / jnp.pi * 180 - 360 - turn_on)]), axis=0)
-    dist_theta2 = jnp.min(jnp.array([abs(true_anomaly / jnp.pi * 180 - turn_off),
-                       abs(true_anomaly / jnp.pi * 180 + 360 - turn_off),
-                       abs(true_anomaly / jnp.pi * 180 - 360 - turn_off)]), axis=0)
-    
-    d2 = jnp.exp(-((dist_theta1 / 180 * jnp.pi) / (sd / 180 * jnp.pi))**2) + jnp.exp(-((dist_theta2 / 180 * jnp.pi) / (sd / 180 * jnp.pi))**2)
-    
-    
 
-    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), (d1, d2)
+    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13))
 
-def plot_spiral(particles, density):
+def plot_spiral(particles):
     '''
     '''
     im_size = 256
@@ -194,19 +162,6 @@ def plot_spiral(particles, density):
     
 
     H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
-    
-    
-    d1, d2 = density
-    # print(d1.shape, d2.shape)
-    for i in range(n_points):
-        imy = int(jnp.fix(particles[0, i] / im_size + im_size / 2))
-        imx = int(im_size - jnp.fix(particles[1, i] / im_size + im_size / 2))
-        # print(imx, imy)
-        # print(H.shape)
-        
-        H[imy, imx] += d1[i%400] * d2[int(np.floor(i / n_points))]
-    
-    
     
     # H = np.maximum(H, 4)
     H = gaussian_filter(H, 2)
@@ -304,21 +259,21 @@ c = 299792458
 yr2day = 365.25
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 
-# # below are rough params for Apep 
-# m1 = 15                  # solar masses
-# m2 = 10                  # solar masses
-# eccentricity = 0.7
-# inclination = 25        # degrees
-# asc_node = -88          # degrees
-# arg_periastron = 0      # degrees
-# cone_open_angle = 125   # degrees (full opening angle)
-# period = 125            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 2400         # pc
-# windspeed1 = 700       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -114          # true anomaly (degrees)
-# turn_off = 150          # true anomaly (degrees)
+# below are rough params for Apep 
+m1 = 15                  # solar masses
+m2 = 10                  # solar masses
+eccentricity = 0.7
+inclination = 25        # degrees
+asc_node = -88          # degrees
+arg_periastron = 0      # degrees
+cone_open_angle = 125   # degrees (full opening angle)
+period = 125            # years
+period_s = period * yr2day * 24 * 60 * 60
+distance = 2400         # pc
+windspeed1 = 700       # km/s
+windspeed2 = 2400       # km/s
+turn_on = -114          # true anomaly (degrees)
+turn_off = 150          # true anomaly (degrees)
 
 # # below are rough params for WR 112
 # m1 = 15                  # solar masses
@@ -336,21 +291,21 @@ kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
 
-# below are rough params for WR 140
-m1 = 8.4                  # solar masses
-m2 = 20                  # solar masses
-eccentricity = 0.9
-inclination = 119        # degrees
-asc_node = 349          # degrees
-arg_periastron = 180-42.3      # degrees
-cone_open_angle = 80   # degrees (full opening angle)
-period = 7.9            # years
-period_s = period * yr2day * 24 * 60 * 60
-distance = 5600         # pc
-windspeed1 = 2600       # km/s
-windspeed2 = 2400       # km/s
-turn_on = -135          # true anomaly (degrees)
-turn_off = 135          # true anomaly (degrees)
+# # below are rough params for WR 140
+# m1 = 8.4                  # solar masses
+# m2 = 20                  # solar masses
+# eccentricity = 0.9
+# inclination = 119        # degrees
+# asc_node = 349          # degrees
+# arg_periastron = 42.3      # degrees
+# cone_open_angle = 80   # degrees (full opening angle)
+# period = 7.9            # years
+# period_s = period * yr2day * 24 * 60 * 60
+# distance = 5600         # pc
+# windspeed1 = 2600       # km/s
+# windspeed2 = 2400       # km/s
+# turn_on = -135          # true anomaly (degrees)
+# turn_off = 135          # true anomaly (degrees)
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -380,15 +335,15 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 10
+n_orbits = 2
 phase = 0.5
 
 t1 = time.time()
-particles, density = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
 print(time.time() - t1)
 
-plot_spiral(particles, density)
+plot_spiral(particles)
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
