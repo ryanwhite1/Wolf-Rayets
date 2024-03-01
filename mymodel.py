@@ -279,17 +279,17 @@ kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 m1 = 15                  # solar masses
 m2 = 10                  # solar masses
 eccentricity = 0.1
-inclination = 100        # degrees
-asc_node = 20          # degrees
-arg_periastron = 160      # degrees
+inclination = 75        # degrees
+asc_node = 0          # degrees
+arg_periastron = 20      # degrees
 cone_open_angle = 110   # degrees (full opening angle)
 period = 32.5            # years
 period_s = period * yr2day * 24 * 60 * 60
 distance = 3500         # pc
 windspeed1 = 700       # km/s
 windspeed2 = 2400       # km/s
-turn_on = -170          # true anomaly (degrees)
-turn_off = 170          # true anomaly (degrees)
+turn_on = -140          # true anomaly (degrees)
+turn_off = 140          # true anomaly (degrees)
 
 
 # # below are rough params for WR 112
@@ -352,8 +352,8 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 3
-phase = 0.8
+n_orbits = 4
+phase = 0.2
 
 t1 = time.time()
 particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
