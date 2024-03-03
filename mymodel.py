@@ -102,10 +102,10 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
-    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    # power = 0.5
-    # theta = jnp.linspace(0, 1, n_points//2)**power
-    # theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) + jnp.pi/2
+    # theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    power = 0.5
+    theta = jnp.linspace(0, 1, n_points//2)**power
+    theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) + jnp.pi/2
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
