@@ -95,14 +95,17 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
         pc
     '''
     phase = phase%1
-    n_t = 1000       # circles per orbital period
-    n_points = 400   # points per circle
+    n_t = 5000       # circles per orbital period
+    n_points = 600   # points per circle
     n_particles = jnp.round(n_points * n_t * n_orbits)
     n_time = jnp.round(n_t * n_orbits)
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
     theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    # power = 0.5
+    # theta = jnp.linspace(0, 1, n_points//2)**power
+    # theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) + jnp.pi/2
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
@@ -164,7 +167,7 @@ def plot_spiral(particles):
     H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
     
     # H = np.maximum(H, 4)
-    H = gaussian_filter(H, 2)
+    H = gaussian_filter(H, 3)
     H = H.T
     X, Y = np.meshgrid(xedges, yedges)
     
@@ -275,21 +278,21 @@ kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 # turn_on = -114          # true anomaly (degrees)
 # turn_off = 150          # true anomaly (degrees)
 
-# below are rough params for WR 48a
-m1 = 15                  # solar masses
-m2 = 10                  # solar masses
-eccentricity = 0.1
-inclination = 75        # degrees
-asc_node = 0          # degrees
-arg_periastron = 20      # degrees
-cone_open_angle = 110   # degrees (full opening angle)
-period = 32.5            # years
-period_s = period * yr2day * 24 * 60 * 60
-distance = 3500         # pc
-windspeed1 = 700       # km/s
-windspeed2 = 2400       # km/s
-turn_on = -140          # true anomaly (degrees)
-turn_off = 140          # true anomaly (degrees)
+# # below are rough params for WR 48a
+# m1 = 15                  # solar masses
+# m2 = 10                  # solar masses
+# eccentricity = 0.1
+# inclination = 75        # degrees
+# asc_node = 0          # degrees
+# arg_periastron = 20      # degrees
+# cone_open_angle = 110   # degrees (full opening angle)
+# period = 32.5            # years
+# period_s = period * yr2day * 24 * 60 * 60
+# distance = 3500         # pc
+# windspeed1 = 700       # km/s
+# windspeed2 = 2400       # km/s
+# turn_on = -140          # true anomaly (degrees)
+# turn_off = 140          # true anomaly (degrees)
 
 
 # # below are rough params for WR 112
@@ -308,21 +311,21 @@ turn_off = 140          # true anomaly (degrees)
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
 
-# # below are rough params for WR 140
-# m1 = 8.4                  # solar masses
-# m2 = 20                  # solar masses
-# eccentricity = 0.9
-# inclination = 119        # degrees
-# asc_node = 349          # degrees
-# arg_periastron = 42.3      # degrees
-# cone_open_angle = 80   # degrees (full opening angle)
-# period = 7.9            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 5600         # pc
-# windspeed1 = 2600       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -135          # true anomaly (degrees)
-# turn_off = 135          # true anomaly (degrees)
+# below are rough params for WR 140
+m1 = 8.4                  # solar masses
+m2 = 20                  # solar masses
+eccentricity = 0.9
+inclination = 180-119        # degrees
+asc_node = 349-180          # degrees
+arg_periastron = 46      # degrees
+cone_open_angle = 80   # degrees (full opening angle)
+period = 7.9            # years
+period_s = period * yr2day * 24 * 60 * 60
+distance = 5600         # pc
+windspeed1 = 2600       # km/s
+windspeed2 = 2400       # km/s
+turn_on = -135          # true anomaly (degrees)
+turn_off = 135          # true anomaly (degrees)
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -352,8 +355,8 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 4
-phase = 0.2
+n_orbits = 10
+phase = 0.6
 
 t1 = time.time()
 particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
