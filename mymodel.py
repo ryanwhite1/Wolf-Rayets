@@ -72,14 +72,38 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     turned_off = jnp.heaviside(turn_off_rad - transf_nu, 0)
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
     # print(direction)
-    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
-                        jnp.sin(open_angle) * jnp.sin(theta), 
-                        jnp.sin(open_angle) * jnp.cos(theta)])
+    # circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
+    #                     jnp.sin(open_angle) * jnp.sin(theta), 
+    #                     jnp.sin(open_angle) * jnp.cos(theta)])
+    
+    sd = 40
+    
+    prop = 1 - jnp.exp(-(((transf_nu*180/jnp.pi + 180) - 180) / sd)**2)
+    
+    # num = jnp.round((len(theta))
+    num = jnp.array([1 / (1 - prop)]).astype(int)[0]        # replace every num points
+    # replace = jnp.arange(0, len(theta), num).astype(int)
+    # arr = jnp.put(jnp.ones(len(theta)), replace, 0)
+    
+    
+    # num = jnp.array([1 - prop*len(theta)]).astype(int)[0]
+    
+    arr = jnp.where(jnp.arange(len(theta))%num == 0, jnp.zeros(len(theta)), jnp.ones(len(theta)))
+    
+    # arr = jnp.ones(len(theta))
+    
+    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle) * arr, 
+                        jnp.sin(open_angle) * jnp.sin(theta) * arr, 
+                        jnp.sin(open_angle) * jnp.cos(theta) * arr])
+    
     circle *= widths[i]
     angle_x = jnp.arctan2(direction[1], direction[0])
     circle = rotate_z(angle_x) @ circle
     
     circle *= turned_on * turned_off
+    
+    
+    
     return circle
 
 
@@ -105,7 +129,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     # theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     power = 0.5
     theta = jnp.linspace(0, 1, n_points//2)**power
-    theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) + jnp.pi/2
+    theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) - jnp.pi/2
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
@@ -167,16 +191,17 @@ def plot_spiral(particles):
     H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
     
     # H = np.maximum(H, 4)
-    H = gaussian_filter(H, 3)
+    H = gaussian_filter(H, 2)
     H = H.T
     X, Y = np.meshgrid(xedges, yedges)
     
     fig, ax = plt.subplots()
     
     # ax.pcolormesh(X, Y, H)
+    ax.pcolormesh(X, Y, H, cmap='hot')
     import matplotlib.colors as cols
     # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
-    ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2))
+    # ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2), cmap='hot')
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
 def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
@@ -262,21 +287,21 @@ c = 299792458
 yr2day = 365.25
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 
-# # below are rough params for Apep 
-# m1 = 15                  # solar masses
-# m2 = 10                  # solar masses
-# eccentricity = 0.7
-# inclination = 25        # degrees
-# asc_node = -88          # degrees
-# arg_periastron = 0      # degrees
-# cone_open_angle = 125   # degrees (full opening angle)
-# period = 125            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 2400         # pc
-# windspeed1 = 700       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -114          # true anomaly (degrees)
-# turn_off = 150          # true anomaly (degrees)
+# below are rough params for Apep 
+m1 = 15                  # solar masses
+m2 = 10                  # solar masses
+eccentricity = 0.7
+inclination = 25        # degrees
+asc_node = -88          # degrees
+arg_periastron = 0      # degrees
+cone_open_angle = 125   # degrees (full opening angle)
+period = 125            # years
+period_s = period * yr2day * 24 * 60 * 60
+distance = 2400         # pc
+windspeed1 = 700       # km/s
+windspeed2 = 2400       # km/s
+turn_on = -114          # true anomaly (degrees)
+turn_off = 150          # true anomaly (degrees)
 
 # # below are rough params for WR 48a
 # m1 = 15                  # solar masses
@@ -314,14 +339,14 @@ kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 # below are rough params for WR 140
 m1 = 8.4                  # solar masses
 m2 = 20                  # solar masses
-eccentricity = 0.9
-inclination = 180-119        # degrees
-asc_node = 349-180          # degrees
-arg_periastron = 46      # degrees
+eccentricity = 0.8964
+inclination = 119.6        # degrees
+asc_node = 0          # degrees
+arg_periastron = 180-46.8      # degrees
 cone_open_angle = 80   # degrees (full opening angle)
-period = 7.9            # years
+period = 2896.35/365.25            # years
 period_s = period * yr2day * 24 * 60 * 60
-distance = 5600         # pc
+distance = 1670         # pc
 windspeed1 = 2600       # km/s
 windspeed2 = 2400       # km/s
 turn_on = -135          # true anomaly (degrees)
@@ -355,7 +380,7 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 10
+n_orbits = 1
 phase = 0.6
 
 t1 = time.time()
