@@ -81,7 +81,7 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     prop = 1 - jnp.exp(-(((transf_nu*180/jnp.pi + 180) - 180) / sd)**2)
     
     # num = jnp.round((len(theta))
-    num = jnp.array([1 / (1 - prop)]).astype(int)[0]        # replace every num points
+    num = jnp.array([1 / (1 - jnp.min(jnp.array([prop, 1])))]).astype(int)[0]        # replace every num points
     # replace = jnp.arange(0, len(theta), num).astype(int)
     # arr = jnp.put(jnp.ones(len(theta)), replace, 0)
     
@@ -380,8 +380,8 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 1
-phase = 0.6
+n_orbits = 10
+phase = 0.8
 
 t1 = time.time()
 particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
