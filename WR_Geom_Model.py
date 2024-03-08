@@ -13,6 +13,7 @@ import jax.scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter
+import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 
@@ -172,35 +173,17 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
 @jit
 def spiral_grid(particles):
     im_size = 256
-    # im_res = 1
-    # _, n_points = particles.shape
-    n_points = 1000 * 400
     
     x = particles[0, :]
     y = particles[1, :]
     
-    use_inds = jnp.where((x != 0) & (y != 0))
-    x = x[use_inds]
-    y = y[use_inds]
-    
-    
-    # ii = np.arange(int(0.5*len(x)), len(x))
-    # x = x[ii]
-    # y = y[ii]
+    weights = jnp.ones(len(x))
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
 
-    # H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size)
-    
-    X = jnp.linspace(jnp.min(x), jnp.max(x), im_size)
-    Y = jnp.linspace(jnp.min(y), jnp.max(y), im_size)
-    
-    XX, YY = jnp.meshgrid(X, Y)
-    positions = jnp.vstack([XX.ravel(), YY.ravel()])
-    
-    values = jnp.vstack([x, y])
-    kernel = stats.gaussian_kde(values, bw_method=1)
-    H = kernel.evaluate(positions).T
-    H = jnp.reshape(H, (im_size, im_size))
+    H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
     
     return X, Y, H
 
