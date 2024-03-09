@@ -9,25 +9,27 @@ import numpy as np
 import jax.numpy as jnp
 from jax import jit, vmap
 import jax.lax as lax
+import jax.scipy.stats as stats
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter
+import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 
-@jit
+
 def rotate_x(angle):
     arr = jnp.array([[1, 0, 0],
                      [0, jnp.cos(angle), jnp.sin(angle)],
                      [0, -jnp.sin(angle), jnp.cos(angle)]])
     return arr
-@jit
+
 def rotate_y(angle):
     arr = jnp.array([[jnp.cos(angle), 0, -jnp.sin(angle)],
                      [0, 1, 0],
                      [jnp.sin(angle), 0, jnp.cos(angle)]])
     return arr
-@jit
+
 def rotate_z(angle):
     arr = jnp.array([[jnp.cos(angle), jnp.sin(angle), 0],
                      [-jnp.sin(angle), jnp.cos(angle), 0],
@@ -35,13 +37,13 @@ def rotate_z(angle):
     return arr
 
 
-@jit
+
 def kepler_solve_sub_sub(i, E0_ecc_mi):
     E0, ecc, mi = E0_ecc_mi
     return (E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0)), ecc, mi)
 
 
-@jit
+
 def kepler_solve_sub(i, ecc, tol, M):
     E0 = M[i]
     # Newton's formula to solve for eccentric anomaly
@@ -76,7 +78,7 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     #                     jnp.sin(open_angle) * jnp.sin(theta), 
     #                     jnp.sin(open_angle) * jnp.cos(theta)])
     
-    sd = 40
+    sd = 0
     
     prop = 1 - jnp.exp(-(((transf_nu*180/jnp.pi + 180) - 180) / sd)**2)
     
@@ -119,15 +121,17 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
         pc
     '''
     phase = phase%1
-    n_t = 5000       # circles per orbital period
-    n_points = 600   # points per circle
+    n_t = 1000       # circles per orbital period
+    n_points = 400   # points per circle
     n_particles = jnp.round(n_points * n_t * n_orbits)
     n_time = jnp.round(n_t * n_orbits)
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
+    weights = jnp.ones(n_particles)
+    
     # theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    power = 0.5
+    power = 1
     theta = jnp.linspace(0, 1, n_points//2)**power
     theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) - jnp.pi/2
     
@@ -166,20 +170,55 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
             rotate_x(jnp.deg2rad(-incl)) @ (
             rotate_z(jnp.deg2rad(-arg_periastron)) @ particles))
 
-    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13))
+    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), weights
+
+@jit
+def spiral_grid(particles, weights):
+    im_size = 256
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    
+
+    H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    
+    sigma = 4
+    shape = (im_size - 1) // 2
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * sigma * sigma))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    return X, Y, H
+
+def plot_spiral_two(X, Y, H):
+    fig, ax = plt.subplots()
+    
+    ax.pcolormesh(X, Y, H, cmap='hot')
+    # import matplotlib.colors as cols
+    # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
+    # ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2), cmap='hot')
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+
 
 def plot_spiral(particles):
     '''
     '''
     im_size = 256
     # im_res = 1
-    _, n_points = particles.shape
+    # _, n_points = particles.shape
+    n_points = 1000 * 400
     
-    im = np.zeros((im_size, im_size))
+    # im = jnp.zeros((im_size, im_size))
     x = particles[0, :]
     y = particles[1, :]
     
-    use_inds = np.where((x != 0) & (y != 0))
+    use_inds = jnp.where((x != 0) & (y != 0))
     x = x[use_inds]
     y = y[use_inds]
     
@@ -188,12 +227,23 @@ def plot_spiral(particles):
     # y = y[ii]
     
 
-    H, xedges, yedges = np.histogram2d(y, x, bins=im_size)
+    # H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size)
+    
+    X = jnp.linspace(jnp.min(x), jnp.max(x), im_size)
+    Y = jnp.linspace(jnp.min(y), jnp.max(y), im_size)
+    
+    XX, YY = jnp.meshgrid(X, Y)
+    positions = jnp.vstack([XX.ravel(), YY.ravel()])
+    
+    values = jnp.vstack([x, y])
+    kernel = stats.gaussian_kde(values, bw_method=1)
+    H = kernel.evaluate(positions).T
+    H = jnp.reshape(H, (im_size, im_size))
     
     # H = np.maximum(H, 4)
-    H = gaussian_filter(H, 2)
-    H = H.T
-    X, Y = np.meshgrid(xedges, yedges)
+    # H = gaussian_filter(H, 2)
+    # H = H.T
+    # X, Y = jnp.meshgrid(xedges, yedges)
     
     fig, ax = plt.subplots()
     
@@ -336,21 +386,21 @@ turn_off = 150          # true anomaly (degrees)
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
 
-# below are rough params for WR 140
-m1 = 8.4                  # solar masses
-m2 = 20                  # solar masses
-eccentricity = 0.8964
-inclination = 119.6        # degrees
-asc_node = 0          # degrees
-arg_periastron = 180-46.8      # degrees
-cone_open_angle = 80   # degrees (full opening angle)
-period = 2896.35/365.25            # years
-period_s = period * yr2day * 24 * 60 * 60
-distance = 1670         # pc
-windspeed1 = 2600       # km/s
-windspeed2 = 2400       # km/s
-turn_on = -135          # true anomaly (degrees)
-turn_off = 135          # true anomaly (degrees)
+# # below are rough params for WR 140
+# m1 = 8.4                  # solar masses
+# m2 = 20                  # solar masses
+# eccentricity = 0.8964
+# inclination = 119.6        # degrees
+# asc_node = 0          # degrees
+# arg_periastron = 180-46.8      # degrees
+# cone_open_angle = 80   # degrees (full opening angle)
+# period = 2896.35/365.25            # years
+# period_s = period * yr2day * 24 * 60 * 60
+# distance = 1670         # pc
+# windspeed1 = 2600       # km/s
+# windspeed2 = 2400       # km/s
+# turn_on = -135          # true anomaly (degrees)
+# turn_off = 135          # true anomaly (degrees)
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -380,15 +430,20 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.plot(x2, y2)
 # ax.set_aspect('equal')
 
-n_orbits = 10
-phase = 0.8
+n_orbits = 1
+phase = 0.6
 
 t1 = time.time()
-particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-print(time.time() - t1)
 
-plot_spiral(particles)
+
+# plot_spiral(particles)
+
+X, Y, H = spiral_grid(particles, weights)
+print(time.time() - t1)
+plot_spiral_two(X, Y, H)
+
 # fig = plt.figure()
 # ax = fig.add_subplot(projection='3d')
 
