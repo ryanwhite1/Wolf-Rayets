@@ -128,6 +128,8 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
+    weights = jnp.ones(n_particles)
+    
     # theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     power = 1
     theta = jnp.linspace(0, 1, n_points//2)**power
@@ -168,16 +170,15 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
             rotate_x(jnp.deg2rad(-incl)) @ (
             rotate_z(jnp.deg2rad(-arg_periastron)) @ particles))
 
-    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13))
+    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), weights
 
 @jit
-def spiral_grid(particles):
+def spiral_grid(particles, weights):
     im_size = 256
     
     x = particles[0, :]
     y = particles[1, :]
     
-    weights = jnp.ones(len(x))
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
 
@@ -185,14 +186,21 @@ def spiral_grid(particles):
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
     
+    sigma = 4
+    shape = (im_size - 1) // 2
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * sigma * sigma))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
     return X, Y, H
 
 def plot_spiral_two(X, Y, H):
     fig, ax = plt.subplots()
     
-    # ax.pcolormesh(X, Y, H)
     ax.pcolormesh(X, Y, H, cmap='hot')
-    import matplotlib.colors as cols
+    # import matplotlib.colors as cols
     # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
     # ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2), cmap='hot')
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
@@ -423,16 +431,17 @@ p2 = a2 * (1 - eccentricity**2)
 # ax.set_aspect('equal')
 
 n_orbits = 1
-phase = 0.8
+phase = 0.6
 
 t1 = time.time()
-particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-print(time.time() - t1)
+
 
 # plot_spiral(particles)
 
-X, Y, H = spiral_grid(particles)
+X, Y, H = spiral_grid(particles, weights)
+print(time.time() - t1)
 plot_spiral_two(X, Y, H)
 
 # fig = plt.figure()
