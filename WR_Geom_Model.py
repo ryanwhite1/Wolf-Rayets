@@ -74,29 +74,9 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     turned_off = jnp.heaviside(turn_off_rad - transf_nu, 0)
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
     # print(direction)
-    # circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
-    #                     jnp.sin(open_angle) * jnp.sin(theta), 
-    #                     jnp.sin(open_angle) * jnp.cos(theta)])
-    
-    sd = 0
-    
-    prop = 1 - jnp.exp(-(((transf_nu*180/jnp.pi + 180) - 180) / sd)**2)
-    
-    # num = jnp.round((len(theta))
-    num = jnp.array([1 / (1 - jnp.min(jnp.array([prop, 1])))]).astype(int)[0]        # replace every num points
-    # replace = jnp.arange(0, len(theta), num).astype(int)
-    # arr = jnp.put(jnp.ones(len(theta)), replace, 0)
-    
-    
-    # num = jnp.array([1 - prop*len(theta)]).astype(int)[0]
-    
-    arr = jnp.where(jnp.arange(len(theta))%num == 0, jnp.zeros(len(theta)), jnp.ones(len(theta)))
-    
-    # arr = jnp.ones(len(theta))
-    
-    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle) * arr, 
-                        jnp.sin(open_angle) * jnp.sin(theta) * arr, 
-                        jnp.sin(open_angle) * jnp.cos(theta) * arr])
+    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
+                        jnp.sin(open_angle) * jnp.sin(theta), 
+                        jnp.sin(open_angle) * jnp.cos(theta)])
     
     circle *= widths[i]
     angle_x = jnp.arctan2(direction[1], direction[0])
@@ -104,7 +84,19 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     
     circle *= turned_on * turned_off
     
+    # now calculate the weights of each point according the their orbital variation
+    sd = 0
+    prop_orb = 1 - jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / sd)**2) # weight proportion from orbital variation
     
+    # now from azimuthal variation
+    sd = 60
+    prop_az = 1 - jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270 ) / (sd))**2)
+    weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
+    
+    circle = jnp.array([circle[0, :], 
+                        circle[1, :], 
+                        circle[2, :],
+                        weights])
     
     return circle
 
@@ -128,12 +120,9 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     
     open_angle = jnp.deg2rad(cone_angle) / 2
     
-    weights = jnp.ones(n_particles)
+    # weights = jnp.ones(n_particles)
     
-    # theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    power = 1
-    theta = jnp.linspace(0, 1, n_points//2)**power
-    theta = jnp.pi * jnp.ravel(jnp.array([theta, -theta])) - jnp.pi/2
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
@@ -161,6 +150,10 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
         
     particles = vmap(lambda i_nu: dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, 
                                                   plume_direction, widths, n_points))((jnp.arange(n_time), true_anomaly))
+
+    weights = particles[:, 3, :].flatten()
+    particles = particles[:, :3, :]
+    
     
     particles = jnp.array([jnp.ravel(particles[:, 0, :]),
                            jnp.ravel(particles[:, 1, :]),
@@ -187,7 +180,7 @@ def spiral_grid(particles, weights):
     H = H.T
     
     sigma = 4
-    shape = (im_size - 1) // 2
+    shape = 30 // 2  # choose just large enough grid for our gaussian
     gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
     gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * sigma * sigma))
     gxy /= gxy.sum()
