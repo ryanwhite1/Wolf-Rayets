@@ -66,7 +66,8 @@ def kepler_solve(t, P, ecc):
 
 
 @jit 
-def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_direction, widths, n_points):
+def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
+                   theta, open_angle, plume_direction, widths, n_points):
     i, nu = i_nu
     x = nu / (2 * jnp.pi)
     transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))
@@ -85,12 +86,11 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
     circle *= turned_on * turned_off
     
     # now calculate the weights of each point according the their orbital variation
-    sd = 0
-    prop_orb = 1 - jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / sd)**2) # weight proportion from orbital variation
+    prop_orb = 1 - (1 - orb_amp) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / orb_sd)**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
-    sd = 60
-    prop_az = 1 - jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270 ) / (sd))**2)
+    prop_az = 1 - (1 - az_amp) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270) / (az_sd))**2)
+    
     weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
     
     circle = jnp.array([circle[0, :], 
@@ -103,7 +103,7 @@ def dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, plume_dir
 
 # @jit
 def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_periastron, 
-               turn_off, turn_on, cone_angle, distance, phase, n_orbits):
+               turn_off, turn_on, orb_sd, orb_amp, az_sd, az_amp, cone_angle, distance, phase, n_orbits):
     '''
     Parameters
     ----------
@@ -148,8 +148,8 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
         
-    particles = vmap(lambda i_nu: dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, theta, open_angle, 
-                                                  plume_direction, widths, n_points))((jnp.arange(n_time), true_anomaly))
+    particles = vmap(lambda i_nu: dust_plume_sub(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
+                                                 theta, open_angle, plume_direction, widths, n_points))((jnp.arange(n_time), true_anomaly))
 
     weights = particles[:, 3, :].flatten()
     particles = particles[:, :3, :]
@@ -345,6 +345,7 @@ windspeed1 = 700       # km/s
 windspeed2 = 2400       # km/s
 turn_on = -114          # true anomaly (degrees)
 turn_off = 150          # true anomaly (degrees)
+orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 
 # # below are rough params for WR 48a
 # m1 = 15                  # solar masses
@@ -361,6 +362,7 @@ turn_off = 150          # true anomaly (degrees)
 # windspeed2 = 2400       # km/s
 # turn_on = -140          # true anomaly (degrees)
 # turn_off = 140          # true anomaly (degrees)
+# orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 
 
 # # below are rough params for WR 112
@@ -378,6 +380,7 @@ turn_off = 150          # true anomaly (degrees)
 # windspeed2 = 2400       # km/s
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
+# orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 
 # # below are rough params for WR 140
 # m1 = 8.4                  # solar masses
@@ -394,6 +397,7 @@ turn_off = 150          # true anomaly (degrees)
 # windspeed2 = 2400       # km/s
 # turn_on = -135          # true anomaly (degrees)
 # turn_off = 135          # true anomaly (degrees)
+# orb_sd, orb_amp, az_sd, az_amp = [80, 0, 60, 0]
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -428,7 +432,7 @@ phase = 0.6
 
 t1 = time.time()
 particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
+                        asc_node, arg_periastron, turn_off, turn_on, orb_sd, orb_amp, az_sd, az_amp, cone_open_angle, distance, phase, n_orbits)
 
 
 # plot_spiral(particles)
