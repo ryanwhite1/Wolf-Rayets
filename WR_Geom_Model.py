@@ -166,7 +166,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), weights
 
 @jit
-def spiral_grid(particles, weights, sigma):
+def spiral_grid(particles, weights, sigma, histmax=1):
     im_size = 256
     
     x = particles[0, :]
@@ -178,6 +178,9 @@ def spiral_grid(particles, weights, sigma):
     H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
+    H /= jnp.max(H)
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size))*histmax)
     
     shape = 30 // 2  # choose just large enough grid for our gaussian
     gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
@@ -346,6 +349,7 @@ turn_on = -114          # true anomaly (degrees)
 turn_off = 150          # true anomaly (degrees)
 orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 sigma = 3
+histmax = 1
 
 # # below are rough params for WR 48a
 # m1 = 15                  # solar masses
@@ -364,6 +368,7 @@ sigma = 3
 # turn_off = 140          # true anomaly (degrees)
 # orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 # sigma = 2
+# histmax = 1
 
 
 # # below are rough params for WR 112
@@ -383,6 +388,7 @@ sigma = 3
 # turn_off = 180          # true anomaly (degrees)
 # orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 # sigma = 2
+# histmax = 1
 
 # # below are rough params for WR 140
 # m1 = 8.4                  # solar masses
@@ -401,6 +407,7 @@ sigma = 3
 # turn_off = 135          # true anomaly (degrees)
 # orb_sd, orb_amp, az_sd, az_amp = [80, 0., 60, 0.]
 # sigma = 2
+# histmax = 1
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -440,7 +447,7 @@ particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccent
 
 # plot_spiral(particles)
 
-X, Y, H = spiral_grid(particles, weights, sigma)
+X, Y, H = spiral_grid(particles, weights, sigma, histmax)
 print(time.time() - t1)
 plot_spiral_two(X, Y, H)
 
