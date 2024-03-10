@@ -166,7 +166,7 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), weights
 
 @jit
-def spiral_grid(particles, weights):
+def spiral_grid(particles, weights, sigma):
     im_size = 256
     
     x = particles[0, :]
@@ -179,7 +179,6 @@ def spiral_grid(particles, weights):
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
     
-    sigma = 4
     shape = 30 // 2  # choose just large enough grid for our gaussian
     gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
     gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * sigma * sigma))
@@ -346,6 +345,7 @@ windspeed2 = 2400       # km/s
 turn_on = -114          # true anomaly (degrees)
 turn_off = 150          # true anomaly (degrees)
 orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
+sigma = 3
 
 # # below are rough params for WR 48a
 # m1 = 15                  # solar masses
@@ -363,6 +363,7 @@ orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 # turn_on = -140          # true anomaly (degrees)
 # turn_off = 140          # true anomaly (degrees)
 # orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
+# sigma = 2
 
 
 # # below are rough params for WR 112
@@ -381,6 +382,7 @@ orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 # turn_on = -180          # true anomaly (degrees)
 # turn_off = 180          # true anomaly (degrees)
 # orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
+# sigma = 2
 
 # # below are rough params for WR 140
 # m1 = 8.4                  # solar masses
@@ -397,7 +399,8 @@ orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
 # windspeed2 = 2400       # km/s
 # turn_on = -135          # true anomaly (degrees)
 # turn_off = 135          # true anomaly (degrees)
-# orb_sd, orb_amp, az_sd, az_amp = [80, 0, 60, 0]
+# orb_sd, orb_amp, az_sd, az_amp = [80, 0., 60, 0.]
+# sigma = 2
 
 
 m1, m2 = m1 * M_odot, m2 * M_odot
@@ -437,7 +440,7 @@ particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccent
 
 # plot_spiral(particles)
 
-X, Y, H = spiral_grid(particles, weights)
+X, Y, H = spiral_grid(particles, weights, sigma)
 print(time.time() - t1)
 plot_spiral_two(X, Y, H)
 
