@@ -306,7 +306,7 @@ def plot_orbit(stardata):
     ax.plot(x2, y2)
     ax.set_aspect('equal')
     
-
+# @jit
 def calculate_orbit(stardata):
     ''' Fills out our binary data dictionary with calculated quantities.
     Parameters
@@ -338,20 +338,20 @@ def calculate_orbit(stardata):
 apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
         "eccentricity":0.7, 
-        "inclination":25,       # degrees
-        "asc_node":-88,         # degrees
-        "arg_peri":0,           # degrees
-        "open_angle":125,       # degrees (full opening angle)
-        "period":125,           # years
-        "distance":2400,        # pc
-        "windspeed1":700,       # km/s
-        "windspeed2":2400,      # km/s
-        "turn_on":-114,         # true anomaly (degrees)
-        "turn_off":150,         # true anomaly (degrees)
-        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "inclination":25.,       # degrees
+        "asc_node":-88.,         # degrees
+        "arg_peri":0.,           # degrees
+        "open_angle":125.,       # degrees (full opening angle)
+        "period":125.,           # years
+        "distance":2400.,        # pc
+        "windspeed1":700.,       # km/s
+        "windspeed2":2400.,      # km/s
+        "turn_on":-114.,         # true anomaly (degrees)
+        "turn_off":150.,         # true anomaly (degrees)
+        "orb_sd":0., "orb_amp":0., "az_sd":0., "az_amp":0., 
         "phase":0.6, 
-        "sigma":3,              # sigma for gaussian blur
-        "histmax":1}
+        "sigma":3.,              # sigma for gaussian blur
+        "histmax":1.}
 calculate_orbit(apep)
 
 # below are rough params for WR 48a
@@ -416,22 +416,133 @@ WR140 = {"m1":8.4,                # solar masses
 calculate_orbit(WR140)
 
 
-
-
-
-n_orbits = 1
-phase = 0.6
-
-for i in range(10):
-    t1 = time.time()
-    particles, weights = dust_plume(apep)
+# for i in range(10):
+#     t1 = time.time()
+#     particles, weights = dust_plume(apep)
     
-    X, Y, H = spiral_grid(particles, weights, apep)
-    print(time.time() - t1)
+#     X, Y, H = spiral_grid(particles, weights, apep)
+#     print(time.time() - t1)
+# plot_spiral(X, Y, H)
+
+
+# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
+#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
+
+# @jit
+def log_prior(state):
+    # m1 = jnp.heaviside(state['m1'], 0) * jnp.heaviside(200 - state['m1'], 1)
+    # m2 = jnp.heaviside(state['m2'], 0) * jnp.heaviside(200 - state['m2'], 1)
+    # period = jnp.heaviside(state['period'], 0) * jnp.heaviside(1e3 - state['period'], 1)
+    # eccentricity = jnp.heaviside(state['eccentricity'], 1) * jnp.heaviside(1 - state['eccentricity'], 0)
+    # inclination = jnp.heaviside(360 - state['inclination'], 1) * (1 - jnp.heaviside(-state['inclination'] - 360, 1))
+    # asc_node = jnp.heaviside(360 - state['asc_node'], 1) * (1 - jnp.heaviside(-state['asc_node'] - 360, 1))
+    # arg_peri = jnp.heaviside(360 - state['arg_peri'], 1) * (1 - jnp.heaviside(-state['arg_peri'] - 360, 1))
+    # open_angle = jnp.heaviside(180 - state['open_angle'], 0) * jnp.heaviside(state['open_angle'], 0)
+    # distance = jnp.heaviside(state['distance'], 0)
+    # turn_on = jnp.heaviside(180 + state['turn_on'], 1) * (1 - jnp.heaviside(-state['turn_on'] - 180, 0))
+    # turn_off = jnp.heaviside(180 + state['turn_off'], 1) * (1 - jnp.heaviside(-state['turn_off'] - 180, 0))
+    
+    # return (1. - m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*
+    #         turn_off) * -jnp.inf
+    
+    eccentricity = jnp.heaviside(state[0], 1) * jnp.heaviside(1 - state[0], 0)
+    inclination = jnp.heaviside(360 - state[1], 1) * (1 - jnp.heaviside(-state[1] - 360, 1))
+    asc_node = jnp.heaviside(360 - state[2], 1) * (1 - jnp.heaviside(-state[2] - 360, 1))
+    open_angle = jnp.heaviside(180 - state[3], 0) * jnp.heaviside(state[3], 0)
+    if (1 - eccentricity*inclination*asc_node*open_angle):
+        return 0. 
+    else:
+        return -jnp.inf
+    a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+    
+    # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+    # return -np.min([np.nan_to_num(a), np.inf])
+# @jit 
+def log_likelihood(state, obs, obs_err):
+    
+    data_dict = apep 
+    data_dict['eccentricity'] = state[0]
+    data_dict['inclination'] = state[1]
+    data_dict['asc_node'] = state[2]
+    data_dict['open_angle'] = state[3]
+    
+    particles, weights = dust_plume(data_dict)
+    _, _, model = spiral_grid(particles, weights, data_dict)
+    model = model.flatten()
+    return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
+
+# @jit 
+def log_prob(state, obs, obs_err):
+    lp = log_prior(state)
+    isfinite = jnp.isfinite(lp)
+    return (1. - isfinite) * -jnp.inf + isfinite * (lp + log_likelihood(state, obs, obs_err))
+
+
+
+particles, weights = dust_plume(apep)
+    
+X, Y, H = spiral_grid(particles, weights, apep)
+obs_err = 0.01 * np.max(H)
+H += np.random.normal(0, obs_err, H.shape)
 plot_spiral(X, Y, H)
 
 
 
 
-# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
+obs = H.flatten()
+obs_err = obs_err * jnp.ones(len(obs))
+
+# @jit 
+# def data_log_like(state):
+#     return log_likelihood(state, obs, obs_err)
+
+nwalkers = 10
+
+pos = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
+ndim = len(pos)
+pos = pos * np.ones((nwalkers, ndim))
+pos += 5e-3 * np.random.normal(0, 0.5, pos.shape)
+
+sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=(obs, obs_err))
+sampler.run_mcmc(pos, 100, progress=True);
+
+# import blackjax 
+# inverse_mass_matrix = jnp.ones(len(apep))
+# step_size = 1e-3
+# nuts = blackjax.nuts(data_log_like, step_size, inverse_mass_matrix)
+
+# initial_position = apep
+# state = nuts.init(initial_position)
+# import jax
+# rng_key = jax.random.key(0)
+# step = jit(nuts.step)
+
+
+# def inference_loop(rng_key, kernel, initial_state, num_samples):
+
+#     @jax.jit
+#     def one_step(state, rng_key):
+#         state, _ = kernel(rng_key, state)
+#         return state, state
+
+#     keys = jax.random.split(rng_key, num_samples)
+#     _, states = jax.lax.scan(one_step, initial_state, keys)
+
+#     return states
+
+# states = inference_loop(rng_key, step, state, 100)
+
+
+# fig, ax = plt.subplots()
+# ax.hist(m1)
+
+fig, axes = plt.subplots(4, figsize=(10, 7), sharex=True)
+samples = sampler.get_chain()
+labels = ["e", "i", "an", "oa"]
+for i in range(ndim):
+    ax = axes[i]
+    ax.plot(samples[:, :, i], "k", alpha=0.3)
+    ax.set_xlim(0, len(samples))
+    ax.set_ylabel(labels[i])
+    ax.yaxis.set_label_coords(-0.1, 0.5)
+
