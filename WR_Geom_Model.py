@@ -18,6 +18,12 @@ from matplotlib import animation
 import time
 import emcee
 
+M_odot = 1.98e30
+G = 6.67e-11
+c = 299792458
+yr2day = 365.25
+kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
+
 
 def rotate_x(angle):
     arr = jnp.array([[1, 0, 0],
@@ -64,20 +70,19 @@ def kepler_solve(t, P, ecc):
     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
 
 
-def dust_circle(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
-                   theta, open_angle, plume_direction, widths):
+def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     '''
     '''
     i, nu = i_nu
     x = nu / (2 * jnp.pi)
     transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))
-    turned_on = jnp.heaviside(transf_nu - turn_on_rad, 0)
-    turned_off = jnp.heaviside(turn_off_rad - transf_nu, 0)
+    turned_on = jnp.heaviside(transf_nu - stardata['turn_on_rad'], 0)
+    turned_off = jnp.heaviside(stardata['turn_off_rad'] - transf_nu, 0)
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
 
-    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(open_angle), 
-                        jnp.sin(open_angle) * jnp.sin(theta), 
-                        jnp.sin(open_angle) * jnp.cos(theta)])
+    circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(stardata['half_angle']), 
+                        jnp.sin(stardata['half_angle']) * jnp.sin(theta), 
+                        jnp.sin(stardata['half_angle']) * jnp.cos(theta)])
     
     circle *= widths[i]
     angle_x = jnp.arctan2(direction[1], direction[0])
@@ -86,10 +91,10 @@ def dust_circle(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
     circle *= turned_on * turned_off
     
     # now calculate the weights of each point according the their orbital variation
-    prop_orb = 1 - (1 - orb_amp) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / orb_sd)**2) # weight proportion from orbital variation
+    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / stardata['orb_sd'])**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
-    prop_az = 1 - (1 - az_amp) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270) / (az_sd))**2)
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270) / (stardata['az_sd']))**2)
     
     weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
     
@@ -102,37 +107,32 @@ def dust_circle(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
 
 
 @jit
-def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_periastron, 
-               turn_off, turn_on, orb_sd, orb_amp, az_sd, az_amp, cone_angle, distance, phase):
+def dust_plume(stardata):
     '''
     Parameters
     ----------
-    period : float
-        seconds
-    distance : float
-        pc
+    stardata : dict
     '''
-    phase = phase%1
+    phase = stardata['phase']%1
+    ecc = stardata['eccentricity']
+    period = stardata['period_s']
+    
     n_orbits = 1
     n_t = 1000       # circles per orbital period
     n_points = 400   # points per circle
     n_particles = n_points * n_t * n_orbits
     n_time = n_t * n_orbits
     
-    open_angle = jnp.deg2rad(cone_angle) / 2
     
     theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     
     times = period * jnp.linspace(phase, n_orbits + phase, n_time)
     
-    turn_on_rad = jnp.deg2rad(turn_on)
-    turn_off_rad = jnp.deg2rad(turn_off)
-    
     E, true_anomaly = kepler_solve(times, period, ecc)
     
-    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
-    ws_ratio = windspeed1 / windspeed2
+    r1 = stardata['a1'] * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = stardata['a2'] * (1 - ecc * jnp.cos(E)) * 1e-3
+    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
     
     positions1 = jnp.array([jnp.cos(true_anomaly), 
                             jnp.sin(true_anomaly), 
@@ -141,13 +141,12 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
     positions1 *= -r1      # position in the orbital frame
     positions2 *=  r2     # position in the orbital frame
     
-    widths = windspeed1 * period * (n_orbits - jnp.arange(n_time) / n_t)
+    widths = stardata['windspeed1'] * period * (n_orbits - jnp.arange(n_time) / n_t)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
         
-    particles = vmap(lambda i_nu: dust_circle(i_nu, turn_on_rad, turn_off_rad, orb_sd, orb_amp, az_sd, az_amp,
-                                                 theta, open_angle, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
+    particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
 
     weights = particles[:, 3, :].flatten()
     particles = particles[:, :3, :]
@@ -157,14 +156,14 @@ def dust_plume(a1, a2, windspeed1, windspeed2, period, ecc, incl, asc_node, arg_
                            jnp.ravel(particles[:, 1, :]),
                            jnp.ravel(particles[:, 2, :])])
 
-    particles = rotate_z(jnp.deg2rad(-asc_node)) @ (
-            rotate_x(jnp.deg2rad(-incl)) @ (
-            rotate_z(jnp.deg2rad(-arg_periastron)) @ particles))
+    particles = rotate_z(jnp.deg2rad(- stardata['asc_node'])) @ (
+            rotate_x(jnp.deg2rad(- stardata['inclination'])) @ (
+            rotate_z(jnp.deg2rad(- stardata['arg_peri'])) @ particles))
 
-    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (distance * 3.086e13)), weights
+    return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
 @jit
-def spiral_grid(particles, weights, sigma, histmax=1):
+def spiral_grid(particles, weights, stardata):
     ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
         applying a Gaussian blur.
     Parameters
@@ -188,11 +187,11 @@ def spiral_grid(particles, weights, sigma, histmax=1):
     H = H.T
     H /= jnp.max(H)
     
-    H = jnp.minimum(H, jnp.ones((im_size, im_size))*histmax)
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     
     shape = 30 // 2  # choose just large enough grid for our gaussian
     gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
-    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * sigma * sigma))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
     gxy /= gxy.sum()
     
     H = signal.convolve(H, gxy, mode='same', method='fft')
@@ -292,117 +291,132 @@ def plot_3d(particles):
     n = 23
     ax.scatter(particles[0, ::n], particles[1, ::n], particles[2, ::n], alpha=0.1)
     
+def plot_orbit(stardata):
+    ## plots orbits
+    theta = np.linspace(0, 2 * np.pi, 100)
+    r1 = stardata['p1'] / (1 + stardata['eccentricity'] * np.cos(theta))
+    r2 = stardata['p2'] / (1 + stardata['eccentricity'] * np.cos(theta))
 
-M_odot = 1.98e30
-G = 6.67e-11
-c = 299792458
-yr2day = 365.25
-kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
+    x1, y1 = r1 * np.cos(theta), r1 * np.sin(theta)
+    x2, y2 = -r2 * np.cos(theta), -r2 * np.sin(theta)
+
+    fig, ax = plt.subplots()
+
+    ax.plot(x1, y1)
+    ax.plot(x2, y2)
+    ax.set_aspect('equal')
+    
+
+def calculate_orbit(stardata):
+    ''' Fills out our binary data dictionary with calculated quantities.
+    Parameters
+    ----------
+    stardata : dict
+    '''
+    stardata['period_s'] = stardata['period'] * yr2day * 24 * 60 * 60           # orbital period in s
+    stardata['m1_kg'] = stardata['m1'] * M_odot                                 # mass of stars in kg
+    stardata['m2_kg'] = stardata['m2'] * M_odot
+    stardata['M_kg'] = stardata['m1_kg'] + stardata['m2_kg']                    # total mass in kg
+    stardata['M'] = stardata['m1'] + stardata['m2']                             # total mass in solar masses
+    mu = G * stardata['M']
+    # kms2masyr = np.arctan(kms2pcyr / stardata['distance']) * 180/np.pi * 60 * 60 * 1000     # conversion from km/s to mas/yr at the system distance
+    # ws1 = stardata['windspeed1'] * kms2masyr
+    # ws2 = stardata['windspeed2'] * kms2masyr
+    stardata['a'] = np.cbrt((stardata['period_s'] / (2 * np.pi))**2 * mu)       # semi-major axis of the system (total separation)
+    stardata['a1'] = stardata['m2_kg']  / stardata['M_kg'] * stardata['a']      # semi-major axis of first body (meters)
+    stardata['a2'] = stardata['a'] - stardata['a1']                             # semi-major axis of second body
+    
+    stardata['p1'] = stardata['a1'] * (1 - stardata['eccentricity']**2)         # periastron (meters) of first star from barycenter
+    stardata['p2'] = stardata['a2'] * (1 - stardata['eccentricity']**2)
+    
+    stardata['turn_on_rad'] = np.deg2rad(stardata['turn_on'])                   # convert turn-on/off to radians
+    stardata['turn_off_rad'] = np.deg2rad(stardata['turn_off'])
+    stardata['half_angle'] = np.deg2rad(stardata['open_angle']) / 2             # half opening angle
+
 
 # below are rough params for Apep 
-m1 = 15                  # solar masses
-m2 = 10                  # solar masses
-eccentricity = 0.7
-inclination = 25        # degrees
-asc_node = -88          # degrees
-arg_periastron = 0      # degrees
-cone_open_angle = 125   # degrees (full opening angle)
-period = 125            # years
-period_s = period * yr2day * 24 * 60 * 60
-distance = 2400         # pc
-windspeed1 = 700       # km/s
-windspeed2 = 2400       # km/s
-turn_on = -114          # true anomaly (degrees)
-turn_off = 150          # true anomaly (degrees)
-orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
-sigma = 3
-histmax = 1
+apep = {"m1":15.,                # solar masses
+        "m2":10.,                # solar masses
+        "eccentricity":0.7, 
+        "inclination":25,       # degrees
+        "asc_node":-88,         # degrees
+        "arg_peri":0,           # degrees
+        "open_angle":125,       # degrees (full opening angle)
+        "period":125,           # years
+        "distance":2400,        # pc
+        "windspeed1":700,       # km/s
+        "windspeed2":2400,      # km/s
+        "turn_on":-114,         # true anomaly (degrees)
+        "turn_off":150,         # true anomaly (degrees)
+        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "phase":0.6, 
+        "sigma":3,              # sigma for gaussian blur
+        "histmax":1}
+calculate_orbit(apep)
 
-# # below are rough params for WR 48a
-# m1 = 15                  # solar masses
-# m2 = 10                  # solar masses
-# eccentricity = 0.1
-# inclination = 75        # degrees
-# asc_node = 0          # degrees
-# arg_periastron = 20      # degrees
-# cone_open_angle = 110   # degrees (full opening angle)
-# period = 32.5            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 3500         # pc
-# windspeed1 = 700       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -140          # true anomaly (degrees)
-# turn_off = 140          # true anomaly (degrees)
-# orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
-# sigma = 2
-# histmax = 1
-
-
-# # below are rough params for WR 112
-# m1 = 15                  # solar masses
-# m2 = 10                  # solar masses
-# eccentricity = 0.
-# inclination = 100        # degrees
-# asc_node = 75          # degrees
-# arg_periastron = 170      # degrees
-# cone_open_angle = 110   # degrees (full opening angle)
-# period = 19            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 2400         # pc
-# windspeed1 = 700       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -180          # true anomaly (degrees)
-# turn_off = 180          # true anomaly (degrees)
-# orb_sd, orb_amp, az_sd, az_amp = [0, 0, 0, 0]
-# sigma = 2
-# histmax = 1
-
-# # below are rough params for WR 140
-# m1 = 8.4                  # solar masses
-# m2 = 20                  # solar masses
-# eccentricity = 0.8964
-# inclination = 119.6        # degrees
-# asc_node = 0          # degrees
-# arg_periastron = 180-46.8      # degrees
-# cone_open_angle = 80   # degrees (full opening angle)
-# period = 2896.35/365.25            # years
-# period_s = period * yr2day * 24 * 60 * 60
-# distance = 1670         # pc
-# windspeed1 = 2600       # km/s
-# windspeed2 = 2400       # km/s
-# turn_on = -135          # true anomaly (degrees)
-# turn_off = 135          # true anomaly (degrees)
-# orb_sd, orb_amp, az_sd, az_amp = [80, 0., 60, 0.]
-# sigma = 2
-# histmax = 1
+# below are rough params for WR 48a
+WR48a = {"m1":15.,                  # solar masses
+        "m2":10.,                   # solar masses
+        "eccentricity":0.1, 
+        "inclination":75,           # degrees
+        "asc_node":0,               # degrees
+        "arg_peri":20,              # degrees
+        "open_angle":110,           # degrees (full opening angle)
+        "period":32.5,              # years
+        "distance":3500,            # pc
+        "windspeed1":700,           # km/s
+        "windspeed2":2400,          # km/s
+        "turn_on":-140,             # true anomaly (degrees)
+        "turn_off":140,             # true anomaly (degrees)
+        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "phase":0.6, 
+        "sigma":2,                  # sigma for gaussian blur
+        "histmax":1}
+calculate_orbit(WR48a)
 
 
-m1, m2 = m1 * M_odot, m2 * M_odot
-M = m1 + m2
-mu = G * M
-kms2masyr = np.arctan(kms2pcyr / distance) * 180/np.pi * 60 * 60 * 1000     # conversion from km/s to mas/yr at the system distance
-ws1 = windspeed1 * kms2masyr
-ws2 = windspeed2 * kms2masyr
-a = np.cbrt((period_s / (2 * np.pi))**2 * mu)     # semi-major axis of the system (total separation)
-a1 = m2 / M * a                                 # semi-major axis of first body
-a2 = a - a1                                     # semi-major axis of second body
+# below are rough params for WR 112
+WR112 = {"m1":15.,                # solar masses
+        "m2":10.,                # solar masses
+        "eccentricity":0., 
+        "inclination":100.,       # degrees
+        "asc_node":75.,         # degrees
+        "arg_peri":170.,           # degrees
+        "open_angle":110.,       # degrees (full opening angle)
+        "period":19,           # years
+        "distance":2400,        # pc
+        "windspeed1":700,       # km/s
+        "windspeed2":2400,      # km/s
+        "turn_on":-180,         # true anomaly (degrees)
+        "turn_off":180,         # true anomaly (degrees)
+        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "phase":0.6, 
+        "sigma":2,              # sigma for gaussian blur
+        "histmax":1}
+calculate_orbit(WR112)
 
-p1 = a1 * (1 - eccentricity**2)
-p2 = a2 * (1 - eccentricity**2)
+# below are rough params for WR 140
+WR140 = {"m1":8.4,                # solar masses
+        "m2":20,                # solar masses
+        "eccentricity":0.8964, 
+        "inclination":119.6,       # degrees
+        "asc_node":0,         # degrees
+        "arg_peri":180-46.8,           # degrees
+        "open_angle":80,       # degrees (full opening angle)
+        "period":2896.35/365.25,           # years
+        "distance":1670,        # pc
+        "windspeed1":2600,       # km/s
+        "windspeed2":2400,      # km/s
+        "turn_on":-135,         # true anomaly (degrees)
+        "turn_off":135,         # true anomaly (degrees)
+        "orb_sd":80, "orb_amp":0, "az_sd":60, "az_amp":0, 
+        "phase":0.6, 
+        "sigma":2,              # sigma for gaussian blur
+        "histmax":1}
+calculate_orbit(WR140)
 
-### plots orbits
-# theta = np.linspace(0, 2 * np.pi, 100)
-# r1 = p1 / (1 + eccentricity * np.cos(theta))
-# r2 = p2 / (1 + eccentricity * np.cos(theta))
 
-# x1, y1 = r1 * np.cos(theta), r1 * np.sin(theta)
-# x2, y2 = -r2 * np.cos(theta), -r2 * np.sin(theta)
 
-# fig, ax = plt.subplots()
-
-# ax.plot(x1, y1)
-# ax.plot(x2, y2)
-# ax.set_aspect('equal')
 
 
 n_orbits = 1
@@ -410,13 +424,9 @@ phase = 0.6
 
 for i in range(10):
     t1 = time.time()
-    particles, weights = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                            asc_node, arg_periastron, turn_off, turn_on, orb_sd, orb_amp, az_sd, az_amp, cone_open_angle, distance, 
-                            phase)
+    particles, weights = dust_plume(apep)
     
-    
-    
-    X, Y, H = spiral_grid(particles, weights, sigma, histmax)
+    X, Y, H = spiral_grid(particles, weights, apep)
     print(time.time() - t1)
 plot_spiral(X, Y, H)
 
