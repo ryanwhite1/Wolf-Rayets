@@ -445,22 +445,28 @@ def log_prior(state):
     # return (1. - m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*
     #         turn_off) * -jnp.inf
     
+    array = jnp.array([0., -jnp.inf])
     eccentricity = jnp.heaviside(state[0], 1) * jnp.heaviside(1 - state[0], 0)
     inclination = jnp.heaviside(360 - state[1], 1) * (1 - jnp.heaviside(-state[1] - 360, 1))
     asc_node = jnp.heaviside(360 - state[2], 1) * (1 - jnp.heaviside(-state[2] - 360, 1))
     open_angle = jnp.heaviside(180 - state[3], 0) * jnp.heaviside(state[3], 0)
-    if (1 - eccentricity*inclination*asc_node*open_angle):
-        return 0. 
-    else:
-        return -jnp.inf
-    a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+    
+    # # print(eccentricity, inclination, asc_node, open_angle)
+    # if not (1 - eccentricity*inclination*asc_node*open_angle):
+    #     return 0. 
+    # else:
+    #     return -jnp.inf
+    # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+    num = 1 - [eccentricity*inclination*asc_node*open_angle][0]
+    num = jnp.array(num, int)
+    return array[num]
     
     # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
     # return -np.min([np.nan_to_num(a), np.inf])
 # @jit 
 def log_likelihood(state, obs, obs_err):
     
-    data_dict = apep 
+    data_dict = apep.copy()
     data_dict['eccentricity'] = state[0]
     data_dict['inclination'] = state[1]
     data_dict['asc_node'] = state[2]
@@ -471,11 +477,12 @@ def log_likelihood(state, obs, obs_err):
     model = model.flatten()
     return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
 
-# @jit 
+@jit 
 def log_prob(state, obs, obs_err):
     lp = log_prior(state)
-    isfinite = jnp.isfinite(lp)
-    return (1. - isfinite) * -jnp.inf + isfinite * (lp + log_likelihood(state, obs, obs_err))
+    isfinite = jnp.array(jnp.isfinite(lp), int)
+    return_arr = jnp.array([-jnp.inf, lp + log_likelihood(state, obs, obs_err)])
+    return return_arr[isfinite]
 
 
 
@@ -501,10 +508,10 @@ nwalkers = 10
 pos = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
 ndim = len(pos)
 pos = pos * np.ones((nwalkers, ndim))
-pos += 5e-3 * np.random.normal(0, 0.5, pos.shape)
+pos += 1e-1 * np.random.normal(0, 0.5, pos.shape)
 
 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=(obs, obs_err))
-sampler.run_mcmc(pos, 100, progress=True);
+sampler.run_mcmc(pos, 1000, progress=True);
 
 # import blackjax 
 # inverse_mass_matrix = jnp.ones(len(apep))
@@ -545,4 +552,12 @@ for i in range(ndim):
     ax.set_xlim(0, len(samples))
     ax.set_ylabel(labels[i])
     ax.yaxis.set_label_coords(-0.1, 0.5)
+    
+    
+flat_samples = sampler.get_chain(flat=True)
+import corner
+import jax
+labels = ['ecc', 'incl', 'asc_node', 'op_ang']
+truths = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
+fig = corner.corner(flat_samples, labels=labels, truths=truths)
 
