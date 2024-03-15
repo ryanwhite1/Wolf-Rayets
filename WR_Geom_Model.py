@@ -208,6 +208,8 @@ def spiral_grid(particles, weights, stardata):
     
     H = signal.convolve(H, gxy, mode='same', method='fft')
     
+    H /= jnp.max(H)
+    
     return X, Y, H
 
 def plot_spiral(X, Y, H):
@@ -443,12 +445,13 @@ H += np.random.normal(0, obs_err, H.shape)
 plot_spiral(X, Y, H)
 
 
+
 obs = H.flatten()
 obs_err = obs_err * jnp.ones(len(obs))
 
 fig, ax = plt.subplots()
 
-ax.plot(jnp.arange(len(obs)), obs)
+ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
 
 
@@ -617,13 +620,11 @@ ax.plot(jnp.arange(len(obs)), obs)
 
 
 
-
-
 ### --- NUMPYRO --- ###
 import numpyro, chainconsumer, jax
 import numpyro.distributions as dists
 
-num_chains = 3
+num_chains = 1
 
 def apep_model(Y, E):
     m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
@@ -695,7 +696,7 @@ init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, in
 #                               num_warmup=20)
 sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
                               num_chains=num_chains,
-                              num_samples=3500,
+                              num_samples=8000,
                               num_warmup=1000)
 sampler.run(jax.random.PRNGKey(1), obs, obs_err*10, init_params=init_params_arr)
 
