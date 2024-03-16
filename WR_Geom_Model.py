@@ -108,6 +108,8 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     return circle
 
 def calculate_semi_major(period_s, m1, m2):
+    '''
+    '''
     m1_kg = m1 * M_odot                                 # mass of stars in kg
     m2_kg = m2 * M_odot
     M_kg = m1_kg + m2_kg                   # total mass in kg
@@ -421,13 +423,32 @@ WR140 = {"m1":8.4,                # solar masses
         "sigma":2,              # sigma for gaussian blur
         "histmax":1}
 
+# below are rough params for WR 104
+WR104 = {"m1":10,                # solar masses
+        "m2":20,                # solar masses
+        "eccentricity":0.06, 
+        "inclination":180-15,       # degrees
+        "asc_node":90,         # degrees
+        "arg_peri":0,           # degrees
+        "open_angle":60,       # degrees (full opening angle)
+        "period":241.5/365.25,           # years
+        "distance":2580,        # pc
+        "windspeed1":1200,       # km/s
+        "windspeed2":2000,      # km/s
+        "turn_on":-180,         # true anomaly (degrees)
+        "turn_off":180,         # true anomaly (degrees)
+        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "phase":0.7, 
+        "sigma":6,              # sigma for gaussian blur
+        "histmax":0.2}
+
 
 # for i in range(10):
-#     t1 = time.time()
-#     particles, weights = dust_plume(apep)
-    
-#     X, Y, H = spiral_grid(particles, weights, apep)
-#     print(time.time() - t1)
+# t1 = time.time()
+# particles, weights = dust_plume(apep)
+
+# X, Y, H = spiral_grid(particles, weights, apep)
+# print(time.time() - t1)
 # plot_spiral(X, Y, H)
 
 
@@ -453,6 +474,10 @@ fig, ax = plt.subplots()
 
 ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
+
+# fig, ax = plt.subplots()
+
+# ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
 
 
 ### --- EMCEE --- ###
