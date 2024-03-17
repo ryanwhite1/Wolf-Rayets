@@ -8,6 +8,7 @@ Created on Sun Feb 18 08:36:43 2024
 import numpy as np
 import jax.numpy as jnp
 from jax import jit, vmap, grad
+import jax
 import jax.lax as lax
 import jax.scipy.stats as stats
 import matplotlib.pyplot as plt
@@ -17,6 +18,8 @@ import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 import emcee
+
+jax.config.update("jax_enable_x64", True)
 
 M_odot = 1.98e30
 G = 6.67e-11
@@ -112,35 +115,19 @@ def calculate_semi_major(period_s, m1, m2):
     '''
     m1_kg = m1 * M_odot                                 # mass of stars in kg
     m2_kg = m2 * M_odot
-    M_kg = m1_kg + m2_kg                   # total mass in kg
-    M = m1 + m2                             # total mass in solar masses
-    mu = G * M
-    a = jnp.cbrt((period_s / (2 * jnp.pi))**2 * mu)         # semi-major axis of the system (total separation)
+    M_kg = m1_kg + m2_kg                                # total mass in kg
+    # M = m1 + m2                                         # total mass in solar masses
+    mu = G * M_kg
+    a = jnp.cbrt((period_s / (2 * jnp.pi))**2 * mu)/1000    # semi-major axis of the system (total separation)
     a1 = m2_kg / M_kg * a                                   # semi-major axis of first body (meters)
     a2 = a - a1                                             # semi-major axis of second body
     return a1, a2
 
-@jit
-def dust_plume(stardata):
-    '''
-    Parameters
-    ----------
-    stardata : dict
-    '''
-    phase = stardata['phase']%1
+def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
+    
+    n_time = len(times)
+    n_t = n_time / n_orbits
     ecc = stardata['eccentricity']
-    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
-    
-    n_orbits = 1
-    n_t = 1000       # circles per orbital period
-    n_points = 400   # points per circle
-    n_particles = n_points * n_t * n_orbits
-    n_time = n_t * n_orbits
-    
-    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    
-    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
-    
     E, true_anomaly = kepler_solve(times, period_s, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
@@ -175,6 +162,48 @@ def dust_plume(stardata):
             rotate_z(jnp.deg2rad(- stardata['arg_peri'])) @ particles))
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
+
+@jit
+def dust_plume(stardata):
+    '''
+    Parameters
+    ----------
+    stardata : dict
+    '''
+    phase = stardata['phase']%1
+    
+    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    
+    n_orbits = 1
+    n_t = 1000       # circles per orbital period
+    n_points = 400   # points per circle
+    n_particles = n_points * n_t * n_orbits
+    n_time = n_t * n_orbits
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
+    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+    return particles, weights
+
+@jit
+def dust_plume_2orb(stardata):
+    '''
+    Parameters
+    ----------
+    stardata : dict
+    '''
+    phase = stardata['phase']%1
+    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    n_orbits = 2
+    n_t = 1000       # circles per orbital period
+    n_points = 400   # points per circle
+    n_particles = n_points * n_t * n_orbits
+    n_time = n_t * n_orbits
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
+    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+    return particles, weights
+    
+    
 
 @jit
 def spiral_grid(particles, weights, stardata):
