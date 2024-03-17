@@ -225,76 +225,53 @@ def plot_spiral(X, Y, H):
     # ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2), cmap='hot')
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
 
-    
-def spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                        asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance):
+
+# @jit
+def spiral_gif(stardata):
     '''
     '''
+    starcopy = stardata.copy()
     fig, ax = plt.subplots()
     
+    # im_size = 256
+    # im = np.zeros((im_size, im_size))
+    starcopy['phase'] = 0.01
+    starcopy['sigma'] = 2
+    particles, weights = dust_plume(stardata)
+    X, Y, H = spiral_grid(particles, weights, starcopy)
+    xmin, xmax = jnp.min(X), jnp.max(X)
+    ymin, ymax = jnp.min(Y), jnp.max(Y)
+    # border = [[xmin, xmax], [ymin, ymax]]
+    # bins = [X, Y]
+    ax.set(xlim=(xmin, xmax), ylim=(ymin, ymax), aspect='equal', 
+           xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
-    im_size = 256
-    im = np.zeros((im_size, im_size))
-    n_orbits = 2 
-    phase = 0 
-    particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-    x = particles[0, :]
-    y = particles[1, :]
-    use_inds = np.where((x != 0) & (y != 0))
-    x = x[use_inds]
-    y = y[use_inds]
-    H, xbins, ybins = np.histogram2d(x, y, bins=im_size)
-    H = gaussian_filter(H, 1)
-    xmin, xmax = np.min(x), np.max(x)
-    ymin, ymax = np.min(y), np.max(y)
-    border = [[xmin, xmax], [ymin, ymax]]
-    bins = [xbins, ybins]
-    
-    phase = 0.5 
-    particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                            asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phase, n_orbits)
-    x = particles[0, :]
-    y = particles[1, :]
-    use_inds = np.where((x != 0) & (y != 0))
-    x = x[use_inds]
-    y = y[use_inds]
-    H, _, _ = np.histogram2d(x, y, bins=im_size)
-    H = gaussian_filter(H, 1)
-    vmin, vmax = np.min(H), np.max(H)
+    starcopy['phase'] = 0.5
+    particles, weights = dust_plume(starcopy)
+    X, Y, H = spiral_grid(particles, weights, starcopy)
+    # vmin, vmax = jnp.min(H), jnp.max(H)
     
     every = 1
     length = 10
     # now calculate some parameters for the animation frames and timing
-    nt = int(period_s / (60 * 60 * 24 * 365.25))    # roughly one year per frame
+    nt = int(stardata['period'])    # roughly one year per frame
     # nt = 10
-    frames = np.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
     fps = len(frames) // length  # fps for the final animation
     
-    phases = np.linspace(0, 1, nt)
-    ax.set(xlim=(min(xbins), max(xbins)), ylim=(min(ybins), max(ybins)), aspect='equal', 
-           xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    phases = jnp.linspace(0, 1, nt)
+    
+    # @jit
     def animate(i):
         if (i // every)%20 == 0:
             print(f"{i // every} / {len(frames)}")
         # print(i)
-        particles = dust_plume(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-                               asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance, phases[i] + 0.5, n_orbits)
-        
-        x = particles[0, :]
-        y = particles[1, :]
-        
-        use_inds = np.where((x != 0) & (y != 0))
-        x = x[use_inds]
-        y = y[use_inds]
-
-        H, xedges, yedges = np.histogram2d(x, y, bins=bins)
-        H = gaussian_filter(H, 1)
-        
+        starcopy['phase'] = phases[i] + 0.5
+        particles, weights = dust_plume(starcopy)
+        X, Y, H = spiral_grid(particles, weights, starcopy)
         # ax.imshow(H, extent=[0, 1, 0, 1], vmin=vmin, vmax=vmax, cmap='Greys')
         # ax.pcolormesh(xedges, yedges[::-1], H, vmax=vmax)
-        ax.pcolormesh(xedges[::-1], yedges[::-1], H, vmax=vmax)
-        
+        ax.pcolormesh(X, Y, H, cmap='hot')
         return fig, 
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
@@ -443,7 +420,7 @@ WR104 = {"m1":10,                # solar masses
         "histmax":0.2}
 
 
-# for i in range(10):
+# # for i in range(10):
 # t1 = time.time()
 # particles, weights = dust_plume(apep)
 
@@ -452,292 +429,305 @@ WR104 = {"m1":10,                # solar masses
 # plot_spiral(X, Y, H)
 
 
-# spiral_gif(a2, a1, windspeed1, windspeed2, period_s, eccentricity, inclination, 
-#                         asc_node, arg_periastron, turn_off, turn_on, cone_open_angle, distance)
+# spiral_gif(apep)
 
 
 
-### --- INFERENCE --- ###
-particles, weights = dust_plume(apep)
+# ### --- INFERENCE --- ###
+# particles, weights = dust_plume(apep)
     
-X, Y, H = spiral_grid(particles, weights, apep)
-obs_err = 0.01 * np.max(H)
-H += np.random.normal(0, obs_err, H.shape)
-plot_spiral(X, Y, H)
+# X, Y, H = spiral_grid(particles, weights, apep)
+# obs_err = 0.01 * np.max(H)
+# H += np.random.normal(0, obs_err, H.shape)
+# plot_spiral(X, Y, H)
 
 
 
-obs = H.flatten()
-obs_err = obs_err * jnp.ones(len(obs))
-
-fig, ax = plt.subplots()
-
-ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
-
+# obs = H.flatten()
+# obs_err = obs_err * jnp.ones(len(obs))
 
 # fig, ax = plt.subplots()
 
-# ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
+# ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
 
-### --- EMCEE --- ###
+# # fig, ax = plt.subplots()
+
+# # ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
 
 
-# # @jit
-# def log_prior(state):
-#     # m1 = jnp.heaviside(state['m1'], 0) * jnp.heaviside(200 - state['m1'], 1)
-#     # m2 = jnp.heaviside(state['m2'], 0) * jnp.heaviside(200 - state['m2'], 1)
-#     # period = jnp.heaviside(state['period'], 0) * jnp.heaviside(1e3 - state['period'], 1)
-#     # eccentricity = jnp.heaviside(state['eccentricity'], 1) * jnp.heaviside(1 - state['eccentricity'], 0)
-#     # inclination = jnp.heaviside(360 - state['inclination'], 1) * (1 - jnp.heaviside(-state['inclination'] - 360, 1))
-#     # asc_node = jnp.heaviside(360 - state['asc_node'], 1) * (1 - jnp.heaviside(-state['asc_node'] - 360, 1))
-#     # arg_peri = jnp.heaviside(360 - state['arg_peri'], 1) * (1 - jnp.heaviside(-state['arg_peri'] - 360, 1))
-#     # open_angle = jnp.heaviside(180 - state['open_angle'], 0) * jnp.heaviside(state['open_angle'], 0)
-#     # distance = jnp.heaviside(state['distance'], 0)
-#     # turn_on = jnp.heaviside(180 + state['turn_on'], 1) * (1 - jnp.heaviside(-state['turn_on'] - 180, 0))
-#     # turn_off = jnp.heaviside(180 + state['turn_off'], 1) * (1 - jnp.heaviside(-state['turn_off'] - 180, 0))
+# ### --- EMCEE --- ###
+
+
+# # # @jit
+# # def log_prior(state):
+# #     # m1 = jnp.heaviside(state['m1'], 0) * jnp.heaviside(200 - state['m1'], 1)
+# #     # m2 = jnp.heaviside(state['m2'], 0) * jnp.heaviside(200 - state['m2'], 1)
+# #     # period = jnp.heaviside(state['period'], 0) * jnp.heaviside(1e3 - state['period'], 1)
+# #     # eccentricity = jnp.heaviside(state['eccentricity'], 1) * jnp.heaviside(1 - state['eccentricity'], 0)
+# #     # inclination = jnp.heaviside(360 - state['inclination'], 1) * (1 - jnp.heaviside(-state['inclination'] - 360, 1))
+# #     # asc_node = jnp.heaviside(360 - state['asc_node'], 1) * (1 - jnp.heaviside(-state['asc_node'] - 360, 1))
+# #     # arg_peri = jnp.heaviside(360 - state['arg_peri'], 1) * (1 - jnp.heaviside(-state['arg_peri'] - 360, 1))
+# #     # open_angle = jnp.heaviside(180 - state['open_angle'], 0) * jnp.heaviside(state['open_angle'], 0)
+# #     # distance = jnp.heaviside(state['distance'], 0)
+# #     # turn_on = jnp.heaviside(180 + state['turn_on'], 1) * (1 - jnp.heaviside(-state['turn_on'] - 180, 0))
+# #     # turn_off = jnp.heaviside(180 + state['turn_off'], 1) * (1 - jnp.heaviside(-state['turn_off'] - 180, 0))
     
-#     # return (1. - m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*
-#     #         turn_off) * -jnp.inf
+# #     # return (1. - m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*
+# #     #         turn_off) * -jnp.inf
     
-#     array = jnp.array([0., -jnp.inf])
-#     eccentricity = jnp.heaviside(state[0], 1) * jnp.heaviside(1 - state[0], 0)
-#     inclination = jnp.heaviside(360 - state[1], 1) * (1 - jnp.heaviside(-state[1] - 360, 1))
-#     asc_node = jnp.heaviside(360 - state[2], 1) * (1 - jnp.heaviside(-state[2] - 360, 1))
-#     open_angle = jnp.heaviside(180 - state[3], 0) * jnp.heaviside(state[3], 0)
+# #     array = jnp.array([0., -jnp.inf])
+# #     eccentricity = jnp.heaviside(state[0], 1) * jnp.heaviside(1 - state[0], 0)
+# #     inclination = jnp.heaviside(360 - state[1], 1) * (1 - jnp.heaviside(-state[1] - 360, 1))
+# #     asc_node = jnp.heaviside(360 - state[2], 1) * (1 - jnp.heaviside(-state[2] - 360, 1))
+# #     open_angle = jnp.heaviside(180 - state[3], 0) * jnp.heaviside(state[3], 0)
     
-#     # # print(eccentricity, inclination, asc_node, open_angle)
-#     # if not (1 - eccentricity*inclination*asc_node*open_angle):
-#     #     return 0. 
-#     # else:
-#     #     return -jnp.inf
-#     # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
-#     num = 1 - [eccentricity*inclination*asc_node*open_angle][0]
-#     num = jnp.array(num, int)
-#     return array[num]
+# #     # # print(eccentricity, inclination, asc_node, open_angle)
+# #     # if not (1 - eccentricity*inclination*asc_node*open_angle):
+# #     #     return 0. 
+# #     # else:
+# #     #     return -jnp.inf
+# #     # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+# #     num = 1 - [eccentricity*inclination*asc_node*open_angle][0]
+# #     num = jnp.array(num, int)
+# #     return array[num]
     
-#     # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
-#     # return -np.min([np.nan_to_num(a), np.inf])
+# #     # a = (1. - eccentricity*inclination*asc_node*open_angle) * -jnp.inf
+# #     # return -np.min([np.nan_to_num(a), np.inf])
+# # # @jit 
+# # def log_likelihood(state, obs, obs_err):
+    
+# #     data_dict = apep.copy()
+# #     data_dict['eccentricity'] = state[0]
+# #     data_dict['inclination'] = state[1]
+# #     data_dict['asc_node'] = state[2]
+# #     data_dict['open_angle'] = state[3]
+    
+# #     particles, weights = dust_plume(data_dict)
+# #     _, _, model = spiral_grid(particles, weights, data_dict)
+# #     model = model.flatten()
+# #     return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
+
 # # @jit 
-# def log_likelihood(state, obs, obs_err):
-    
-#     data_dict = apep.copy()
-#     data_dict['eccentricity'] = state[0]
-#     data_dict['inclination'] = state[1]
-#     data_dict['asc_node'] = state[2]
-#     data_dict['open_angle'] = state[3]
-    
-#     particles, weights = dust_plume(data_dict)
-#     _, _, model = spiral_grid(particles, weights, data_dict)
-#     model = model.flatten()
-#     return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
-
-# @jit 
-# def log_prob(state, obs, obs_err):
-#     lp = log_prior(state)
-#     isfinite = jnp.array(jnp.isfinite(lp), int)
-#     return_arr = jnp.array([-jnp.inf, lp + log_likelihood(state, obs, obs_err)])
-#     return return_arr[isfinite]
+# # def log_prob(state, obs, obs_err):
+# #     lp = log_prior(state)
+# #     isfinite = jnp.array(jnp.isfinite(lp), int)
+# #     return_arr = jnp.array([-jnp.inf, lp + log_likelihood(state, obs, obs_err)])
+# #     return return_arr[isfinite]
 
 
-# nwalkers = 10
+# # nwalkers = 10
 
-# pos = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
-# ndim = len(pos)
-# pos = pos * np.ones((nwalkers, ndim))
-# pos += 1e-1 * np.random.normal(0, 0.5, pos.shape)
+# # pos = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
+# # ndim = len(pos)
+# # pos = pos * np.ones((nwalkers, ndim))
+# # pos += 1e-1 * np.random.normal(0, 0.5, pos.shape)
 
-# sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=(obs, obs_err))
-# sampler.run_mcmc(pos, 1000, progress=True);
+# # sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob, args=(obs, obs_err))
+# # sampler.run_mcmc(pos, 1000, progress=True);
 
 
-# fig, axes = plt.subplots(4, figsize=(10, 7), sharex=True)
-# samples = sampler.get_chain()
-# labels = ["e", "i", "an", "oa"]
-# for i in range(ndim):
-#     ax = axes[i]
-#     ax.plot(samples[:, :, i], "k", alpha=0.3)
-#     ax.set_xlim(0, len(samples))
-#     ax.set_ylabel(labels[i])
-#     ax.yaxis.set_label_coords(-0.1, 0.5)
+# # fig, axes = plt.subplots(4, figsize=(10, 7), sharex=True)
+# # samples = sampler.get_chain()
+# # labels = ["e", "i", "an", "oa"]
+# # for i in range(ndim):
+# #     ax = axes[i]
+# #     ax.plot(samples[:, :, i], "k", alpha=0.3)
+# #     ax.set_xlim(0, len(samples))
+# #     ax.set_ylabel(labels[i])
+# #     ax.yaxis.set_label_coords(-0.1, 0.5)
     
     
-# flat_samples = sampler.get_chain(discard=300, flat=True)
-# import corner
-# import jax
-# labels = ['ecc', 'incl', 'asc_node', 'op_ang']
-# truths = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
-# fig = corner.corner(flat_samples, labels=labels, truths=truths)
+# # flat_samples = sampler.get_chain(discard=300, flat=True)
+# # import corner
+# # import jax
+# # labels = ['ecc', 'incl', 'asc_node', 'op_ang']
+# # truths = np.array([apep['eccentricity'], apep['inclination'], apep['asc_node'], apep['open_angle']])
+# # fig = corner.corner(flat_samples, labels=labels, truths=truths)
 
 
 
 
 
-# ### --- BLACKJAX --- ###
-# def log_prior(state):
-#     array = jnp.array([0., -jnp.inf])
-#     m1 = jnp.heaviside(state['m1'], 0) * jnp.heaviside(200 - state['m1'], 1)
-#     m2 = jnp.heaviside(state['m2'], 0) * jnp.heaviside(200 - state['m2'], 1)
-#     period = jnp.heaviside(state['period'], 0) * jnp.heaviside(1e3 - state['period'], 1)
-#     eccentricity = jnp.heaviside(state['eccentricity'], 1) * jnp.heaviside(1 - state['eccentricity'], 0)
-#     inclination = jnp.heaviside(360 - state['inclination'], 1) * (1 - jnp.heaviside(-state['inclination'] - 360, 1))
-#     asc_node = jnp.heaviside(360 - state['asc_node'], 1) * (1 - jnp.heaviside(-state['asc_node'] - 360, 1))
-#     arg_peri = jnp.heaviside(360 - state['arg_peri'], 1) * (1 - jnp.heaviside(-state['arg_peri'] - 360, 1))
-#     open_angle = jnp.heaviside(180 - state['open_angle'], 0) * jnp.heaviside(state['open_angle'], 0)
-#     distance = jnp.heaviside(state['distance'], 0)
-#     turn_on = jnp.heaviside(180 + state['turn_on'], 1) * (1 - jnp.heaviside(-state['turn_on'] - 180, 0))
-#     turn_off = jnp.heaviside(180 + state['turn_off'], 1) * (1 - jnp.heaviside(-state['turn_off'] - 180, 0))
+# # ### --- BLACKJAX --- ###
+# # def log_prior(state):
+# #     array = jnp.array([0., -jnp.inf])
+# #     m1 = jnp.heaviside(state['m1'], 0) * jnp.heaviside(200 - state['m1'], 1)
+# #     m2 = jnp.heaviside(state['m2'], 0) * jnp.heaviside(200 - state['m2'], 1)
+# #     period = jnp.heaviside(state['period'], 0) * jnp.heaviside(1e3 - state['period'], 1)
+# #     eccentricity = jnp.heaviside(state['eccentricity'], 1) * jnp.heaviside(1 - state['eccentricity'], 0)
+# #     inclination = jnp.heaviside(360 - state['inclination'], 1) * (1 - jnp.heaviside(-state['inclination'] - 360, 1))
+# #     asc_node = jnp.heaviside(360 - state['asc_node'], 1) * (1 - jnp.heaviside(-state['asc_node'] - 360, 1))
+# #     arg_peri = jnp.heaviside(360 - state['arg_peri'], 1) * (1 - jnp.heaviside(-state['arg_peri'] - 360, 1))
+# #     open_angle = jnp.heaviside(180 - state['open_angle'], 0) * jnp.heaviside(state['open_angle'], 0)
+# #     distance = jnp.heaviside(state['distance'], 0)
+# #     turn_on = jnp.heaviside(180 + state['turn_on'], 1) * (1 - jnp.heaviside(-state['turn_on'] - 180, 0))
+# #     turn_off = jnp.heaviside(180 + state['turn_off'], 1) * (1 - jnp.heaviside(-state['turn_off'] - 180, 0))
     
-#     num = 1 - [m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*turn_off][0]
-#     num = jnp.array(num, int)
+# #     num = 1 - [m1*m2*period*eccentricity*inclination*asc_node*arg_peri*open_angle*distance*turn_on*turn_off][0]
+# #     num = jnp.array(num, int)
     
-#     return array[num]
+# #     return array[num]
 
-# def log_likelihood(state, obs, obs_err):
-#     particles, weights = dust_plume(state)
-#     _, _, model = spiral_grid(particles, weights, state)
-#     model = model.flatten()
-#     return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
+# # def log_likelihood(state, obs, obs_err):
+# #     particles, weights = dust_plume(state)
+# #     _, _, model = spiral_grid(particles, weights, state)
+# #     model = model.flatten()
+# #     return -0.5 * jnp.sum((obs - model)**2 / obs_err**2)
 
-# def log_prob(state, obs=obs, obs_err=obs_err):
-#     lp = log_prior(state)
-#     isfinite = jnp.array(jnp.isfinite(lp), int)
-#     return_arr = jnp.array([-jnp.inf, lp + log_likelihood(state, obs, obs_err)])
-#     return return_arr[isfinite]
+# # def log_prob(state, obs=obs, obs_err=obs_err):
+# #     lp = log_prior(state)
+# #     isfinite = jnp.array(jnp.isfinite(lp), int)
+# #     return_arr = jnp.array([-jnp.inf, lp + log_likelihood(state, obs, obs_err)])
+# #     return return_arr[isfinite]
 
-# import blackjax 
-# inverse_mass_matrix = jnp.ones(len(apep)) * 0.05
-# step_size = 1e-3
-# hmc = blackjax.nuts(log_prob, step_size, inverse_mass_matrix)
+# # import blackjax 
+# # inverse_mass_matrix = jnp.ones(len(apep)) * 0.05
+# # step_size = 1e-3
+# # hmc = blackjax.nuts(log_prob, step_size, inverse_mass_matrix)
 
-# initial_position = apep
-# state = hmc.init(initial_position)
-# import jax
-# rng_key = jax.random.key(0)
-# step = jit(hmc.step)
-
-
-# def inference_loop(rng_key, kernel, initial_state, num_samples):
-
-#     @jax.jit
-#     def one_step(state, rng_key):
-#         state, _ = kernel(rng_key, state)
-#         return state, state
-
-#     keys = jax.random.split(rng_key, num_samples)
-#     _, states = jax.lax.scan(one_step, initial_state, keys)
-
-#     return states
-
-# states = inference_loop(rng_key, step, state, 1000)
-
-# mcmc_samples = states.position
-
-# samples = np.ones((len(list(mcmc_samples.keys())), len(mcmc_samples[list(mcmc_samples.keys())[0]])))
-# for i, key in enumerate(mcmc_samples.keys()):
-#     samples[i, :] = mcmc_samples[key]
-
-# import corner
-# corner.corner(samples)
+# # initial_position = apep
+# # state = hmc.init(initial_position)
+# # import jax
+# # rng_key = jax.random.key(0)
+# # step = jit(hmc.step)
 
 
+# # def inference_loop(rng_key, kernel, initial_state, num_samples):
+
+# #     @jax.jit
+# #     def one_step(state, rng_key):
+# #         state, _ = kernel(rng_key, state)
+# #         return state, state
+
+# #     keys = jax.random.split(rng_key, num_samples)
+# #     _, states = jax.lax.scan(one_step, initial_state, keys)
+
+# #     return states
+
+# # states = inference_loop(rng_key, step, state, 1000)
+
+# # mcmc_samples = states.position
+
+# # samples = np.ones((len(list(mcmc_samples.keys())), len(mcmc_samples[list(mcmc_samples.keys())[0]])))
+# # for i, key in enumerate(mcmc_samples.keys()):
+# #     samples[i, :] = mcmc_samples[key]
+
+# # import corner
+# # corner.corner(samples)
 
 
 
 
-### --- NUMPYRO --- ###
-import numpyro, chainconsumer, jax
-import numpyro.distributions as dists
 
-num_chains = 1
 
-def apep_model(Y, E):
-    m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
-    m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-    eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
-    inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
-    asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
-    arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-    open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
-    period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
-    distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
-    windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-    turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
-    turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
-    orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
-    orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
-    az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
-    az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
-    phase = numpyro.sample("phase", dists.Uniform(0., 1.))
-    # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
-    # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
-    # open_angle = apep['open_angle']
-    # period = apep['period']
-    # distance = apep['distance']
-    # windspeed1 = apep['windspeed1']
-    # windspeed2 = apep['windspeed2']
-    # turn_on = apep['turn_on']
-    # turn_off = apep['turn_off']
-    # orb_sd = apep['orb_sd']
-    # orb_amp = apep['orb_amp']
-    # az_sd = apep['az_sd']
-    # az_amp = apep['az_amp']
-    # phase = apep['phase']
-    sigma = apep['sigma']
-    histmax = apep['histmax']
+# ### --- NUMPYRO --- ###
+# import numpyro, chainconsumer, jax
+# import numpyro.distributions as dists
+
+# num_chains = 1
+
+# def apep_model(Y, E):
+#     m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
+#     m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
+#     eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
+#     inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
+#     asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
+#     arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
+#     open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+#     period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
+#     distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
+#     windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
+#     windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
+#     turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
+#     turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+#     orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
+#     orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
+#     az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
+#     az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
+#     phase = numpyro.sample("phase", dists.Uniform(0., 1.))
+#     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
+#     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
+#     # open_angle = apep['open_angle']
+#     # period = apep['period']
+#     # distance = apep['distance']
+#     # windspeed1 = apep['windspeed1']
+#     # windspeed2 = apep['windspeed2']
+#     # turn_on = apep['turn_on']
+#     # turn_off = apep['turn_off']
+#     # orb_sd = apep['orb_sd']
+#     # orb_amp = apep['orb_amp']
+#     # az_sd = apep['az_sd']
+#     # az_amp = apep['az_amp']
+#     # phase = apep['phase']
+#     sigma = apep['sigma']
+#     histmax = apep['histmax']
     
-    # constrain_fn
+#     # constrain_fn
     
-    with numpyro.plate('data', 1):
-        params = {"m1":m1, "m2":m2,                # solar masses
-                "eccentricity":eccentricity, 
-                "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
-                "open_angle":open_angle,       # degrees (full opening angle)
-                "period":period, "distance":distance,        # pc
-                "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
-                "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
-                "orb_sd":orb_sd, "orb_amp":orb_amp, "az_sd":az_sd, "az_amp":az_amp, 
-                "phase":phase, "sigma":sigma, "histmax":histmax}
-        samp_particles, samp_weights = dust_plume(params)
-        _, _, samp_H = spiral_grid(samp_particles, samp_weights, params)
-        samp_H = samp_H.flatten()
-        samp_H = jnp.nan_to_num(samp_H, 1e4)
-        numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
+#     with numpyro.plate('data', 1):
+#         params = {"m1":m1, "m2":m2,                # solar masses
+#                 "eccentricity":eccentricity, 
+#                 "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
+#                 "open_angle":open_angle,       # degrees (full opening angle)
+#                 "period":period, "distance":distance,        # pc
+#                 "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
+#                 "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
+#                 "orb_sd":orb_sd, "orb_amp":orb_amp, "az_sd":az_sd, "az_amp":az_amp, 
+#                 "phase":phase, "sigma":sigma, "histmax":histmax}
+#         samp_particles, samp_weights = dust_plume(params)
+#         _, _, samp_H = spiral_grid(samp_particles, samp_weights, params)
+#         samp_H = samp_H.flatten()
+#         samp_H = jnp.nan_to_num(samp_H, 1e4)
+#         numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
 
 
 
-init_params = apep.copy()
-init_params_arr = init_params.copy()
-for key in init_params.keys():
-    init_params_arr[key] = jnp.ones(num_chains) * init_params_arr[key]
+# init_params = apep.copy()
+# init_params_arr = init_params.copy()
+# for key in init_params.keys():
+#     init_params_arr[key] = jnp.ones(num_chains) * init_params_arr[key]
 
 
-init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
-# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
-#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=apep)),
-#                               num_chains=1,
-#                               num_samples=300,
-#                               num_warmup=20)
-sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
-                              num_chains=num_chains,
-                              num_samples=8000,
-                              num_warmup=1000)
-sampler.run(jax.random.PRNGKey(1), obs, obs_err*10, init_params=init_params_arr)
+# init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
+# # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
+# #                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=apep)),
+# #                               num_chains=1,
+# #                               num_samples=300,
+# #                               num_warmup=20)
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+#                               num_chains=num_chains,
+#                               num_samples=8000,
+#                               num_warmup=1000)
+# sampler.run(jax.random.PRNGKey(1), obs, obs_err*10, init_params=init_params_arr)
 
-results = sampler.get_samples()
-C = chainconsumer.ChainConsumer()
-C.add_chain(results, name='MCMC Results')
-C.plotter.plot(truth=apep)
+# results = sampler.get_samples()
+# C = chainconsumer.ChainConsumer()
+# C.add_chain(results, name='MCMC Results')
+# C.plotter.plot(truth=apep)
 
-maxlike = apep.copy()
-for key in results.keys():
-    maxlike[key] = np.median(results[key])
+# maxlike = apep.copy()
+# for key in results.keys():
+#     maxlike[key] = np.median(results[key])
 
 
-samp_particles, samp_weights = dust_plume(maxlike)
-X, Y, samp_H = spiral_grid(samp_particles, samp_weights, maxlike)
-plot_spiral(X, Y, samp_H)
+# samp_particles, samp_weights = dust_plume(maxlike)
+# X, Y, samp_H = spiral_grid(samp_particles, samp_weights, maxlike)
+# plot_spiral(X, Y, samp_H)
     
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
