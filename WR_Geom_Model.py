@@ -19,6 +19,7 @@ from matplotlib import animation
 import time
 import emcee
 
+import WR_binaries as wrb
 jax.config.update("jax_enable_x64", True)
 
 M_odot = 1.98e30
@@ -96,10 +97,10 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     circle *= turned_on * turned_off
     
     # now calculate the weights of each point according the their orbital variation
-    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - 180) / stardata['orb_sd'])**2) # weight proportion from orbital variation
+    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / stardata['orb_sd'])**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - 270) / (stardata['az_sd']))**2)
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / (stardata['az_sd']))**2)
     
     weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
     
@@ -330,12 +331,12 @@ def plot_orbit(stardata):
 
 
 # # for i in range(10):
-# t1 = time.time()
-# particles, weights = dust_plume(apep)
+t1 = time.time()
+particles, weights = dust_plume(wrb.apep)
 
-# X, Y, H = spiral_grid(particles, weights, apep)
-# print(time.time() - t1)
-# plot_spiral(X, Y, H)
+X, Y, H = spiral_grid(particles, weights, wrb.apep)
+print(time.time() - t1)
+plot_spiral(X, Y, H)
 
 
 # spiral_gif(apep)

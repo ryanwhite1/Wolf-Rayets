@@ -131,12 +131,18 @@ osd.set(starcopy['orb_sd'])
 oamp = tkinter.Scale(root, from_=0, to=3, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('orb_amp', v), label="Orb. Var. Amp", resolution=0.01)
 oamp.set(starcopy['orb_amp'])
+orbmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('orb_min', v), label="Orb. Minimum (deg)", resolution=0.1)
+orbmin.set(starcopy['orb_min'])
 azsd = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('az_sd', v), label="Az. Var. SD (deg)", resolution=0.1)
 azsd.set(starcopy['az_sd'])
 azamp = tkinter.Scale(root, from_=0, to=3, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('az_amp', v), label="Az. Var. Amp", resolution=0.01)
 azamp.set(starcopy['az_amp'])
+azmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('az_min', v), label="Az. Minimum (deg)", resolution=0.1)
+azmin.set(starcopy['az_min'])
 histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,
                         command=lambda v: update_frequency('histmax', v), label="Max Brightness", resolution=0.01)
 histmax.set(starcopy['histmax'])
@@ -145,7 +151,7 @@ sigma = tkinter.Scale(root, from_=0.01, to=10, orient=tkinter.HORIZONTAL,
 sigma.set(starcopy['sigma'])
 
 sliders = [ecc, inc, phase, m1, opang, m2, turnon, asc_node, turnoff, distance, arg_peri, n_orb, ws1, period, ws2,
-           osd, histmax, oamp, azsd, sigma, azamp]
+           osd, histmax, oamp, azsd, sigma, azamp, orbmin, azmin]
 
 
 # Packing order is important. Widgets are processed sequentially and if there

@@ -19,7 +19,7 @@ apep = {"m1":15.,                # solar masses
         "windspeed2":2400.,      # km/s
         "turn_on":-114.,         # true anomaly (degrees)
         "turn_off":150.,         # true anomaly (degrees)
-        "orb_sd":0., "orb_amp":0., "az_sd":0., "az_amp":0., 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270,
         "phase":0.6, 
         "sigma":3.,              # sigma for gaussian blur
         "histmax":1.}
@@ -38,7 +38,7 @@ WR48a = {"m1":15.,                  # solar masses
         "windspeed2":2400,          # km/s
         "turn_on":-140,             # true anomaly (degrees)
         "turn_off":140,             # true anomaly (degrees)
-        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270,
         "phase":0.6, 
         "sigma":2,                  # sigma for gaussian blur
         "histmax":1}
@@ -58,7 +58,7 @@ WR112 = {"m1":15.,                # solar masses
         "windspeed2":2400,      # km/s
         "turn_on":-180,         # true anomaly (degrees)
         "turn_off":180,         # true anomaly (degrees)
-        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270, 
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
         "histmax":1}
@@ -77,7 +77,7 @@ WR140 = {"m1":8.4,                # solar masses
         "windspeed2":2400,      # km/s
         "turn_on":-135,         # true anomaly (degrees)
         "turn_off":135,         # true anomaly (degrees)
-        "orb_sd":80, "orb_amp":0, "az_sd":60, "az_amp":0, 
+        "orb_sd":80., "orb_amp":0., "orb_min":180, "az_sd":60., "az_amp":0., "az_min":270,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
         "histmax":1}
@@ -96,7 +96,7 @@ WR104 = {"m1":10,                # solar masses
         "windspeed2":2000,      # km/s
         "turn_on":-180,         # true anomaly (degrees)
         "turn_off":180,         # true anomaly (degrees)
-        "orb_sd":0, "orb_amp":0, "az_sd":0, "az_amp":0, 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270, 
         "phase":0.7, 
         "sigma":6,              # sigma for gaussian blur
         "histmax":0.2}

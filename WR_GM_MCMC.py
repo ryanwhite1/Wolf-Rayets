@@ -232,8 +232,10 @@ def apep_model(Y, E):
     turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
     orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
+    # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
     az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
     az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
+    # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
     phase = numpyro.sample("phase", dists.Uniform(0., 1.))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
@@ -246,8 +248,10 @@ def apep_model(Y, E):
     # turn_off = apep['turn_off']
     # orb_sd = apep['orb_sd']
     # orb_amp = apep['orb_amp']
+    orb_min = apep['orb_min']
     # az_sd = apep['az_sd']
     # az_amp = apep['az_amp']
+    az_min = apep['az_min']
     # phase = apep['phase']
     sigma = apep['sigma']
     histmax = apep['histmax']
@@ -262,7 +266,7 @@ def apep_model(Y, E):
                 "period":period, "distance":distance,        # pc
                 "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
                 "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
-                "orb_sd":orb_sd, "orb_amp":orb_amp, "az_sd":az_sd, "az_amp":az_amp, 
+                "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
                 "phase":phase, "sigma":sigma, "histmax":histmax}
         samp_particles, samp_weights = gm.dust_plume(params)
         _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, params)
