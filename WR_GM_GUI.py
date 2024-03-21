@@ -128,7 +128,7 @@ period.set(starcopy['period'])
 osd = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                     command=lambda v: update_frequency('orb_sd', v), label="Orb. Var. SD (deg)", resolution=0.1)
 osd.set(starcopy['orb_sd'])
-oamp = tkinter.Scale(root, from_=0, to=3, orient=tkinter.HORIZONTAL,
+oamp = tkinter.Scale(root, from_=-1, to=1, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('orb_amp', v), label="Orb. Var. Amp", resolution=0.01)
 oamp.set(starcopy['orb_amp'])
 orbmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
@@ -137,7 +137,7 @@ orbmin.set(starcopy['orb_min'])
 azsd = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('az_sd', v), label="Az. Var. SD (deg)", resolution=0.1)
 azsd.set(starcopy['az_sd'])
-azamp = tkinter.Scale(root, from_=0, to=3, orient=tkinter.HORIZONTAL,
+azamp = tkinter.Scale(root, from_=-1, to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('az_amp', v), label="Az. Var. Amp", resolution=0.01)
 azamp.set(starcopy['az_amp'])
 azmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,

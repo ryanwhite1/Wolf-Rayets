@@ -102,12 +102,17 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # now from azimuthal variation
     prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / (stardata['az_sd']))**2)
     
-    weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
+    # we need our orbital proportion to be between 0 and 1
+    prop_orb = jnp.min(jnp.array([prop_orb, 1]))
+    prop_orb = jnp.max(jnp.array([prop_orb, 0]))
+    # and the same for our azimuthal proportion
+    prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
+    weights = jnp.ones(len(theta)) * prop_orb * prop_az
     
     
     
-    alpha = jnp.deg2rad(stardata['comp_incl'])%(jnp.pi)
-    beta = jnp.deg2rad(stardata['comp_az'])%(2*jnp.pi)
+    alpha = jnp.deg2rad(stardata['comp_incl'])
+    beta = jnp.deg2rad(stardata['comp_az'])
     comp_halftheta = jnp.deg2rad(stardata['comp_open']) / 2
     x = circle[0, :]
     y = circle[1, :]
@@ -125,8 +130,11 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     comp_gaussian = stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
     companion_dissociate = jnp.where(angular_dist < comp_halftheta,
                                       (1 - comp_gaussian), jnp.ones(len(weights)))
+    companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
+                                (angular_dist < 1.05 * comp_halftheta),
+                                1.5 * jnp.ones(len(weights)), jnp.ones(len(weights)))
     
-    weights *= companion_dissociate
+    weights *= companion_dissociate * companion_plume
     
     circle = jnp.array([circle[0, :], 
                         circle[1, :], 
