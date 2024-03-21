@@ -143,6 +143,18 @@ azamp.set(starcopy['az_amp'])
 azmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('az_min', v), label="Az. Minimum (deg)", resolution=0.1)
 azmin.set(starcopy['az_min'])
+compincl = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('comp_incl', v), label="Companion Incl. (deg)", resolution=0.1)
+compincl.set(starcopy['comp_incl'])
+compaz = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('comp_az', v), label="Companion Azimuth. (deg)", resolution=0.1)
+compaz.set(starcopy['comp_az'])
+compopen = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('comp_open', v), label="Companion Open Angle (deg)", resolution=0.1)
+compopen.set(starcopy['comp_open'])
+compreduc = tkinter.Scale(root, from_=0, to=1, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('comp_reduction', v), label="Companion Photodissociation", resolution=0.01)
+compreduc.set(starcopy['comp_reduction'])
 histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,
                         command=lambda v: update_frequency('histmax', v), label="Max Brightness", resolution=0.01)
 histmax.set(starcopy['histmax'])
@@ -151,7 +163,7 @@ sigma = tkinter.Scale(root, from_=0.01, to=10, orient=tkinter.HORIZONTAL,
 sigma.set(starcopy['sigma'])
 
 sliders = [ecc, inc, phase, m1, opang, m2, turnon, asc_node, turnoff, distance, arg_peri, n_orb, ws1, period, ws2,
-           osd, histmax, oamp, azsd, sigma, azamp, orbmin, azmin]
+           osd, orbmin, oamp, azsd, azmin, azamp, compincl, compaz, compopen, compreduc, histmax, sigma]
 
 
 # Packing order is important. Widgets are processed sequentially and if there

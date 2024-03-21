@@ -104,6 +104,30 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     weights = jnp.ones(len(theta)) * jnp.max(jnp.array([prop_orb, 0])) * prop_az
     
+    
+    
+    alpha = jnp.deg2rad(stardata['comp_incl'])%(jnp.pi)
+    beta = jnp.deg2rad(stardata['comp_az'])%(2*jnp.pi)
+    comp_halftheta = jnp.deg2rad(stardata['comp_open']) / 2
+    x = circle[0, :]
+    y = circle[1, :]
+    z = circle[2, :]
+    r = jnp.sqrt(x**2 + y**2 + z**2)
+    particles_alpha = jnp.arccos(z / r)
+    particles_beta = jnp.sign(y) * jnp.arccos(x / jnp.sqrt(x**2 + y**2))
+    alpha_dist = alpha - particles_alpha
+    beta_dist = beta - particles_beta
+    angular_dist = jnp.sqrt(alpha_dist**2 + beta_dist**2)
+    ## linear scaling for companion photodissociation
+    # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
+    #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
+    ## gaussian scaling for companion photodissociation
+    comp_gaussian = stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
+    companion_dissociate = jnp.where(angular_dist < comp_halftheta,
+                                      (1 - comp_gaussian), jnp.ones(len(weights)))
+    
+    weights *= companion_dissociate
+    
     circle = jnp.array([circle[0, :], 
                         circle[1, :], 
                         circle[2, :],
@@ -330,13 +354,13 @@ def plot_orbit(stardata):
     ax.set_aspect('equal')
 
 
-# # for i in range(10):
-t1 = time.time()
-particles, weights = dust_plume(wrb.apep)
+# for i in range(10):
+# t1 = time.time()
+# particles, weights = dust_plume(wrb.apep)
 
-X, Y, H = spiral_grid(particles, weights, wrb.apep)
-print(time.time() - t1)
-plot_spiral(X, Y, H)
+# X, Y, H = spiral_grid(particles, weights, wrb.apep)
+# print(time.time() - t1)
+# plot_spiral(X, Y, H)
 
 
 # spiral_gif(apep)
