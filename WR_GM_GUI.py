@@ -101,7 +101,7 @@ m1.set(starcopy['m1'])
 m2 = tkinter.Scale(root, from_=5, to=50, orient=tkinter.HORIZONTAL, 
                    command=lambda v: update_frequency('m2', v), label="Companion Mass", resolution=0.1)
 m2.set(starcopy['m2'])
-phase = tkinter.Scale(root, from_=0., to=1.5, orient=tkinter.HORIZONTAL, 
+phase = tkinter.Scale(root, from_=0.01, to=1.5, orient=tkinter.HORIZONTAL, 
                       command=lambda v: update_frequency('phase', v), label="Phase", resolution=0.01)
 phase.set(starcopy['phase'])
 n_orb = tkinter.Scale(root, from_=1, to=2, orient=tkinter.HORIZONTAL,
@@ -152,7 +152,7 @@ compaz.set(starcopy['comp_az'])
 compopen = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('comp_open', v), label="Companion Open Angle (deg)", resolution=0.1)
 compopen.set(starcopy['comp_open'])
-compreduc = tkinter.Scale(root, from_=0, to=1, orient=tkinter.HORIZONTAL,
+compreduc = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('comp_reduction', v), label="Companion Photodissociation", resolution=0.01)
 compreduc.set(starcopy['comp_reduction'])
 histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,

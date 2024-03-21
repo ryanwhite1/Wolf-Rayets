@@ -95,20 +95,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     circle = rotate_z(angle_x) @ circle
     
     circle *= turned_on * turned_off
-    
-    # now calculate the weights of each point according the their orbital variation
-    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / stardata['orb_sd'])**2) # weight proportion from orbital variation
-    
-    # now from azimuthal variation
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / (stardata['az_sd']))**2)
-    
-    # we need our orbital proportion to be between 0 and 1
-    prop_orb = jnp.min(jnp.array([prop_orb, 1]))
-    prop_orb = jnp.max(jnp.array([prop_orb, 0]))
-    # and the same for our azimuthal proportion
-    prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
-    weights = jnp.ones(len(theta)) * prop_orb * prop_az
-    
+    weights = jnp.ones(len(theta))
     
     
     alpha = jnp.deg2rad(stardata['comp_incl'])
@@ -127,12 +114,28 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
     #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
     ## gaussian scaling for companion photodissociation
-    comp_gaussian = stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
+    comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
+    comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
     companion_dissociate = jnp.where(angular_dist < comp_halftheta,
-                                      (1 - comp_gaussian), jnp.ones(len(weights)))
+                                      comp_gaussian, jnp.ones(len(weights)))
     companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
                                 (angular_dist < 1.05 * comp_halftheta),
-                                1.5 * jnp.ones(len(weights)), jnp.ones(len(weights)))
+                                (1 + jnp.heaviside(stardata['comp_reduction'], 0) * 0.5) * jnp.ones(len(weights)), jnp.ones(len(weights)))
+    
+    
+    
+    # now calculate the weights of each point according the their orbital variation
+    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / stardata['orb_sd'])**2) # weight proportion from orbital variation
+    
+    # now from azimuthal variation
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / (stardata['az_sd']))**2)
+    
+    # we need our orbital proportion to be between 0 and 1
+    prop_orb = jnp.min(jnp.array([prop_orb, 1]))
+    prop_orb = jnp.max(jnp.array([prop_orb, 0]))
+    # and the same for our azimuthal proportion
+    prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
+    weights *= prop_orb * prop_az
     
     weights *= companion_dissociate * companion_plume
     
