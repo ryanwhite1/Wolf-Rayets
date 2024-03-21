@@ -9,18 +9,18 @@ Created on Sun Mar 17 13:05:33 2024
 apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
         "eccentricity":0.7, 
-        "inclination":25.,       # degrees
-        "asc_node":-88.,         # degrees
-        "arg_peri":0.,           # degrees
+        "inclination":23.8,       # degrees
+        "asc_node":254.1,         # degrees
+        "arg_peri":10.6,           # degrees
         "open_angle":125.,       # degrees (full opening angle)
         "period":125.,           # years
         "distance":2400.,        # pc
         "windspeed1":700.,       # km/s
         "windspeed2":2400.,      # km/s
         "turn_on":-114.,         # true anomaly (degrees)
-        "turn_off":150.,         # true anomaly (degrees)
+        "turn_off":145.,         # true anomaly (degrees)
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":30., "az_amp":0.5, "az_min":270,
-        "comp_incl":140.3, "comp_az":111.2, "comp_open":116.5, "comp_reduction":0.93,
+        "comp_incl":140.3, "comp_az":111.2, "comp_open":119.1, "comp_reduction":1.09,
         "phase":0.6, 
         "sigma":3.,              # sigma for gaussian blur
         "histmax":1.}

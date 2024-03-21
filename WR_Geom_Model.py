@@ -121,7 +121,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
                                 (angular_dist < 1.05 * comp_halftheta),
                                 (1 + jnp.heaviside(stardata['comp_reduction'], 0) * 0.5) * jnp.ones(len(weights)), jnp.ones(len(weights)))
-    
+    companion_plume = 1
     
     
     # now calculate the weights of each point according the their orbital variation
