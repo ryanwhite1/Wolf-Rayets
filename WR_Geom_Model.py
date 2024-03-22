@@ -88,64 +88,81 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
 
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
                         jnp.sin(half_angle) * jnp.sin(theta), 
-                        jnp.sin(half_angle) * jnp.cos(theta)])
+                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
     
     circle *= widths[i]
     angle_x = jnp.arctan2(direction[1], direction[0])
     circle = rotate_z(angle_x) @ circle
     
-    circle *= turned_on * turned_off
-    weights = jnp.ones(len(theta))
+    # circle *= turned_on * turned_off
+    weights = jnp.ones(len(theta)) * turned_on * turned_off
     
     
     alpha = jnp.deg2rad(stardata['comp_incl'])
     beta = jnp.deg2rad(stardata['comp_az'])
-    comp_halftheta = jnp.deg2rad(stardata['comp_open']) / 2
+    comp_halftheta = jnp.deg2rad(stardata['comp_open'] / 2)
     x = circle[0, :]
     y = circle[1, :]
     z = circle[2, :]
     r = jnp.sqrt(x**2 + y**2 + z**2)
     particles_alpha = jnp.arccos(z / r)
     particles_beta = jnp.sign(y) * jnp.arccos(x / jnp.sqrt(x**2 + y**2))
-    alpha_dist = alpha - particles_alpha
-    beta_dist = jnp.minimum((beta - particles_beta)%(2*jnp.pi), (particles_beta - beta)%(2*jnp.pi))
-    angular_dist = jnp.sqrt(alpha_dist**2 + beta_dist**2)
+    
+    ### to get angular separation of the points on the sphere, I used the cos(alpha) = ... formula from
+    # https://www.atnf.csiro.au/people/Tobias.Westmeier/tools_spherical.php#:~:text=The%20angular%20separation%20of%20two%20points%20on%20a%20shpere&text=cos(%CE%B1)%3Dcos(%CF%911)cos(,%CF%861%E2%88%92%CF%862).
+    term1 = jnp.cos(alpha) * jnp.cos(particles_alpha)
+    term2 = jnp.sin(alpha) * jnp.sin(particles_alpha) * jnp.cos(beta - particles_beta)
+    angular_dist = jnp.arccos(term1 + term2)
+    
+    photodis_prop = 0.9
     ## linear scaling for companion photodissociation
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
     #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
     ## gaussian scaling for companion photodissociation
     comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
     comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
-    companion_dissociate = jnp.where(angular_dist < comp_halftheta,
+    companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
                                       comp_gaussian, jnp.ones(len(weights)))
-    companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
-                                (angular_dist < 1.05 * comp_halftheta),
-                                (1 + jnp.heaviside(stardata['comp_reduction'], 0) * 0.5) * jnp.ones(len(weights)), jnp.ones(len(weights)))
+    # companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
+    #                             (angular_dist < 1.05 * comp_halftheta),
+    #                             (1 + jnp.heaviside(stardata['comp_reduction'], 0) * 0.5) * jnp.ones(len(weights)), jnp.ones(len(weights)))
     companion_plume = 1
     
     
     
     # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
     #                           jnp.ones(len(x), dtype=bool), jnp.zeros(len(x), dtype=bool))
-    # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
-    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
-    # ring_theta = jnp.linspace(-jnp.pi, jnp.pi, len(x))
+    in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+                              jnp.ones(len(x)), jnp.zeros(len(x)))
+    
+    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
     
     # ring_alpha = alpha + comp_halftheta * jnp.cos(ring_theta)
+    # # ring_alpha = ring_alpha%jnp.pi
+    # ring_alpha = jnp.maximum(ring_alpha%jnp.pi, (jnp.pi-ring_alpha)%jnp.pi)
+    # # print(ring_alpha.max())
     # ring_beta = beta + comp_halftheta * jnp.sin(ring_theta)
+    # ring_beta = ring_beta
     
     # new_x = r * jnp.sin(ring_alpha) * jnp.cos(ring_beta)
     # new_y = r * jnp.sin(ring_alpha) * jnp.sin(ring_beta)
     # new_z = r * jnp.cos(ring_alpha)
     
-    # x = x + in_comp_plume * (-x + new_x)
-    # y = y + in_comp_plume * (-y + new_y)
-    # z = z + in_comp_plume * (-z + new_z)
+    ## The coordinate transformations below are from user DougLitke from
+    ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
     
-    # circle = jnp.array([x, y, z])
+    x = x + in_comp_plume * (-x + new_x)
+    y = y + in_comp_plume * (-y + new_y)
+    z = z + in_comp_plume * (-z + new_z)
     
+    circle = jnp.array([x, y, z])
     
-    
+    weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
     
     
@@ -391,12 +408,12 @@ def plot_orbit(stardata):
 
 
 # for i in range(10):
-# t1 = time.time()
-# particles, weights = dust_plume(wrb.apep)
+t1 = time.time()
+particles, weights = dust_plume(wrb.apep)
 
-# X, Y, H = spiral_grid(particles, weights, wrb.apep)
-# print(time.time() - t1)
-# plot_spiral(X, Y, H)
+X, Y, H = spiral_grid(particles, weights, wrb.apep)
+print(time.time() - t1)
+plot_spiral(X, Y, H)
 
 
 # spiral_gif(apep)

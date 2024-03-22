@@ -155,20 +155,27 @@ compopen.set(starcopy['comp_open'])
 compreduc = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('comp_reduction', v), label="Companion Photodissociation", resolution=0.01)
 compreduc.set(starcopy['comp_reduction'])
+compplume = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
+                     command=lambda v: update_frequency('comp_plume', v), label="Companion Plume", resolution=0.01)
+compplume.set(starcopy['comp_reduction'])
 histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,
                         command=lambda v: update_frequency('histmax', v), label="Max Brightness", resolution=0.01)
 histmax.set(starcopy['histmax'])
 sigma = tkinter.Scale(root, from_=0.01, to=10, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('sigma', v), label="Gaussian Blur", resolution=0.01)
 sigma.set(starcopy['sigma'])
+oblate = tkinter.Scale(root, from_=0., to=1, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('oblate', v), label="Plume Oblateness", resolution=0.01)
+oblate.set(starcopy['oblate'])
 
 sliders = [ecc, inc, asc_node, arg_peri, 
            phase, opang, m1, m2, 
            turnon, turnoff, distance, n_orb, 
-           ws1, ws2, period, histmax,
+           ws1, ws2, period, oblate,
            osd, orbmin, oamp, sigma, 
-           azsd, azmin, azamp, compreduc, 
-           compincl, compaz, compopen]
+           azsd, azmin, azamp, histmax, 
+           compreduc, compincl, compaz, compopen,
+           compplume]
 
 num_in_row = 4
 toolbar.grid(row=0, columnspan=num_in_row)
