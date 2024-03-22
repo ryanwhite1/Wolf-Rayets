@@ -162,23 +162,17 @@ sigma = tkinter.Scale(root, from_=0.01, to=10, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('sigma', v), label="Gaussian Blur", resolution=0.01)
 sigma.set(starcopy['sigma'])
 
-sliders = [ecc, inc, phase, m1, opang, m2, turnon, asc_node, turnoff, distance, arg_peri, n_orb, ws1, period, ws2,
-           osd, orbmin, oamp, azsd, azmin, azamp, compincl, compaz, compopen, compreduc, histmax, sigma]
+sliders = [ecc, inc, asc_node, arg_peri, 
+           phase, opang, m1, m2, 
+           turnon, turnoff, distance, n_orb, 
+           ws1, ws2, period, histmax,
+           osd, orbmin, oamp, sigma, 
+           azsd, azmin, azamp, compreduc, 
+           compaz, compopen, compincl]
 
-
-# Packing order is important. Widgets are processed sequentially and if there
-# is no space left, because the window is too small, they are not displayed.
-# The canvas is rather flexible in its size, so we pack it last which makes
-# sure the UI controls are displayed as long as possible.
-# button_quit.pack(side=tkinter.BOTTOM)
-# for i, s in enumerate(ss[::-1]):
-#     s.pack(side=tkinter.BOTTOM, fill=tkinter.X)
-# toolbar.pack(side=tkinter.TOP, fill=tkinter.X)
-# canvas.get_tk_widget().pack(side=tkinter.TOP, fill=tkinter.BOTH, expand=True)
-
-toolbar.grid(row=0, columnspan=3)
-canvas.get_tk_widget().grid(row=1, column=0, columnspan=3)
-num_in_row = 3
+num_in_row = 4
+toolbar.grid(row=0, columnspan=num_in_row)
+canvas.get_tk_widget().grid(row=1, column=0, columnspan=num_in_row)
 for i, slider in enumerate(sliders):
     row = int(np.floor(i / num_in_row)) + 2
     col = i%(num_in_row)
