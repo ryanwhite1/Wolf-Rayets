@@ -114,14 +114,14 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     term2 = jnp.sin(alpha) * jnp.sin(particles_alpha) * jnp.cos(beta - particles_beta)
     angular_dist = jnp.arccos(term1 + term2)
     
-    photodis_prop = 0.9
+    photodis_prop = 1
     ## linear scaling for companion photodissociation
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
     #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
     ## gaussian scaling for companion photodissociation
     comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
     comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
-    companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
+    companion_dissociate = jnp.where(angular_dist < comp_halftheta,
                                       comp_gaussian, jnp.ones(len(weights)))
     # companion_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & 
     #                             (angular_dist < 1.05 * comp_halftheta),
@@ -130,39 +130,28 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     
     
-    # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
-    #                           jnp.ones(len(x), dtype=bool), jnp.zeros(len(x), dtype=bool))
-    in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
-                              jnp.ones(len(x)), jnp.zeros(len(x)))
+    # # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
+    # #                           jnp.ones(len(x), dtype=bool), jnp.zeros(len(x), dtype=bool))
+    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
-    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
-    ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    # # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
     
-    # ring_alpha = alpha + comp_halftheta * jnp.cos(ring_theta)
-    # # ring_alpha = ring_alpha%jnp.pi
-    # ring_alpha = jnp.maximum(ring_alpha%jnp.pi, (jnp.pi-ring_alpha)%jnp.pi)
-    # # print(ring_alpha.max())
-    # ring_beta = beta + comp_halftheta * jnp.sin(ring_theta)
-    # ring_beta = ring_beta
+    # ## The coordinate transformations below are from user DougLitke from
+    # ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
     
-    # new_x = r * jnp.sin(ring_alpha) * jnp.cos(ring_beta)
-    # new_y = r * jnp.sin(ring_alpha) * jnp.sin(ring_beta)
-    # new_z = r * jnp.cos(ring_alpha)
+    # x = x + in_comp_plume * (-x + new_x)
+    # y = y + in_comp_plume * (-y + new_y)
+    # z = z + in_comp_plume * (-z + new_z)
     
-    ## The coordinate transformations below are from user DougLitke from
-    ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
-    new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
-    new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
-    new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
+    # circle = jnp.array([x, y, z])
     
-    x = x + in_comp_plume * (-x + new_x)
-    y = y + in_comp_plume * (-y + new_y)
-    z = z + in_comp_plume * (-z + new_z)
-    
-    circle = jnp.array([x, y, z])
-    
-    weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
+    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
     
     

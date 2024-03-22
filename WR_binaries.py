@@ -21,7 +21,7 @@ apep = {"m1":15.,                # solar masses
         "turn_off":145.,         # true anomaly (degrees)
         "oblate":0.,
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":30., "az_amp":0.5, "az_min":270,
-        "comp_incl":140.3, "comp_az":111.2, "comp_open":119.1, "comp_reduction":1.09, "comp_plume":1,
+        "comp_incl":124.4, "comp_az":116.5, "comp_open":98, "comp_reduction":1.09, "comp_plume":1,
         "phase":0.6, 
         "sigma":3.,              # sigma for gaussian blur
         "histmax":1.}
