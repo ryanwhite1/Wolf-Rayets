@@ -168,7 +168,7 @@ sliders = [ecc, inc, asc_node, arg_peri,
            ws1, ws2, period, histmax,
            osd, orbmin, oamp, sigma, 
            azsd, azmin, azamp, compreduc, 
-           compaz, compopen, compincl]
+           compincl, compaz, compopen]
 
 num_in_row = 4
 toolbar.grid(row=0, columnspan=num_in_row)

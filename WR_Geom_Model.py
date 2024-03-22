@@ -108,7 +108,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     particles_alpha = jnp.arccos(z / r)
     particles_beta = jnp.sign(y) * jnp.arccos(x / jnp.sqrt(x**2 + y**2))
     alpha_dist = alpha - particles_alpha
-    beta_dist = beta - particles_beta
+    beta_dist = jnp.minimum((beta - particles_beta)%(2*jnp.pi), (particles_beta - beta)%(2*jnp.pi))
     angular_dist = jnp.sqrt(alpha_dist**2 + beta_dist**2)
     ## linear scaling for companion photodissociation
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
@@ -122,6 +122,31 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
                                 (angular_dist < 1.05 * comp_halftheta),
                                 (1 + jnp.heaviside(stardata['comp_reduction'], 0) * 0.5) * jnp.ones(len(weights)), jnp.ones(len(weights)))
     companion_plume = 1
+    
+    
+    
+    # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
+    #                           jnp.ones(len(x), dtype=bool), jnp.zeros(len(x), dtype=bool))
+    # in_comp_plume = jnp.where((0.95 * comp_halftheta < angular_dist) & (angular_dist < 1.05 * comp_halftheta),
+    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
+    # ring_theta = jnp.linspace(-jnp.pi, jnp.pi, len(x))
+    
+    # ring_alpha = alpha + comp_halftheta * jnp.cos(ring_theta)
+    # ring_beta = beta + comp_halftheta * jnp.sin(ring_theta)
+    
+    # new_x = r * jnp.sin(ring_alpha) * jnp.cos(ring_beta)
+    # new_y = r * jnp.sin(ring_alpha) * jnp.sin(ring_beta)
+    # new_z = r * jnp.cos(ring_alpha)
+    
+    # x = x + in_comp_plume * (-x + new_x)
+    # y = y + in_comp_plume * (-y + new_y)
+    # z = z + in_comp_plume * (-z + new_z)
+    
+    # circle = jnp.array([x, y, z])
+    
+    
+    
+    
     
     
     # now calculate the weights of each point according the their orbital variation
