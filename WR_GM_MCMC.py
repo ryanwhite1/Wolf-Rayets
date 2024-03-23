@@ -230,12 +230,18 @@ def apep_model(Y, E):
     windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
     turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
     turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
     orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
     # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
     az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
     az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
     # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
+    # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
+    # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
+    # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
+    # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
+    # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
     phase = numpyro.sample("phase", dists.Uniform(0., 1.))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
@@ -246,12 +252,18 @@ def apep_model(Y, E):
     # windspeed2 = apep['windspeed2']
     # turn_on = apep['turn_on']
     # turn_off = apep['turn_off']
+    oblate = apep['oblate']
     # orb_sd = apep['orb_sd']
     # orb_amp = apep['orb_amp']
     orb_min = apep['orb_min']
     # az_sd = apep['az_sd']
     # az_amp = apep['az_amp']
     az_min = apep['az_min']
+    comp_incl = apep['comp_incl']
+    comp_az = apep['comp_az']
+    comp_open = apep['comp_open']
+    comp_reduction = apep["comp_reduction"]
+    comp_plume = apep["comp_plume"]
     # phase = apep['phase']
     sigma = apep['sigma']
     histmax = apep['histmax']
@@ -266,7 +278,10 @@ def apep_model(Y, E):
                 "period":period, "distance":distance,        # pc
                 "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
                 "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
-                "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
+                "oblate":oblate,
+                "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
+                "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
+                "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
                 "phase":phase, "sigma":sigma, "histmax":histmax}
         samp_particles, samp_weights = gm.dust_plume(params)
         _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, params)
