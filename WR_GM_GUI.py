@@ -20,8 +20,6 @@ import emcee
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-apep = wrb.apep.copy()
-
 ### --- GUI Plot --- ###
 
 import tkinter
@@ -34,12 +32,15 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
                                                NavigationToolbar2Tk)
 from matplotlib.figure import Figure
 
+starcopy = wrb.WR112.copy()
+starcopy['n_orbits'] = 1
+
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
 
 fig, ax = plt.subplots()
-particles, weights = gm.dust_plume(apep)
-X, Y, H = gm.spiral_grid(particles, weights, apep)
+particles, weights = gm.dust_plume(starcopy)
+X, Y, H = gm.spiral_grid(particles, weights, starcopy)
 mesh = ax.pcolormesh(X, Y, H, cmap='hot')
 ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
 
@@ -56,8 +57,7 @@ canvas.mpl_connect("key_press_event", key_press_handler)
 
 button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 
-starcopy = apep.copy()
-starcopy['n_orbits'] = 1
+
 def update_frequency(param, new_val):
     # retrieve frequency
     starcopy[param] = float(new_val)
