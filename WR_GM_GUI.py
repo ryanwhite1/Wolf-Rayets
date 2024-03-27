@@ -32,7 +32,7 @@ from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
                                                NavigationToolbar2Tk)
 from matplotlib.figure import Figure
 
-starcopy = wrb.WR112.copy()
+starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()
@@ -61,12 +61,9 @@ button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 def update_frequency(param, new_val):
     # retrieve frequency
     starcopy[param] = float(new_val)
-
-    # update data
-    if starcopy['n_orbits'] == 2:
-        particles, weights = gm.dust_plume_2orb(starcopy)
-    else:
-        particles, weights = gm.dust_plume(starcopy)
+    
+    particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
+    
     X, Y, H = gm.spiral_grid(particles, weights, starcopy)
     mesh.update({'array':H.ravel()})
     
@@ -104,7 +101,7 @@ m2.set(starcopy['m2'])
 phase = tkinter.Scale(root, from_=0.01, to=1.5, orient=tkinter.HORIZONTAL, 
                       command=lambda v: update_frequency('phase', v), label="Phase", resolution=0.01)
 phase.set(starcopy['phase'])
-n_orb = tkinter.Scale(root, from_=1, to=2, orient=tkinter.HORIZONTAL,
+n_orb = tkinter.Scale(root, from_=1, to=20, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('n_orbits', v), label="Shells")
 n_orb.set(starcopy['n_orbits'])
 turnon = tkinter.Scale(root, from_=-180, to=0, orient=tkinter.HORIZONTAL,
@@ -168,16 +165,13 @@ oblate = tkinter.Scale(root, from_=0., to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('oblate', v), label="Plume Oblateness", resolution=0.01)
 oblate.set(starcopy['oblate'])
 
-sliders = [ecc, inc, asc_node, arg_peri, 
-           phase, opang, m1, m2, 
-           turnon, turnoff, distance, n_orb, 
-           ws1, ws2, period, oblate,
-           osd, orbmin, oamp, sigma, 
-           azsd, azmin, azamp, histmax, 
-           compreduc, compincl, compaz, compopen,
-           compplume]
+sliders = [ecc, inc, asc_node, arg_peri, phase, opang, m1, m2, 
+           turnon, turnoff, distance, n_orb, ws1, ws2, 
+           osd, orbmin, oamp, sigma, period, oblate,
+           azsd, azmin, azamp, histmax, compopen, compplume,
+           compreduc, compincl, compaz]
 
-num_in_row = 4
+num_in_row = 6
 toolbar.grid(row=0, columnspan=num_in_row)
 canvas.get_tk_widget().grid(row=1, column=0, columnspan=num_in_row)
 for i, slider in enumerate(sliders):

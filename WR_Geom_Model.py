@@ -269,7 +269,24 @@ def dust_plume_2orb(stardata):
     times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
     particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
     return particles, weights
+  
     
+gui_funcs = [lambda stardata, i=i: dust_plume_GUI_sub(stardata, i) for i in range(1, 20)]
+gui_funcs = [jit(gui_funcs[i]) for i in range(len(gui_funcs))]
+def dust_plume_GUI_sub(stardata, n_orb):
+    phase = stardata['phase']%1
+    
+    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    
+    n_orbits = n_orb
+    n_t = 1000       # circles per orbital period
+    n_points = 400   # points per circle
+    n_particles = n_points * n_t * n_orbits
+    n_time = n_t * n_orbits
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
+    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+    return particles, weights
     
 
 @jit

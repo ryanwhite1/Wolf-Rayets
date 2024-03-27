@@ -217,8 +217,8 @@ import numpyro.distributions as dists
 num_chains = 1
 
 def apep_model(Y, E):
-    m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
-    m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
+    # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
+    # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
     eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
     inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
     asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
@@ -227,7 +227,7 @@ def apep_model(Y, E):
     period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
     windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
-    windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
+    # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
     turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
     turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
@@ -242,14 +242,16 @@ def apep_model(Y, E):
     # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
-    phase = numpyro.sample("phase", dists.Uniform(0., 1.))
+    # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
+    m1 = apep['m1']
+    m2 = apep['m2']
     # open_angle = apep['open_angle']
     # period = apep['period']
     # distance = apep['distance']
     # windspeed1 = apep['windspeed1']
-    # windspeed2 = apep['windspeed2']
+    windspeed2 = apep['windspeed2']
     # turn_on = apep['turn_on']
     # turn_off = apep['turn_off']
     oblate = apep['oblate']
@@ -264,7 +266,7 @@ def apep_model(Y, E):
     comp_open = apep['comp_open']
     comp_reduction = apep["comp_reduction"]
     comp_plume = apep["comp_plume"]
-    # phase = apep['phase']
+    phase = apep['phase']
     sigma = apep['sigma']
     histmax = apep['histmax']
     
