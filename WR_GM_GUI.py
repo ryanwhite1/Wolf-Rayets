@@ -40,24 +40,31 @@ starcopy['n_orbits'] = 1
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
 
-fig, axes = plt.subplots(ncols=2, gridspec_kw={'wspace':0, 'width_ratios':[0.479, 0.521]})
+titles = ['Model', 'Reference', 'Difference']
+w = 1/3.113
+fig, axes = plt.subplots(ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 particles, weights = gm.dust_plume(starcopy)
 X, Y, H_original = gm.spiral_grid(particles, weights, starcopy)
 mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
-axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=titles[0])
+
+reference_mesh = axes[1].pcolormesh(X, Y, H_original, cmap='hot')
 
 H_original_ravel = H_original.ravel()
 norm = colors.Normalize(vmin=-1., vmax=1.)
-diff_mesh = axes[1].pcolormesh(X, Y, H_original - H_original, cmap='seismic', norm=norm)
-axes[1].set(aspect='equal', xlabel='Relative RA (")')
-axes[1].tick_params(axis='y',
-                    which='both',
-                    left=False,
-                    labelleft=False)
-the_divider = make_axes_locatable(axes[1])
+diff_mesh = axes[2].pcolormesh(X, Y, H_original - H_original, cmap='seismic', norm=norm)
+for i in range(1, 3):
+    axes[i].set(aspect='equal', xlabel='Relative RA (")', title=titles[i])
+    axes[i].tick_params(axis='y',
+                        which='both',
+                        left=False,
+                        labelleft=False)
+the_divider = make_axes_locatable(axes[2])
 color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
 fig.colorbar(diff_mesh, cax=color_axis)
 
+for i in range(2):
+    axes[i].set_facecolor('k')
 
 canvas = FigureCanvasTkAgg(fig, master=root)  # A tk.DrawingArea.
 canvas.draw()
@@ -88,8 +95,10 @@ def update_frequency(param, new_val):
     new_coords[:, :, 1] = Y
     mesh._coordinates = new_coords
 
-    axes[0].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
-    axes[1].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
+    maxside = np.max(np.abs(np.array([X, Y])))
+    for i in range(3):
+        # axes[i].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
+        axes[i].set(xlim=(-maxside, maxside), ylim=(-maxside, maxside))
 
     # required to update canvas and attached toolbar!
     canvas.draw()
