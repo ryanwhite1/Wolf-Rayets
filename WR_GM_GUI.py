@@ -31,6 +31,8 @@ from matplotlib.backend_bases import key_press_handler
 from matplotlib.backends.backend_tkagg import (FigureCanvasTkAgg,
                                                NavigationToolbar2Tk)
 from matplotlib.figure import Figure
+import matplotlib.colors as colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
@@ -38,11 +40,24 @@ starcopy['n_orbits'] = 1
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
 
-fig, ax = plt.subplots()
+fig, axes = plt.subplots(ncols=2, gridspec_kw={'wspace':0, 'width_ratios':[0.479, 0.521]})
 particles, weights = gm.dust_plume(starcopy)
-X, Y, H = gm.spiral_grid(particles, weights, starcopy)
-mesh = ax.pcolormesh(X, Y, H, cmap='hot')
-ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+X, Y, H_original = gm.spiral_grid(particles, weights, starcopy)
+mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
+axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+
+H_original_ravel = H_original.ravel()
+norm = colors.Normalize(vmin=-1., vmax=1.)
+diff_mesh = axes[1].pcolormesh(X, Y, H_original - H_original, cmap='seismic', norm=norm)
+axes[1].set(aspect='equal', xlabel='Relative RA (")')
+axes[1].tick_params(axis='y',
+                    which='both',
+                    left=False,
+                    labelleft=False)
+the_divider = make_axes_locatable(axes[1])
+color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
+fig.colorbar(diff_mesh, cax=color_axis)
+
 
 canvas = FigureCanvasTkAgg(fig, master=root)  # A tk.DrawingArea.
 canvas.draw()
@@ -59,19 +74,22 @@ button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 
 
 def update_frequency(param, new_val):
-    # retrieve frequency
     starcopy[param] = float(new_val)
     
     particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
     
     X, Y, H = gm.spiral_grid(particles, weights, starcopy)
-    mesh.update({'array':H.ravel()})
+    new_H = H.ravel()
+    mesh.update({'array':new_H})
+    diff_mesh.update({'array':new_H - H_original_ravel})
     
     new_coords = mesh._coordinates
     new_coords[:, :, 0] = X
     new_coords[:, :, 1] = Y
     mesh._coordinates = new_coords
-    ax.set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
+
+    axes[0].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
+    axes[1].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
 
     # required to update canvas and attached toolbar!
     canvas.draw()
