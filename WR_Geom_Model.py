@@ -93,7 +93,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
                         (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
     
     circle *= widths[i]
-    circle += stardata['nuc_dist'] * 1.496e8        # nucleation distance, converted from AU to km
+    turned_on *= jnp.heaviside(widths[i] - stardata['nuc_dist'] * 1.496e8, 1)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
     angle_x = jnp.arctan2(direction[1], direction[0])
     circle = rotate_z(angle_x) @ circle
     
