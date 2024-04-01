@@ -191,12 +191,15 @@ sigma.set(starcopy['sigma'])
 oblate = tkinter.Scale(root, from_=0., to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('oblate', v), label="Plume Oblateness", resolution=0.01)
 oblate.set(starcopy['oblate'])
+nuc_dist = tkinter.Scale(root, from_=0., to=1e3, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('nuc_dist', v), label="Nuc. Dist", resolution=0.01)
+nuc_dist.set(starcopy['nuc_dist'])
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, opang, m1, m2, 
            turnon, turnoff, distance, n_orb, ws1, ws2, 
            osd, orbmin, oamp, sigma, period, oblate,
            azsd, azmin, azamp, histmax, compopen, compplume,
-           compreduc, compincl, compaz]
+           compreduc, compincl, compaz, nuc_dist]
 
 num_in_row = 6
 toolbar.grid(row=0, columnspan=num_in_row)
