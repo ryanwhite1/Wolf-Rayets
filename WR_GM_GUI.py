@@ -191,17 +191,23 @@ sigma.set(starcopy['sigma'])
 oblate = tkinter.Scale(root, from_=0., to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('oblate', v), label="Plume Oblateness", resolution=0.01)
 oblate.set(starcopy['oblate'])
-nuc_dist = tkinter.Scale(root, from_=0., to=1e3, orient=tkinter.HORIZONTAL,
+nuc_dist = tkinter.Scale(root, from_=0.1, to=1e3, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('nuc_dist', v), label="Nuc. Dist", resolution=0.01)
 nuc_dist.set(starcopy['nuc_dist'])
+opt_thin_dist = tkinter.Scale(root, from_=0.2, to=1e3, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('opt_thin_dist', v), label="Opt. Thin Dist.", resolution=0.01)
+opt_thin_dist.set(starcopy['opt_thin_dist'])
+acc_max = tkinter.Scale(root, from_=0.1, to=4e3, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('acc_max', v), label="Max Accel.", resolution=0.01)
+acc_max.set(starcopy['acc_max'])
 
-sliders = [ecc, inc, asc_node, arg_peri, phase, opang, m1, m2, 
-           turnon, turnoff, distance, n_orb, ws1, ws2, 
-           osd, orbmin, oamp, sigma, period, oblate,
-           azsd, azmin, azamp, histmax, compopen, compplume,
-           compreduc, compincl, compaz, nuc_dist]
+sliders = [ecc, inc, asc_node, arg_peri, phase, period, opang, oblate,  
+           turnon, turnoff, distance, n_orb, ws1, ws2, m1, m2,
+           osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
+           compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max
+           ]
 
-num_in_row = 6
+num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)
 canvas.get_tk_widget().grid(row=1, column=0, columnspan=num_in_row)
 for i, slider in enumerate(sliders):
