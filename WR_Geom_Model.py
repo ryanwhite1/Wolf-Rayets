@@ -17,7 +17,7 @@ from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter
 import jax.scipy.signal as signal
 from matplotlib import animation
-# import time
+import time
 import emcee
 
 import WR_binaries as wrb
@@ -30,6 +30,7 @@ yr2day = 365.25
 yr2s = yr2day * 24*60*60
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 AU2km = 1.496e8
+
 
 
 def rotate_x(angle):
@@ -76,9 +77,10 @@ def kepler_solve(t, P, ecc):
     # now output true anomaly (rad)
     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
 def nonlinear_accel(x, t, rt, amax):
-    sqrtx = jnp.sqrt(1 - rt/x)
-    t_est = (x * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-    return jnp.abs(t - t_est)[0]
+    xuse = x[0]
+    sqrtx = jnp.sqrt(1 - rt/xuse) * jnp.heaviside(xuse - rt, 0)
+    t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
+    return jnp.abs(t - t_est)
 
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     '''
@@ -103,16 +105,20 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
     # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
-    time = widths[i] / stardata['windspeed1']
-    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
-    t_linear = 2 * jnp.sqrt((stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
-    accel_lin = jnp.heaviside(time - t_noaccel, 0)
-    dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([time, t_linear]))**2
-    accel_r2 = jnp.heaviside(time - t_linear, 1)
+    spiral_time = widths[i] / stardata['windspeed1']
     
-    dist_accel_r2 = minimize(nonlinear_accel, jnp.array([stardata['opt_thin_dist']]), args=(time, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS').x
+    valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
+    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
+    t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
+    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
+    dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
+    accel_r2 = jnp.heaviside(spiral_time - t_linear, 1)
+    
+    minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
+    # print(minim.x)
+    dist_accel_r2 = minim.x
     dist_accel_r2 *= accel_r2
-    circle *= widths[i] + dist_accel_lin
+    circle *= widths[i] + valid_dists * (dist_accel_lin + dist_accel_r2)
     
     ### if no acceleration, we can just use the below line instead
     # circle *= widths[i]

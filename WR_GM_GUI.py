@@ -34,9 +34,8 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR140.copy()
+starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
-starcopy['phase'] = 0.077
 
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
