@@ -184,6 +184,9 @@ def prior_model():
     phase = apep['phase']
     sigma = apep['sigma']
     histmax = apep['histmax']
+    nuc_dist = apep['nuc_dist']
+    opt_thin_dist = apep['opt_thin_dist']
+    acc_max = apep['acc_max']
     params = {"m1":m1, "m2":m2,                # solar masses
             "eccentricity":eccentricity, 
             "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
@@ -192,6 +195,8 @@ def prior_model():
             "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
             "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
             "oblate":oblate,
+            "nuc_dist":nuc_dist, "opt_thin_dist":opt_thin_dist,           # nucleation and optically thin distance (AU)
+            "acc_max":acc_max,
             "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
             "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
             "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,

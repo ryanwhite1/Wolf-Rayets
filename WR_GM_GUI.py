@@ -34,15 +34,16 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.apep.copy()
+starcopy = wrb.WR140.copy()
 starcopy['n_orbits'] = 1
+starcopy['phase'] = 0.077
 
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
 
 titles = ['Model', 'Reference', 'Difference']
-w = 1/3.113
-fig, axes = plt.subplots(ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
+w = 1/3.08
+fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 particles, weights = gm.dust_plume(starcopy)
 X, Y, H_original = gm.spiral_grid(particles, weights, starcopy)
 mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
@@ -215,7 +216,7 @@ for i, slider in enumerate(sliders):
     col = i%(num_in_row)
     slider.grid(row=row, column=col)
 
-button_quit.grid(row=row+1, column=1)
+button_quit.grid(row=row+1, column=num_in_row//2)
 
 
 

@@ -11,6 +11,7 @@ from jax import jit, vmap, grad
 import jax
 import jax.lax as lax
 import jax.scipy.stats as stats
+from jax.scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 from scipy.ndimage import gaussian_filter
@@ -74,14 +75,10 @@ def kepler_solve(t, P, ecc):
     E = vmap(lambda i: kepler_solve_sub(i, ecc, tol, M))(jnp.arange(len(t)))
     # now output true anomaly (rad)
     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
-# def nonlinear_accel(x, t, rt, amax):
-#     sqrtx = jnp.sqrt(1 - rt/x)
-#     t_est = (x * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-#     return jnp.abs(t - t_est)
-# def nonlinear_accel(x, t, rt, amax):
-#     sqrtx = jnp.sqrt(1 - rt/x)
-#     t_est = (x * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-#     return jnp.abs(t - t_est)
+def nonlinear_accel(x, t, rt, amax):
+    sqrtx = jnp.sqrt(1 - rt/x)
+    t_est = (x * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
+    return jnp.abs(t - t_est)[0]
 
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     '''
@@ -102,9 +99,10 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
                         jnp.sin(half_angle) * jnp.sin(theta), 
                         (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
     
-    # circle *= widths[i]
     
-    ### Below few lines handle acceleration of dust from radiation pressure
+    
+    ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
+    # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
     time = widths[i] / stardata['windspeed1']
     t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
     t_linear = 2 * jnp.sqrt((stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
@@ -112,23 +110,21 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([time, t_linear]))**2
     accel_r2 = jnp.heaviside(time - t_linear, 1)
     
-    # dist_accel_r2 = minimize(nonlinear_accel, stardata['opt_thin_dist'], args=(time, stardata['opt_thin_dist'], stardata['acc_max'])).x
-    # dist_accel_r2 =
-    # dist_accel_r2 *= accel_r2
-    
+    dist_accel_r2 = minimize(nonlinear_accel, jnp.array([stardata['opt_thin_dist']]), args=(time, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS').x
+    dist_accel_r2 *= accel_r2
     circle *= widths[i] + dist_accel_lin
     
-    # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
-    # accel_max = 0.5 * stardata['accel_max'] * rnuc_rt_time**2
-    # accel_r2 = 
-    # circle += 
+    ### if no acceleration, we can just use the below line instead
+    # circle *= widths[i]
     
+    ### now rotate the circle to account for the star orbit direction
     angle_x = jnp.arctan2(direction[1], direction[0])
     circle = rotate_z(angle_x) @ circle
     
     # circle *= turned_on * turned_off
     weights = jnp.ones(len(theta)) * turned_on * turned_off
     
+    ### below accounts for the dust production not turning on instantaneously (probably negligible effect, so commented out)
     # weights = jnp.ones(len(theta))
     # sigma = jnp.deg2rad(10)
     # mult = 0.1

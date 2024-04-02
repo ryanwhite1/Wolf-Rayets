@@ -269,7 +269,9 @@ def apep_model(Y, E):
     phase = apep['phase']
     sigma = apep['sigma']
     histmax = apep['histmax']
-    
+    nuc_dist = apep['nuc_dist']
+    opt_thin_dist = apep['opt_thin_dist']
+    acc_max = apep['acc_max']
     # constrain_fn
     
     with numpyro.plate('data', 1):
@@ -281,6 +283,8 @@ def apep_model(Y, E):
                 "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
                 "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
                 "oblate":oblate,
+                "nuc_dist":nuc_dist, "opt_thin_dist":opt_thin_dist,           # nucleation and optically thin distance (AU)
+                "acc_max":acc_max,
                 "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
                 "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
                 "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
@@ -309,7 +313,7 @@ sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.
                               num_chains=num_chains,
                               num_samples=2000,
                               num_warmup=1000)
-sampler.run(jax.random.PRNGKey(1), obs, obs_err*10, init_params=init_params_arr)
+sampler.run(jax.random.PRNGKey(1), obs, obs_err, init_params=init_params_arr)
 
 results = sampler.get_samples()
 C = chainconsumer.ChainConsumer()
