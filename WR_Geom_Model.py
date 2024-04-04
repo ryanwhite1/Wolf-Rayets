@@ -328,8 +328,44 @@ def spiral_grid(particles, weights, stardata):
     
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
-    
     H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    H /= jnp.max(H)
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    H /= jnp.max(H)
+    
+    return X, Y, H
+
+@jit
+def spiral_grid_w_bins(particles, weights, stardata, xbins, ybins):
+    ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
+        applying a Gaussian blur.
+    Parameters
+    ----------
+    particles : ndarray (Ndim, Nparticles)
+        Particle positions in cartesian coordinates
+    weights : array (Nparticles)
+        Weight of each particle in the histogram (for orbital/azimuthal variations)
+    sigma : 
+    '''
+    im_size = 256
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    
+    H, xedges, yedges = jnp.histogram2d(y, x, bins=[xbins, ybins], weights=weights)
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
     H /= jnp.max(H)

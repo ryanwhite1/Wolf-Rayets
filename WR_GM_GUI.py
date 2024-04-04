@@ -91,26 +91,10 @@ def update_frequency(param, new_val, X=X, Y=Y):
     new_H = H.ravel()
     mesh.update({'array':new_H})
     
-    im_size = 256
-    x = particles[0, :]
-    y = particles[1, :]
-    weights = jnp.where((x != 0) & (y != 0), weights, 0)
-    H, xedges, yedges = jnp.histogram2d(y, x, bins=[X[0, :], Y[:, 0]], weights=weights)
+    _, _, H_diff = gm.spiral_grid_w_bins(particles, weights, starcopy, X[0, :], Y[:, 0])
+    H_diff = H_diff.ravel()
     
-    X, Y = jnp.meshgrid(xedges, yedges)
-    H = H.T
-    H /= jnp.max(H)
-    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * starcopy['histmax'])
-    shape = 30 // 2  # choose just large enough grid for our gaussian
-    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
-    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * starcopy['sigma']**2))
-    gxy /= gxy.sum()
-    
-    H = signal.convolve(H, gxy, mode='same', method='fft')
-    H /= jnp.max(H)
-    H = H.ravel()
-    
-    diff_mesh.update({'array':H - H_original_ravel})
+    diff_mesh.update({'array':H_diff - H_original_ravel})
     
     new_coords = mesh._coordinates
     new_coords[:, :, 0] = X_new
