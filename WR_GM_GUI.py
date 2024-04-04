@@ -49,6 +49,8 @@ mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
 axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=titles[0])
 
 reference_mesh = axes[1].pcolormesh(X, Y, H_original, cmap='hot')
+maxside2 = np.max(np.abs(np.array([X, Y])))
+axes[1].set(xlim=(-maxside2, maxside2), ylim=(-maxside2, maxside2))
 
 H_original_ravel = H_original.ravel()
 norm = colors.Normalize(vmin=-1., vmax=1.)
@@ -80,25 +82,45 @@ canvas.mpl_connect("key_press_event", key_press_handler)
 button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 
 
-def update_frequency(param, new_val):
+def update_frequency(param, new_val, X=X, Y=Y):
     starcopy[param] = float(new_val)
     
     particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
     
-    X, Y, H = gm.spiral_grid(particles, weights, starcopy)
+    X_new, Y_new, H = gm.spiral_grid(particles, weights, starcopy)
     new_H = H.ravel()
     mesh.update({'array':new_H})
-    diff_mesh.update({'array':new_H - H_original_ravel})
+    
+    im_size = 256
+    x = particles[0, :]
+    y = particles[1, :]
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    H, xedges, yedges = jnp.histogram2d(y, x, bins=[X[0, :], Y[:, 0]], weights=weights)
+    
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    H /= jnp.max(H)
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * starcopy['histmax'])
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * starcopy['sigma']**2))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    H /= jnp.max(H)
+    H = H.ravel()
+    
+    diff_mesh.update({'array':H - H_original_ravel})
     
     new_coords = mesh._coordinates
-    new_coords[:, :, 0] = X
-    new_coords[:, :, 1] = Y
+    new_coords[:, :, 0] = X_new
+    new_coords[:, :, 1] = Y_new
     mesh._coordinates = new_coords
-
-    maxside = np.max(np.abs(np.array([X, Y])))
-    for i in range(3):
-        # axes[i].set(xlim=(np.min(X), np.max(X)), ylim=(np.min(Y), np.max(Y)))
-        axes[i].set(xlim=(-maxside, maxside), ylim=(-maxside, maxside))
+    
+    maxside1 = np.max(np.abs(np.array([X_new, Y_new])))
+    axes[0].set(xlim=(-maxside1, maxside1), ylim=(-maxside1, maxside1))
+    diff_maxside = np.max([maxside1, np.max(np.abs(np.array([X, Y])))])
+    axes[2].set(xlim=(-diff_maxside, diff_maxside), ylim=(-diff_maxside, diff_maxside))
 
     # required to update canvas and attached toolbar!
     canvas.draw()
@@ -200,12 +222,14 @@ opt_thin_dist.set(starcopy['opt_thin_dist'])
 acc_max = tkinter.Scale(root, from_=0.1, to=4e3, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('acc_max', v), label="Max Accel.", resolution=0.01)
 acc_max.set(starcopy['acc_max'])
+# lat_v_var = tkinter.Scale(root, from_=-1., to=10., orient=tkinter.HORIZONTAL,
+#                       command=lambda v: update_frequency('lat_v_var', v), label="Latitude V Var", resolution=0.01)
+# lat_v_var.set(starcopy['lat_v_var'])
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, opang, oblate,  
            turnon, turnoff, distance, n_orb, ws1, ws2, m1, m2,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
-           compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max
-           ]
+           compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)

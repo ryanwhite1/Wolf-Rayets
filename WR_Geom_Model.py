@@ -100,8 +100,13 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
                         jnp.sin(half_angle) * jnp.sin(theta), 
                         (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
-    
-    
+    circle *= widths[i]
+    ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
+    ### if you think about it, the CW shock occurs more or less around the equatorial winds so it shouldnt have a huge effect
+    # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
+    #                     jnp.ones(len(theta)), 
+    #                     jnp.ones(len(theta)) * (1. + stardata['lat_v_var'] * jnp.cos(theta)**2)])
+    # circle *= widths[i] * latitude_speed_var
     
     ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
     # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
@@ -118,10 +123,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # print(minim.x)
     dist_accel_r2 = minim.x
     dist_accel_r2 *= accel_r2
-    circle *= widths[i] + valid_dists * (dist_accel_lin + dist_accel_r2)
-    
-    ### if no acceleration, we can just use the below line instead
-    # circle *= widths[i]
+    circle += valid_dists * (dist_accel_lin + dist_accel_r2)
     
     ### now rotate the circle to account for the star orbit direction
     angle_x = jnp.arctan2(direction[1], direction[0])
@@ -255,6 +257,11 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     particles = jnp.array([jnp.ravel(particles[:, 0, :]),
                            jnp.ravel(particles[:, 1, :]),
                            jnp.ravel(particles[:, 2, :])])
+    
+
+    shock_start = plume_direction * (1 + stardata['nuc_dist'] * AU2km / jnp.max(jnp.abs(plume_direction)))
+    shock_start = jnp.repeat(shock_start, len(theta), axis=1)
+    particles += shock_start
 
     particles = rotate_z(jnp.deg2rad(- stardata['asc_node'])) @ (
             rotate_x(jnp.deg2rad(- stardata['inclination'])) @ (
@@ -321,7 +328,7 @@ def spiral_grid(particles, weights, stardata):
     
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
-
+    
     H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
