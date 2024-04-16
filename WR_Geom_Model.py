@@ -360,8 +360,10 @@ def smooth_histogram2d(particles, weights, stardata):
     # H[x_indices, y_indices * y_edge_check] += y_edge_check * vertical_quadrant
     # H[x_indices * x_edge_check, y_indices * y_edge_check] += x_edge_check * y_edge_check * corner_quadrant
     
+    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html:
+    # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
+    
     H = jnp.zeros((im_size, im_size))
-
     H = H.at[x_indices, y_indices].add(main_quadrant)
     H = H.at[x_indices * x_edge_check, y_indices].add(x_edge_check * horizontal_quadrant)
     H = H.at[x_indices, y_indices * y_edge_check].add(y_edge_check * vertical_quadrant)
@@ -522,12 +524,12 @@ def spiral_gif(stardata):
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"animation.gif", writer='pillow', fps=fps)
     
-def plot_3d(particles):
+def plot_3d(particles, weights):
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     
     n = 23
-    ax.scatter(particles[0, ::n], particles[1, ::n], particles[2, ::n], alpha=0.1)
+    ax.scatter(particles[0, ::n], particles[1, ::n], particles[2, ::n], alpha=np.sqrt(weights[::n])/10)
     
 def plot_orbit(stardata):
     ## plots orbits
@@ -551,6 +553,8 @@ particles, weights = dust_plume(wrb.apep)
 X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
 print(time.time() - t1)
 plot_spiral(X, Y, H)
+
+plot_3d(particles, weights)
 
 
 # spiral_gif(apep)
