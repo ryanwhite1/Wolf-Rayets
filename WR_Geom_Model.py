@@ -307,6 +307,82 @@ def dust_plume_GUI_sub(stardata, n_orb):
     times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
     particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
     return particles, weights
+
+
+@jit 
+def smooth_histogram2d(particles, weights, stardata):
+    '''
+    '''
+    
+    im_size = 256
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound]))
+    _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
+    
+    x_indices = jnp.digitize(x, xedges)
+    y_indices = jnp.digitize(y, yedges)
+    
+    side_width = xedges[1] - xedges[0]
+    
+    alphas = x%side_width
+    betas = y%side_width
+    
+    big_alphas = alphas + side_width / 2    # these alphas are in the right half of their respective bin
+    big_betas = betas + side_width / 2      # these betas are in the top half of their respective bin
+    
+    a_s = jnp.minimum(alphas, big_alphas)
+    b_s = jnp.minimum(betas, big_betas)
+    
+    one_minus_a_indices = x_indices - (1 + 2 * jnp.heaviside(alphas - side_width / 2, 0))
+    one_minus_b_indices = y_indices - (1 + 2 * jnp.heaviside(betas - side_width / 2, 0))
+    
+    # now check the indices that are out of bounds
+    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(len(x_indices) - one_minus_a_indices, 0)
+    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(len(y_indices) - one_minus_b_indices, 0)
+    
+    x_edge_check = x_edge_check.astype(int)
+    y_edge_check = y_edge_check.astype(int)
+    
+    main_quadrant = a_s * b_s * weights
+    horizontal_quadrant = (side_width - a_s) * b_s * weights
+    vertical_quadrant = a_s * (side_width - b_s) * weights
+    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights
+    
+    # H = jnp.zeros((im_size, im_size))
+    # H[x_indices, y_indices] += main_quadrant
+    # H[x_indices * x_edge_check, y_indices] += x_edge_check * horizontal_quadrant
+    # H[x_indices, y_indices * y_edge_check] += y_edge_check * vertical_quadrant
+    # H[x_indices * x_edge_check, y_indices * y_edge_check] += x_edge_check * y_edge_check * corner_quadrant
+    
+    H = jnp.zeros((im_size, im_size))
+
+    H = H.at[x_indices, y_indices].add(main_quadrant)
+    H = H.at[x_indices * x_edge_check, y_indices].add(x_edge_check * horizontal_quadrant)
+    H = H.at[x_indices, y_indices * y_edge_check].add(y_edge_check * vertical_quadrant)
+    H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
+    
+    X, Y = jnp.meshgrid(xedges, yedges)
+    # H = H.T
+    H /= jnp.max(H)
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    H /= jnp.max(H)
+    
+    return X, Y, H
     
 
 @jit
@@ -470,19 +546,27 @@ def plot_orbit(stardata):
 
 
 # for i in range(10):
-# t1 = time.time()
-# particles, weights = dust_plume(wrb.apep)
-
-# X, Y, H = spiral_grid(particles, weights, wrb.apep)
-# print(time.time() - t1)
-# plot_spiral(X, Y, H)
+t1 = time.time()
+particles, weights = dust_plume(wrb.apep)
+X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
+print(time.time() - t1)
+plot_spiral(X, Y, H)
 
 
 # spiral_gif(apep)
 
 
 
+# def test_function(params):
+#     samp_particles, samp_weights = dust_plume(params)
+#     _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
+#     samp_H = samp_H.flatten()
+#     samp_H = jnp.nan_to_num(samp_H, 1e4)
+#     return np.std(samp_H)
 
+# test_grad = grad(test_function, allow_int=True)
+
+# assert np.all(np.isfinite(test_grad(wrb.apep)))
     
 
 
