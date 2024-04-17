@@ -19,6 +19,8 @@ import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 import emcee
+# import jaxoplanet
+import jaxopt
 
 import WR_binaries as wrb
 jax.config.update("jax_enable_x64", True)
@@ -53,34 +55,87 @@ def rotate_z(angle):
 
 
 
-def kepler_solve_sub_sub(i, E0_ecc_mi):
-    '''
-    '''
-    E0, ecc, mi = E0_ecc_mi
-    return (E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0)), ecc, mi)
-def kepler_solve_sub(i, ecc, tol, M):
-    ''' This is the main kepler equation solving step. 
-    '''
-    E0 = M[i]
-    # Newton's formula to solve for eccentric anomaly
-    E0 = lax.fori_loop(0, 20, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
-    return E0
-def kepler_solve(t, P, ecc):
-    ''' Solver for Kepler's 2nd law giving the angle of an orbiter (rel. to origin) over time
-    '''
-    # follow the method in https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
-    # to get true anomaly
-    M = 2 * jnp.pi / P * t
-    tol = 1e-8
+# def kepler_solve_sub_sub(i, E0_ecc_mi):
+#     '''
+#     '''
+#     E0, ecc, mi = E0_ecc_mi
+#     return (E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0)), ecc, mi)
+# def kepler_solve_sub(i, ecc, tol, M):
+#     ''' This is the main kepler equation solving step. 
+#     '''
+#     E0 = M[i]
+#     # Newton's formula to solve for eccentric anomaly
+#     E0 = lax.fori_loop(0, 20, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
+#     return E0
+# def kepler_solve(t, P, ecc):
+#     ''' Solver for Kepler's 2nd law giving the angle of an orbiter (rel. to origin) over time
+#     '''
+#     # follow the method in https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
+#     # to get true anomaly
+#     M = 2 * jnp.pi / P * t
+#     tol = 1e-8
 
-    E = vmap(lambda i: kepler_solve_sub(i, ecc, tol, M))(jnp.arange(len(t)))
-    # now output true anomaly (rad)
+#     E = vmap(lambda i: kepler_solve_sub(i, ecc, tol, M))(jnp.arange(len(t)))
+#     # now output true anomaly (rad)
+#     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
+
+
+### the following kepler solver functions are from https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/#core-from-scratch
+
+def kepler_starter(mean_anom, ecc):
+    ome = 1 - ecc
+    M2 = jnp.square(mean_anom)
+    alpha = 3 * jnp.pi / (jnp.pi - 6 / jnp.pi)
+    alpha += 1.6 / (jnp.pi - 6 / jnp.pi) * (jnp.pi - mean_anom) / (1 + ecc)
+    d = 3 * ome + alpha * ecc
+    alphad = alpha * d
+    r = (3 * alphad * (d - ome) + M2) * mean_anom
+    q = 2 * alphad * ome - M2
+    q2 = jnp.square(q)
+    w = jnp.square(jnp.cbrt(jnp.abs(r) + jnp.sqrt(q2 * q + r * r)))
+    return (2 * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
+def kepler_refiner(mean_anom, ecc, ecc_anom):
+    ome = 1 - ecc
+    sE = ecc_anom - jnp.sin(ecc_anom)
+    cE = 1 - jnp.cos(ecc_anom)
+
+    f_0 = ecc * sE + ecc_anom * ome - mean_anom
+    f_1 = ecc * cE + ome
+    f_2 = ecc * (ecc_anom - sE)
+    f_3 = 1 - f_1
+    d_3 = -f_0 / (f_1 - 0.5 * f_0 * f_2 / f_1)
+    d_4 = -f_0 / (f_1 + 0.5 * d_3 * f_2 + (d_3 * d_3) * f_3 / 6)
+    d_42 = d_4 * d_4
+    dE = -f_0 / (f_1 + 0.5 * d_4 * f_2 + d_4 * d_4 * f_3 / 6 - d_42 * d_4 * f_2 / 24)
+
+    return ecc_anom + dE
+@jnp.vectorize
+def kepler_solver_impl(mean_anom, ecc):
+    mean_anom = mean_anom % (2 * jnp.pi)
+
+    # We restrict to the range [0, pi)
+    high = mean_anom > jnp.pi
+    mean_anom = jnp.where(high, 2 * jnp.pi - mean_anom, mean_anom)
+
+    # Solve
+    ecc_anom = kepler_starter(mean_anom, ecc)
+    ecc_anom = kepler_refiner(mean_anom, ecc, ecc_anom)
+
+    # Re-wrap back into the full range
+    ecc_anom = jnp.where(high, 2 * jnp.pi - ecc_anom, ecc_anom)
+
+    return ecc_anom
+def kepler(mean_anom, ecc):
+    E = kepler_solver_impl(mean_anom, ecc)
     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
+
+
+
 def nonlinear_accel(x, t, rt, amax):
     xuse = x[0]
     sqrtx = jnp.sqrt(1 - rt/xuse) * jnp.heaviside(xuse - rt, 0)
     t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-    return jnp.abs(t - t_est)
+    return jnp.abs(t_est - t)
 
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     '''
@@ -117,12 +172,22 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
     accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
     dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
-    accel_r2 = jnp.heaviside(spiral_time - t_linear, 1)
+    accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
     
-    minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
-    # print(minim.x)
-    dist_accel_r2 = minim.x
-    dist_accel_r2 *= accel_r2
+    
+    ### much more work needed for nonlinear acceleration
+    # minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
+    # # print(minim.x)
+    # dist_accel_r2 = minim.x
+    # dist_accel_r2 *= accel_r2
+    # circle += valid_dists * (dist_accel_lin + dist_accel_r2)
+    
+    # solver = jaxopt.GradientDescent(fun=nonlinear_accel, maxiter=200)
+    # res = solver.run(jnp.array([100*stardata['opt_thin_dist']]), t=spiral_time - t_linear, rt=stardata['opt_thin_dist'], amax=stardata['acc_max'])
+    # dist_accel_r2 = res.params[0]
+    # dist_accel_r2 *= accel_r2
+    
+    dist_accel_r2 = 0
     circle += valid_dists * (dist_accel_lin + dist_accel_r2)
     
     ### now rotate the circle to account for the star orbit direction
@@ -224,12 +289,16 @@ def calculate_semi_major(period_s, m1, m2):
     a2 = a - a1                                             # semi-major axis of second body
     return a1, a2
 
+
+
 def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     n_time = len(times)
     n_t = n_time / n_orbits
     ecc = stardata['eccentricity']
-    E, true_anomaly = kepler_solve(times, period_s, ecc)
+    # E, true_anomaly = kepler_solve(times, period_s, ecc)
+    
+    E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -559,18 +628,21 @@ plot_spiral(X, Y, H)
 
 # spiral_gif(apep)
 
-
+# H_test = H.T.flatten()
+# H_test = jnp.nan_to_num(H_test, 1e4)
 
 # def test_function(params):
 #     samp_particles, samp_weights = dust_plume(params)
 #     _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
 #     samp_H = samp_H.flatten()
 #     samp_H = jnp.nan_to_num(samp_H, 1e4)
-#     return np.std(samp_H)
+#     return jnp.std(samp_H - H_test)
 
-# test_grad = grad(test_function, allow_int=True)
+# test_grad = grad(test_function)
 
-# assert np.all(np.isfinite(test_grad(wrb.apep)))
+# test_vals = test_grad(wrb.apep)
+
+# assert np.all(np.isfinite(test_vals))
     
 
 
