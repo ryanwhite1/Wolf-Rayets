@@ -529,7 +529,7 @@ def plot_3d(particles, weights):
     ax = fig.add_subplot(projection='3d')
     
     n = 23
-    ax.scatter(particles[0, ::n], particles[1, ::n], particles[2, ::n], alpha=np.sqrt(weights[::n])/10)
+    ax.scatter(particles[0, ::n], particles[1, ::n], particles[2, ::n], marker='.', s=100, alpha=0.1)
     
 def plot_orbit(stardata):
     ## plots orbits
@@ -554,7 +554,7 @@ X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
 print(time.time() - t1)
 plot_spiral(X, Y, H)
 
-plot_3d(particles, weights)
+# plot_3d(particles, weights)
 
 
 # spiral_gif(apep)
