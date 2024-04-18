@@ -219,7 +219,7 @@ num_chains = 1
 def apep_model(Y, E):
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-    eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
+    # eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
     inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
     asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
     arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
@@ -231,11 +231,11 @@ def apep_model(Y, E):
     turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
     turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
-    orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
-    orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
+    # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
+    # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
     # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
-    az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
-    az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
+    # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
+    # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
     # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
     # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
     # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
@@ -247,6 +247,10 @@ def apep_model(Y, E):
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
     m1 = apep['m1']
     m2 = apep['m2']
+    eccentricity = apep['eccentricity']
+    # inclination = apep['inclination']
+    # asc_node = apep['asc_node']
+    # arg_peri = apep['arg_peri']
     # open_angle = apep['open_angle']
     # period = apep['period']
     # distance = apep['distance']
@@ -255,11 +259,11 @@ def apep_model(Y, E):
     # turn_on = apep['turn_on']
     # turn_off = apep['turn_off']
     oblate = apep['oblate']
-    # orb_sd = apep['orb_sd']
-    # orb_amp = apep['orb_amp']
+    orb_sd = apep['orb_sd']
+    orb_amp = apep['orb_amp']
     orb_min = apep['orb_min']
-    # az_sd = apep['az_sd']
-    # az_amp = apep['az_amp']
+    az_sd = apep['az_sd']
+    az_amp = apep['az_amp']
     az_min = apep['az_min']
     comp_incl = apep['comp_incl']
     comp_az = apep['comp_az']
@@ -309,10 +313,14 @@ init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, in
 #                               num_chains=1,
 #                               num_samples=300,
 #                               num_warmup=20)
-sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
-                              num_chains=num_chains,
-                              num_samples=2000,
-                              num_warmup=1000)
+sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+                              num_chains=1,
+                              num_samples=300,
+                              num_warmup=20)
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+#                               num_chains=num_chains,
+#                               num_samples=2000,
+#                               num_warmup=1000)
 sampler.run(jax.random.PRNGKey(1), obs, obs_err, init_params=init_params_arr)
 
 results = sampler.get_samples()

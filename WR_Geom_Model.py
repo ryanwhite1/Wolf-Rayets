@@ -628,21 +628,23 @@ plot_spiral(X, Y, H)
 
 # spiral_gif(apep)
 
-# H_test = H.T.flatten()
-# H_test = jnp.nan_to_num(H_test, 1e4)
+H_test = H.T.flatten()
+H_test = jnp.nan_to_num(H_test, 1e4)
 
-# def test_function(params):
-#     samp_particles, samp_weights = dust_plume(params)
-#     _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
-#     samp_H = samp_H.flatten()
-#     samp_H = jnp.nan_to_num(samp_H, 1e4)
-#     return jnp.std(samp_H - H_test)
+def test_function(params):
+    samp_particles, samp_weights = dust_plume(params)
+    _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
+    samp_H = samp_H.flatten()
+    samp_H = jnp.nan_to_num(samp_H, 1e4)
+    return jnp.std(samp_H - H_test)
 
-# test_grad = grad(test_function)
+test_grad = grad(test_function)
 
-# test_vals = test_grad(wrb.apep)
+test_vals = test_grad(wrb.apep)
 
-# assert np.all(np.isfinite(test_vals))
+test_vals_arr = [test_vals[i] for i in test_vals.keys()]
+
+assert np.all(np.isfinite(test_vals_arr))
     
 
 
