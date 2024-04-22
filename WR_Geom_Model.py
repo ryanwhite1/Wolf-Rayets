@@ -221,7 +221,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     term2 = jnp.sin(alpha) * jnp.sin(particles_alpha) * jnp.cos(beta - particles_beta)
     angular_dist = jnp.arccos(term1 + term2)
     
-    photodis_prop = 1
+    photodis_prop = 1   # how much of the plume is photodissociated by the companion. set to < 1 if you want a another plume generated
     ## linear scaling for companion photodissociation
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
     #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
@@ -231,26 +231,28 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
                                       comp_gaussian, jnp.ones(len(weights)))
     
-    in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
-                              jnp.ones(len(x)), jnp.zeros(len(x)))
+    ### below code calculates another plume from the wind-companion interaction
+    ### currently is commented out to save on computation
+    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
-    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
-    ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    # # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
     
-    ## The coordinate transformations below are from user DougLitke from
-    ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
-    new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
-    new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
-    new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
+    # ## The coordinate transformations below are from user DougLitke from
+    # ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
     
-    x = x + in_comp_plume * (-x + new_x)
-    y = y + in_comp_plume * (-y + new_y)
-    z = z + in_comp_plume * (-z + new_z)
+    # x = x + in_comp_plume * (-x + new_x)
+    # y = y + in_comp_plume * (-y + new_y)
+    # z = z + in_comp_plume * (-z + new_z)
     
-    circle = jnp.array([x, y, z])
+    # circle = jnp.array([x, y, z])
     
-    weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
+    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
     
     
@@ -616,17 +618,17 @@ def plot_orbit(stardata):
     ax.set_aspect('equal')
 
 
-# for i in range(10):
+# # for i in range(10):
 t1 = time.time()
 particles, weights = dust_plume(wrb.apep)
 X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
 print(time.time() - t1)
-plot_spiral(X, Y, H)
+# plot_spiral(X, Y, H)
 
-# plot_3d(particles, weights)
+# # plot_3d(particles, weights)
 
 
-# spiral_gif(apep)
+# # spiral_gif(apep)
 
 H_test = H.T.flatten()
 H_test = jnp.nan_to_num(H_test, 1e4)
