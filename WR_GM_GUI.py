@@ -210,8 +210,8 @@ acc_max.set(starcopy['acc_max'])
 #                       command=lambda v: update_frequency('lat_v_var', v), label="Latitude V Var", resolution=0.01)
 # lat_v_var.set(starcopy['lat_v_var'])
 
-sliders = [ecc, inc, asc_node, arg_peri, phase, period, opang, oblate,  
-           turnon, turnoff, distance, n_orb, ws1, ws2, m1, m2,
+sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
+           distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max]
 
