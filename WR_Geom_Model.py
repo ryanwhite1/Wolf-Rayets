@@ -172,7 +172,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
     accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
     dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
-    accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
+    # accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
     
     
     ### much more work needed for nonlinear acceleration
@@ -257,10 +257,12 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     
     # now calculate the weights of each point according the their orbital variation
-    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / stardata['orb_sd'])**2) # weight proportion from orbital variation
+    val_orb_sd = jnp.max(jnp.array([stardata['orb_sd'], 0.01]))
+    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / val_orb_sd)**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / (stardata['az_sd']))**2)
+    val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
     # we need our orbital proportion to be between 0 and 1
     prop_orb = jnp.min(jnp.array([prop_orb, 1]))
@@ -618,35 +620,35 @@ def plot_orbit(stardata):
     ax.set_aspect('equal')
 
 
-# # for i in range(10):
-t1 = time.time()
-particles, weights = dust_plume(wrb.apep)
-X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-print(time.time() - t1)
-# plot_spiral(X, Y, H)
+# # # for i in range(10):
+# t1 = time.time()
+# particles, weights = dust_plume(wrb.apep)
+# X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
+# print(time.time() - t1)
+# # plot_spiral(X, Y, H)
 
-# # plot_3d(particles, weights)
+# # # plot_3d(particles, weights)
 
 
-# # spiral_gif(apep)
+# # # spiral_gif(apep)
 
-H_test = H.T.flatten()
-H_test = jnp.nan_to_num(H_test, 1e4)
+# H_test = H.T.flatten()
+# H_test = jnp.nan_to_num(H_test, 1e4)
 
-def test_function(params):
-    samp_particles, samp_weights = dust_plume(params)
-    _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
-    samp_H = samp_H.flatten()
-    samp_H = jnp.nan_to_num(samp_H, 1e4)
-    return jnp.std(samp_H - H_test)
+# def test_function(params):
+#     samp_particles, samp_weights = dust_plume(params)
+#     _, _, samp_H = smooth_histogram2d(samp_particles, samp_weights, params)
+#     samp_H = samp_H.flatten()
+#     samp_H = jnp.nan_to_num(samp_H, 1e4)
+#     return jnp.std(samp_H - H_test)
 
-test_grad = grad(test_function)
+# test_grad = grad(test_function)
 
-test_vals = test_grad(wrb.apep)
+# test_vals = test_grad(wrb.apep)
 
-test_vals_arr = [test_vals[i] for i in test_vals.keys()]
+# test_vals_arr = [test_vals[i] for i in test_vals.keys()]
 
-assert np.all(np.isfinite(test_vals_arr))
+# assert np.all(np.isfinite(test_vals_arr))
     
 
 

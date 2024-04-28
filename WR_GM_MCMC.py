@@ -278,26 +278,29 @@ def apep_model(Y, E):
     acc_max = apep['acc_max']
     # constrain_fn
     
-    with numpyro.plate('data', 1):
-        params = {"m1":m1, "m2":m2,                # solar masses
-                "eccentricity":eccentricity, 
-                "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
-                "open_angle":open_angle,       # degrees (full opening angle)
-                "period":period, "distance":distance,        # pc
-                "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
-                "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
-                "oblate":oblate,
-                "nuc_dist":nuc_dist, "opt_thin_dist":opt_thin_dist,           # nucleation and optically thin distance (AU)
-                "acc_max":acc_max,
-                "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
-                "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
-                "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
-                "phase":phase, "sigma":sigma, "histmax":histmax}
-        samp_particles, samp_weights = gm.dust_plume(params)
-        _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, params)
-        samp_H = samp_H.flatten()
-        samp_H = jnp.nan_to_num(samp_H, 1e4)
-        numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
+    params = {"m1":m1, "m2":m2,                # solar masses
+            "eccentricity":eccentricity, 
+            "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
+            "open_angle":open_angle,       # degrees (full opening angle)
+            "period":period, "distance":distance,        # pc
+            "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
+            "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
+            "oblate":oblate,
+            "nuc_dist":nuc_dist, "opt_thin_dist":opt_thin_dist,           # nucleation and optically thin distance (AU)
+            "acc_max":acc_max,
+            "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
+            "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
+            "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
+            "phase":phase, "sigma":sigma, "histmax":histmax}
+    
+    # with numpyro.plate('data', len(params.keys())):
+        
+    print(params)
+    samp_particles, samp_weights = gm.dust_plume(params)
+    _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, params)
+    samp_H = samp_H.flatten()
+    samp_H = jnp.nan_to_num(samp_H, 1e4)
+    numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
 
 
 
@@ -308,15 +311,15 @@ for key in init_params.keys():
 
 
 init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
-# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
-#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=apep)),
-#                               num_chains=1,
-#                               num_samples=300,
-#                               num_warmup=20)
-sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
+                                                init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
                               num_chains=1,
                               num_samples=300,
                               num_warmup=20)
+# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=20)
 # sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
 #                               num_chains=num_chains,
 #                               num_samples=2000,
