@@ -25,7 +25,7 @@ apep = wrb.apep.copy()
 ### --- INFERENCE --- ###
 particles, weights = gm.dust_plume(wrb.apep)
     
-X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
+X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
 obs_err = 0.01 * np.max(H)
 H += np.random.normal(0, obs_err, H.shape)
 gm.plot_spiral(X, Y, H)
@@ -219,7 +219,7 @@ num_chains = 1
 def apep_model(Y, E):
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-    # eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
+    eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
     inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
     asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
     arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
@@ -247,7 +247,7 @@ def apep_model(Y, E):
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
     m1 = apep['m1']
     m2 = apep['m2']
-    eccentricity = apep['eccentricity']
+    # eccentricity = apep['eccentricity']
     # inclination = apep['inclination']
     # asc_node = apep['asc_node']
     # arg_peri = apep['arg_peri']
@@ -295,9 +295,8 @@ def apep_model(Y, E):
     
     # with numpyro.plate('data', len(params.keys())):
         
-    print(params)
     samp_particles, samp_weights = gm.dust_plume(params)
-    _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, params)
+    _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, params)
     samp_H = samp_H.flatten()
     samp_H = jnp.nan_to_num(samp_H, 1e4)
     numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
@@ -305,17 +304,29 @@ def apep_model(Y, E):
 
 
 init_params = apep.copy()
-init_params_arr = init_params.copy()
-for key in init_params.keys():
-    init_params_arr[key] = jnp.ones(num_chains) * init_params_arr[key]
+# init_params_arr = init_params.copy()
+# for key in init_params.keys():
+#     init_params_arr[key] = jnp.ones(num_chains) * init_params_arr[key]
 
 
-init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
-sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
-                                                init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+# init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
+# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
+#                                                 target_accept_prob=0.9,
+#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=20,
+#                               progress_bar=True)
+sampler = numpyro.infer.MCMC(numpyro.infer.HMC(apep_model, 
+                                                target_accept_prob=0.3,
+                                                step_size=2*jnp.pi,
+                                                adapt_step_size=False,
+                                                init_strategy=numpyro.infer.initialization.init_to_value(values=init_params),
+                                                forward_mode_differentiation=True),
                               num_chains=1,
                               num_samples=300,
-                              num_warmup=20)
+                              num_warmup=20,
+                              progress_bar=True)
 # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
 #                               num_chains=1,
 #                               num_samples=300,
@@ -324,7 +335,7 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
 #                               num_chains=num_chains,
 #                               num_samples=2000,
 #                               num_warmup=1000)
-sampler.run(jax.random.PRNGKey(1), obs, obs_err, init_params=init_params_arr)
+sampler.run(jax.random.PRNGKey(1), obs, obs_err)
 
 results = sampler.get_samples()
 C = chainconsumer.ChainConsumer()
