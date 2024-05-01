@@ -22,7 +22,7 @@ apep = {"m1":15.,                # solar masses
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":270.,
+        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
         "comp_incl":55.6, "comp_az":68.8, "comp_open":90., "comp_reduction":1.09, "comp_plume":1.,
         "phase":0.6, 
         "sigma":2.,              # sigma for gaussian blur
@@ -45,7 +45,7 @@ WR48a = {"m1":15.,                  # solar masses
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270,
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,                  # sigma for gaussian blur
@@ -69,7 +69,7 @@ WR112 = {"m1":15.,                # solar masses
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270, 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
@@ -80,7 +80,7 @@ WR140 = {"m1":8.4,                # solar masses
         "m2":20,                # solar masses
         "eccentricity":0.8964, 
         "inclination":119.6,       # degrees
-        "asc_node":0,         # degrees
+        "asc_node":95.,         # degrees
         "arg_peri":180-46.8,           # degrees
         "open_angle":80,       # degrees (full opening angle)
         "period":2896.35/365.25,           # years
@@ -92,7 +92,7 @@ WR140 = {"m1":8.4,                # solar masses
         "oblate":0.,
         "nuc_dist":50., "opt_thin_dist":220.,           # nucleation and optically thin distance (AU)
         "acc_max":900,                               # maximum acceleration (km/s/yr)
-        "orb_sd":80., "orb_amp":0., "orb_min":180, "az_sd":60., "az_amp":0., "az_min":270,
+        "orb_sd":80., "orb_amp":0., "orb_min":180, "az_sd":60., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
@@ -115,7 +115,7 @@ WR104 = {"m1":10,                # solar masses
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":270, 
+        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.7, 
         "sigma":6,              # sigma for gaussian blur

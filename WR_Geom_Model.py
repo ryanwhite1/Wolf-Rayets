@@ -446,7 +446,7 @@ def smooth_histogram2d(particles, weights, stardata):
     H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
     
     X, Y = jnp.meshgrid(xedges, yedges)
-    # H = H.T
+    H = H.T
     H /= jnp.max(H)
     
     H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
@@ -628,7 +628,7 @@ def plot_orbit(stardata):
 # particles, weights = dust_plume(wrb.apep)
 # X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
 # print(time.time() - t1)
-# # plot_spiral(X, Y, H)
+# plot_spiral(X, Y, H)
 
 # # # plot_3d(particles, weights)
 
