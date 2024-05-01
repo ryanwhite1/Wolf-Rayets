@@ -52,6 +52,10 @@ def rotate_z(angle):
                      [-jnp.sin(angle), jnp.cos(angle), 0],
                      [0, 0, 1]])
     return arr
+def euler_angles(coords, Omega, i, w):
+    return rotate_z(jnp.deg2rad(Omega)) @ (
+            rotate_x(jnp.deg2rad(i)) @ (
+            rotate_z(jnp.deg2rad(w)) @ coords))
 
 
 
@@ -191,7 +195,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     circle += valid_dists * (dist_accel_lin + dist_accel_r2)
     
     ### now rotate the circle to account for the star orbit direction
-    angle_x = jnp.arctan2(direction[1], direction[0])
+    angle_x = -jnp.arctan2(direction[1], direction[0]) + jnp.pi
     circle = rotate_z(angle_x) @ circle
     
     # circle *= turned_on * turned_off
@@ -332,13 +336,12 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
                            jnp.ravel(particles[:, 2, :])])
     
 
-    shock_start = plume_direction * (1 + stardata['nuc_dist'] * AU2km / jnp.max(jnp.abs(plume_direction)))
-    shock_start = jnp.repeat(shock_start, len(theta), axis=1)
+    ### the shock originates from the second star, not the WR, so we need to add its position to the spiral
+    shock_start = positions2
+    shock_start = jnp.repeat(shock_start, len(theta), axis=-1)
     particles += shock_start
 
-    particles = rotate_z(jnp.deg2rad(- stardata['asc_node'])) @ (
-            rotate_x(jnp.deg2rad(- stardata['inclination'])) @ (
-            rotate_z(jnp.deg2rad(- stardata['arg_peri'])) @ particles))
+    particles = euler_angles(particles, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
@@ -479,7 +482,7 @@ def spiral_grid(particles, weights, stardata):
     
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
-    H, xedges, yedges = jnp.histogram2d(y, x, bins=im_size, weights=weights)
+    H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
     H /= jnp.max(H)
@@ -516,7 +519,7 @@ def spiral_grid_w_bins(particles, weights, stardata, xbins, ybins):
     
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
-    H, xedges, yedges = jnp.histogram2d(y, x, bins=[xbins, ybins], weights=weights)
+    H, xedges, yedges = jnp.histogram2d(x, y, bins=[xbins, ybins], weights=weights)
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
     H /= jnp.max(H)
