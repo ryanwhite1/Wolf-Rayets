@@ -26,7 +26,7 @@ apep = {"m1":15.,                # solar masses
         "comp_incl":55.6, "comp_az":68.8, "comp_open":90., "comp_reduction":1.09, "comp_plume":1.,
         "phase":0.6, 
         "sigma":2.,              # sigma for gaussian blur
-        "histmax":1.}
+        "histmax":1., "lum_power":1.}
 
 # below are rough params for WR 48a
 WR48a = {"m1":15.,                  # solar masses

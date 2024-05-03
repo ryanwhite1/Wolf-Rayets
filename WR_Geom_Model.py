@@ -401,6 +401,7 @@ def smooth_histogram2d(particles, weights, stardata):
     bound = jnp.max(jnp.array([xbound, ybound]))
     _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
     
+    
     x_indices = jnp.digitize(x, xedges)
     y_indices = jnp.digitize(y, yedges)
     
@@ -446,7 +447,7 @@ def smooth_histogram2d(particles, weights, stardata):
     H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
     
     X, Y = jnp.meshgrid(xedges, yedges)
-    H = H.T
+    # H = H.T
     H /= jnp.max(H)
     
     H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
@@ -630,13 +631,13 @@ def plot_orbit(stardata):
 # t1 = time.time()
 # particles, weights = dust_plume(wrb.apep)
 # X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-# print(time.time() - t1)
-# plot_spiral(X, Y, H)
+# # print(time.time() - t1)
+# # plot_spiral(X, Y, H)
 
-# # # plot_3d(particles, weights)
+# # # # plot_3d(particles, weights)
 
 
-# # # spiral_gif(apep)
+# # # # spiral_gif(apep)
 
 # H_test = H.T.flatten()
 # H_test = jnp.nan_to_num(H_test, 1e4)
@@ -650,7 +651,10 @@ def plot_orbit(stardata):
 
 # test_grad = grad(test_function)
 
-# test_vals = test_grad(wrb.apep)
+# for i in range(10):
+#     t1 = time.time()
+#     test_vals = test_grad(wrb.apep)
+#     print(time.time() - t1)
 
 # test_vals_arr = [test_vals[i] for i in test_vals.keys()]
 

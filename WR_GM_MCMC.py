@@ -22,7 +22,7 @@ import WR_binaries as wrb
 
 apep = wrb.apep.copy()
 
-### --- INFERENCE --- ###
+### --- INFERENCE --- ###  
 particles, weights = gm.dust_plume(wrb.apep)
     
 X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
@@ -220,16 +220,16 @@ def apep_model(Y, E):
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
     eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
-    inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
-    asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
-    arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-    open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
-    period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
-    distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
+    # inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
+    # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
+    # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
+    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
+    # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
+    # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-    turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
-    turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
+    # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
     # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
@@ -248,16 +248,16 @@ def apep_model(Y, E):
     m1 = apep['m1']
     m2 = apep['m2']
     # eccentricity = apep['eccentricity']
-    # inclination = apep['inclination']
-    # asc_node = apep['asc_node']
-    # arg_peri = apep['arg_peri']
-    # open_angle = apep['open_angle']
-    # period = apep['period']
-    # distance = apep['distance']
-    # windspeed1 = apep['windspeed1']
+    inclination = apep['inclination']
+    asc_node = apep['asc_node']
+    arg_peri = apep['arg_peri']
+    open_angle = apep['open_angle']
+    period = apep['period']
+    distance = apep['distance']
+    windspeed1 = apep['windspeed1']
     windspeed2 = apep['windspeed2']
-    # turn_on = apep['turn_on']
-    # turn_off = apep['turn_off']
+    turn_on = apep['turn_on']
+    turn_off = apep['turn_off']
     oblate = apep['oblate']
     orb_sd = apep['orb_sd']
     orb_amp = apep['orb_amp']
@@ -276,6 +276,7 @@ def apep_model(Y, E):
     nuc_dist = apep['nuc_dist']
     opt_thin_dist = apep['opt_thin_dist']
     acc_max = apep['acc_max']
+    lum_power = apep['lum_power']
     # constrain_fn
     
     params = {"m1":m1, "m2":m2,                # solar masses
@@ -291,14 +292,14 @@ def apep_model(Y, E):
             "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
             "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
             "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
-            "phase":phase, "sigma":sigma, "histmax":histmax}
+            "phase":phase, "sigma":sigma, "histmax":histmax, "lum_power":lum_power}
     
     # with numpyro.plate('data', len(params.keys())):
         
     samp_particles, samp_weights = gm.dust_plume(params)
     _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, params)
     samp_H = samp_H.flatten()
-    samp_H = jnp.nan_to_num(samp_H, 1e4)
+    # samp_H = jnp.nan_to_num(samp_H, 1e4)
     numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
 
 
@@ -311,42 +312,100 @@ init_params = apep.copy()
 
 # init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
 # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
-#                                                 target_accept_prob=0.9,
+#                                                 target_accept_prob=0.2,
 #                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
 #                               num_chains=1,
 #                               num_samples=300,
 #                               num_warmup=20,
 #                               progress_bar=True)
-sampler = numpyro.infer.MCMC(numpyro.infer.HMC(apep_model, 
-                                                target_accept_prob=0.3,
-                                                step_size=2*jnp.pi,
-                                                adapt_step_size=False,
-                                                init_strategy=numpyro.infer.initialization.init_to_value(values=init_params),
-                                                forward_mode_differentiation=True),
-                              num_chains=1,
-                              num_samples=300,
-                              num_warmup=20,
-                              progress_bar=True)
-# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+# sampler = numpyro.infer.MCMC(numpyro.infer.HMC(apep_model, 
+#                                                 target_accept_prob=0.3,
+#                                                 step_size=2*jnp.pi,
+#                                                 adapt_step_size=False,
+#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params),
+#                                                 forward_mode_differentiation=True),
 #                               num_chains=1,
 #                               num_samples=300,
-#                               num_warmup=20)
-# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
-#                               num_chains=num_chains,
-#                               num_samples=2000,
-#                               num_warmup=1000)
-sampler.run(jax.random.PRNGKey(1), obs, obs_err)
+#                               num_warmup=20,
+#                               progress_bar=True)
+# sampler = numpyro.infer.MCMC(numpyro.infer.HMC(apep_model, 
+#                                                 target_accept_prob=0.3,
+#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params),
+#                                                 forward_mode_differentiation=True,
+#                                                 step_size=1e-7),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=20,
+#                               progress_bar=True)
+# # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+# #                               num_chains=1,
+# #                               num_samples=300,
+# #                               num_warmup=20)
+# # sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+# #                               num_chains=num_chains,
+# #                               num_samples=2000,
+# #                               num_warmup=1000)
+# sampler.run(jax.random.PRNGKey(1), obs, obs_err)
 
-results = sampler.get_samples()
-C = chainconsumer.ChainConsumer()
-C.add_chain(results, name='MCMC Results')
-C.plotter.plot(truth=apep)
+# results = sampler.get_samples()
+# C = chainconsumer.ChainConsumer()
+# C.add_chain(results, name='MCMC Results')
+# C.plotter.plot(truth=apep)
 
-maxlike = apep.copy()
-for key in results.keys():
-    maxlike[key] = np.median(results[key])
+# maxlike = apep.copy()
+# for key in results.keys():
+#     maxlike[key] = np.median(results[key])
 
 
-samp_particles, samp_weights = gm.dust_plume(maxlike)
-X, Y, samp_H = gm.spiral_grid(samp_particles, samp_weights, maxlike)
-gm.plot_spiral(X, Y, samp_H)
+# samp_particles, samp_weights = gm.dust_plume(maxlike)
+# X, Y, samp_H = gm.spiral_grid(samp_particles, samp_weights, maxlike)
+# gm.plot_spiral(X, Y, samp_H)
+
+# a = jax.jit(numpyro.infer.util.potential_energy(apep_model, (obs, obs_err), {}, {"eccentricity":0.7}))
+# @jit
+def a(e):
+    blah = numpyro.infer.util.log_likelihood(apep_model, {"eccentricity":e}, obs, obs_err)
+    print(blah['y'])
+    return blah
+
+
+
+def man_loglike(e):
+    starcopy = apep.copy()
+    starcopy['eccentricity'] = e
+    samp_particles, samp_weights = gm.dust_plume(starcopy)
+    _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, starcopy)
+    samp_H = samp_H.flatten()
+    
+    return -0.5 * jnp.sum(jnp.square((samp_H - obs) / obs_err))
+
+
+    
+like = jit(vmap(jax.value_and_grad(man_loglike)))
+
+n = 50
+numpyro_logLike = np.zeros(n)
+manual_logLike = np.zeros(n)
+eccentricities = np.linspace(0, 0.9, n)
+de = eccentricities[1] - eccentricities[0]
+
+
+# for i in range(n):
+#     print("hello world :)")
+#     t1 = time.time()
+#     manual_logLike[i] = man_loglike(eccentricities[i])
+#     print(time.time() - t1)
+    
+vals, grads = like(eccentricities)
+
+fig, [ax1, ax2] = plt.subplots(ncols=2)
+
+normalize = lambda x: (x-x.min())/(x.max()-x.min())
+
+ax1.plot(eccentricities, vals)
+ax1.axvline(apep['eccentricity'])
+ax2.plot(eccentricities, grads)
+ax2.plot(eccentricities, np.gradient(vals, de))
+ax2.axvline(apep['eccentricity'])
+ax2.axhline(0)
+    
