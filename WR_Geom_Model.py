@@ -459,6 +459,7 @@ def smooth_histogram2d(particles, weights, stardata):
     H = signal.convolve(H, gxy, mode='same', method='fft')
     
     H /= jnp.max(H)
+    H = H**stardata['lum_power']
     
     return X, Y, H
     
@@ -497,6 +498,7 @@ def spiral_grid(particles, weights, stardata):
     H = signal.convolve(H, gxy, mode='same', method='fft')
     
     H /= jnp.max(H)
+    H = H**stardata['lum_power']
     
     return X, Y, H
 
@@ -534,6 +536,7 @@ def spiral_grid_w_bins(particles, weights, stardata, xbins, ybins):
     H = signal.convolve(H, gxy, mode='same', method='fft')
     
     H /= jnp.max(H)
+    H = H**stardata['lum_power']
     
     return X, Y, H
 
@@ -541,7 +544,7 @@ def plot_spiral(X, Y, H):
     ''' Plots the histogram given by X, Y edges and H densities
     '''
     fig, ax = plt.subplots()
-    
+    ax.set_facecolor('k')
     ax.pcolormesh(X, Y, H, cmap='hot')
     # import matplotlib.colors as cols
     # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
@@ -652,9 +655,6 @@ def plot_orbit(stardata):
 # test_vals_arr = [test_vals[i] for i in test_vals.keys()]
 
 # assert np.all(np.isfinite(test_vals_arr))
-    
-
-
 
 
 

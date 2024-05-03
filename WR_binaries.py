@@ -57,7 +57,7 @@ WR112 = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
         "eccentricity":0., 
         "inclination":100.,       # degrees
-        "asc_node":75.,         # degrees
+        "asc_node":360-75.,         # degrees
         "arg_peri":170.,           # degrees
         "open_angle":110.,       # degrees (full opening angle)
         "period":19,           # years
@@ -73,7 +73,7 @@ WR112 = {"m1":15.,                # solar masses
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
-        "histmax":1}
+        "histmax":0.03, "lum_power":1.3}
 
 # below are rough params for WR 140
 WR140 = {"m1":8.4,                # solar masses

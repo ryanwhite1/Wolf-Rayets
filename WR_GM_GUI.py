@@ -34,7 +34,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.apep.copy()
+starcopy = wrb.WR112.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()
@@ -206,6 +206,9 @@ opt_thin_dist.set(starcopy['opt_thin_dist'])
 acc_max = tkinter.Scale(root, from_=0.1, to=4e3, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('acc_max', v), label="Max Accel.", resolution=0.01)
 acc_max.set(starcopy['acc_max'])
+lum_power = tkinter.Scale(root, from_=0.001, to=2., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('lum_power', v), label="Lum. Power", resolution=0.01)
+lum_power.set(starcopy['lum_power'])
 # lat_v_var = tkinter.Scale(root, from_=-1., to=10., orient=tkinter.HORIZONTAL,
 #                       command=lambda v: update_frequency('lat_v_var', v), label="Latitude V Var", resolution=0.01)
 # lat_v_var.set(starcopy['lat_v_var'])
@@ -213,7 +216,8 @@ acc_max.set(starcopy['acc_max'])
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
            distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
-           compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max]
+           compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
+           lum_power]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)
