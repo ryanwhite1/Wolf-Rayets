@@ -26,6 +26,7 @@ apep = wrb.apep.copy()
 particles, weights = gm.dust_plume(wrb.apep)
     
 X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
+# X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
 obs_err = 0.01 * np.max(H)
 H += np.random.normal(0, obs_err, H.shape)
 gm.plot_spiral(X, Y, H)
@@ -327,24 +328,24 @@ init_params = apep.copy()
 #                               num_chains=1,
 #                               num_samples=300,
 #                               num_warmup=20,
-#                               progress_bar=True)
+# #                               progress_bar=True)
 # sampler = numpyro.infer.MCMC(numpyro.infer.HMC(apep_model, 
 #                                                 target_accept_prob=0.3,
 #                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params),
 #                                                 forward_mode_differentiation=True,
-#                                                 step_size=1e-7),
+#                                                 step_size=1e-3),
 #                               num_chains=1,
 #                               num_samples=300,
 #                               num_warmup=20,
 #                               progress_bar=True)
-# # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
-# #                               num_chains=1,
-# #                               num_samples=300,
-# #                               num_warmup=20)
-# # sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
-# #                               num_chains=num_chains,
-# #                               num_samples=2000,
-# #                               num_warmup=1000)
+# # # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+# # #                               num_chains=1,
+# # #                               num_samples=300,
+# # #                               num_warmup=20)
+# # # sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+# # #                               num_chains=num_chains,
+# # #                               num_samples=2000,
+# # #                               num_warmup=1000)
 # sampler.run(jax.random.PRNGKey(1), obs, obs_err)
 
 # results = sampler.get_samples()
@@ -363,10 +364,10 @@ init_params = apep.copy()
 
 # a = jax.jit(numpyro.infer.util.potential_energy(apep_model, (obs, obs_err), {}, {"eccentricity":0.7}))
 # @jit
-def a(e):
-    blah = numpyro.infer.util.log_likelihood(apep_model, {"eccentricity":e}, obs, obs_err)
-    print(blah['y'])
-    return blah
+# def a(e):
+#     blah = numpyro.infer.util.log_likelihood(apep_model, {"eccentricity":e}, obs, obs_err)
+#     print(blah['y'])
+#     return blah
 
 
 
@@ -375,6 +376,7 @@ def man_loglike(e):
     starcopy['eccentricity'] = e
     samp_particles, samp_weights = gm.dust_plume(starcopy)
     _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, starcopy)
+    # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
     samp_H = samp_H.flatten()
     
     return -0.5 * jnp.sum(jnp.square((samp_H - obs) / obs_err))
@@ -383,6 +385,8 @@ def man_loglike(e):
     
 like = jit(vmap(jax.value_and_grad(man_loglike)))
 
+
+
 n = 50
 numpyro_logLike = np.zeros(n)
 manual_logLike = np.zeros(n)
@@ -390,11 +394,11 @@ eccentricities = np.linspace(0, 0.9, n)
 de = eccentricities[1] - eccentricities[0]
 
 
-# for i in range(n):
-#     print("hello world :)")
-#     t1 = time.time()
-#     manual_logLike[i] = man_loglike(eccentricities[i])
-#     print(time.time() - t1)
+# # for i in range(n):
+# #     print("hello world :)")
+# #     t1 = time.time()
+# #     manual_logLike[i] = man_loglike(eccentricities[i])
+# #     print(time.time() - t1)
     
 vals, grads = like(eccentricities)
 
@@ -406,6 +410,7 @@ ax1.plot(eccentricities, vals)
 ax1.axvline(apep['eccentricity'])
 ax2.plot(eccentricities, grads)
 ax2.plot(eccentricities, np.gradient(vals, de))
+# ax2.plot(eccentricities, -np.gradient(np.gradient(vals)))
 ax2.axvline(apep['eccentricity'])
 ax2.axhline(0)
     

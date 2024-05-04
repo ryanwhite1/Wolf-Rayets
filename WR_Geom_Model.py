@@ -402,26 +402,36 @@ def smooth_histogram2d(particles, weights, stardata):
     _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
     
     
-    x_indices = jnp.digitize(x, xedges)
-    y_indices = jnp.digitize(y, yedges)
+    x_indices = jnp.digitize(x, xedges) - 1
+    y_indices = jnp.digitize(y, yedges) - 1
     
     side_width = xedges[1] - xedges[0]
     
     alphas = x%side_width
     betas = y%side_width
     
-    big_alphas = alphas + side_width / 2    # these alphas are in the right half of their respective bin
-    big_betas = betas + side_width / 2      # these betas are in the top half of their respective bin
+    # big_alphas = (alphas + side_width / 2)%side_width    # these alphas are in the right half of their respective bin
+    # big_betas = (betas + side_width / 2)%side_width      # these betas are in the top half of their respective bin
     
-    a_s = jnp.minimum(alphas, big_alphas)
-    b_s = jnp.minimum(betas, big_betas)
+    # a_s = jnp.minimum(alphas, big_alphas)
+    # b_s = jnp.minimum(betas, big_betas)
     
-    one_minus_a_indices = x_indices - (1 + 2 * jnp.heaviside(alphas - side_width / 2, 0))
-    one_minus_b_indices = y_indices - (1 + 2 * jnp.heaviside(betas - side_width / 2, 0))
+    # big_alphas = alphas     # these alphas are in the right half of their respective bin
+    # big_betas = (betas + side_width / 2)%side_width      # these betas are in the top half of their respective bin
+    
+    a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
+    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
+    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    one_minus_a_indices = one_minus_a_indices.astype(int)
+    one_minus_b_indices = one_minus_b_indices.astype(int)
     
     # now check the indices that are out of bounds
-    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(len(x_indices) - one_minus_a_indices, 0)
-    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(len(y_indices) - one_minus_b_indices, 0)
+    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
+    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
     
     x_edge_check = x_edge_check.astype(int)
     y_edge_check = y_edge_check.astype(int)
@@ -437,17 +447,27 @@ def smooth_histogram2d(particles, weights, stardata):
     # H[x_indices, y_indices * y_edge_check] += y_edge_check * vertical_quadrant
     # H[x_indices * x_edge_check, y_indices * y_edge_check] += x_edge_check * y_edge_check * corner_quadrant
     
-    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html:
+    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
     # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
     
     H = jnp.zeros((im_size, im_size))
+    # H = H.at[x_indices, y_indices].add(main_quadrant)
+    # H = H.at[x_indices * x_edge_check, y_indices].add(x_edge_check * horizontal_quadrant)
+    # H = H.at[x_indices, y_indices * y_edge_check].add(y_edge_check * vertical_quadrant)
+    # H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
+    
+    # H = H.at[x_indices, y_indices].add(main_quadrant)
+    # H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
+    # H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
+    # H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
+    
     H = H.at[x_indices, y_indices].add(main_quadrant)
-    H = H.at[x_indices * x_edge_check, y_indices].add(x_edge_check * horizontal_quadrant)
-    H = H.at[x_indices, y_indices * y_edge_check].add(y_edge_check * vertical_quadrant)
-    H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(corner_quadrant)
     
     X, Y = jnp.meshgrid(xedges, yedges)
-    # H = H.T
+    H = H.T
     H /= jnp.max(H)
     
     H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
