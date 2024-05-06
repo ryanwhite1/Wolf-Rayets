@@ -49,7 +49,7 @@ WR48a = {"m1":15.,                  # solar masses
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,                  # sigma for gaussian blur
-        "histmax":1}
+        "histmax":1, "lum_power":1.}
 
 
 # below are rough params for WR 112
@@ -96,7 +96,7 @@ WR140 = {"m1":8.4,                # solar masses
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
-        "histmax":1}
+        "histmax":1, "lum_power":1.}
 
 # below are rough params for WR 104
 WR104 = {"m1":10,                # solar masses
@@ -119,4 +119,4 @@ WR104 = {"m1":10,                # solar masses
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "phase":0.7, 
         "sigma":6,              # sigma for gaussian blur
-        "histmax":0.2}
+        "histmax":0.2, "lum_power":1.}

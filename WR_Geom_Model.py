@@ -390,7 +390,7 @@ def smooth_histogram2d(particles, weights, stardata):
     '''
     '''
     
-    im_size = 256
+    im_size = 100
     
     x = particles[0, :]
     y = particles[1, :]
@@ -398,9 +398,10 @@ def smooth_histogram2d(particles, weights, stardata):
     weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
     xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
-    bound = jnp.max(jnp.array([xbound, ybound]))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
     _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
     
+    # xedges, yedges = jnp.linspace(-bound, bound, im_size), jnp.linspace(-bound, bound, im_size)
     
     x_indices = jnp.digitize(x, xedges) - 1
     y_indices = jnp.digitize(y, yedges) - 1
@@ -456,15 +457,15 @@ def smooth_histogram2d(particles, weights, stardata):
     # H = H.at[x_indices, y_indices * y_edge_check].add(y_edge_check * vertical_quadrant)
     # H = H.at[x_indices * x_edge_check, y_indices * y_edge_check].add(x_edge_check * y_edge_check * corner_quadrant)
     
-    # H = H.at[x_indices, y_indices].add(main_quadrant)
-    # H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
-    # H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
-    # H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
-    
     H = H.at[x_indices, y_indices].add(main_quadrant)
-    H = H.at[one_minus_a_indices, y_indices].add(horizontal_quadrant)
-    H = H.at[x_indices, one_minus_b_indices].add(vertical_quadrant)
-    H = H.at[one_minus_a_indices, one_minus_b_indices].add(corner_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
+    
+    # H = H.at[x_indices, y_indices].add(main_quadrant)
+    # H = H.at[one_minus_a_indices, y_indices].add(horizontal_quadrant)
+    # H = H.at[x_indices, one_minus_b_indices].add(vertical_quadrant)
+    # H = H.at[one_minus_a_indices, one_minus_b_indices].add(corner_quadrant)
     
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
@@ -681,6 +682,12 @@ def plot_orbit(stardata):
 # assert np.all(np.isfinite(test_vals_arr))
 
 
+
+# wr112 = wrb.WR112.copy()
+# wr112['phase'] = 0.47948
+# particles, weights = gui_funcs[15](wrb.WR112)
+# X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
+# plot_spiral(X, Y, H)
 
 
 
