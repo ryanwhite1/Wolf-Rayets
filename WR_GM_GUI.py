@@ -34,7 +34,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR140.copy()
+starcopy = wrb.WR112.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()
@@ -213,11 +213,33 @@ lum_power.set(starcopy['lum_power'])
 #                       command=lambda v: update_frequency('lat_v_var', v), label="Latitude V Var", resolution=0.01)
 # lat_v_var.set(starcopy['lat_v_var'])
 
+
+spin_inc = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_inc', v), label="Spin Inc", resolution=0.01)
+spin_inc.set(starcopy['spin_inc'])
+spin_Omega = tkinter.Scale(root, from_=0.001, to=360., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_Omega', v), label="Spin Omega", resolution=0.01)
+spin_Omega.set(starcopy['spin_Omega'])
+spin_oa_mult = tkinter.Scale(root, from_=0.001, to=1., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_oa_mult', v), label="Spin OA Mult", resolution=0.01)
+spin_oa_mult.set(starcopy['spin_oa_mult'])
+spin_oa_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_oa_sd', v), label="Spin OA SD", resolution=0.01)
+spin_oa_sd.set(starcopy['spin_oa_sd'])
+spin_vel_mult = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_vel_mult', v), label="Spin Vel Mult", resolution=0.01)
+spin_vel_mult.set(starcopy['spin_vel_mult'])
+spin_vel_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('spin_vel_sd', v), label="Spin Vel SD", resolution=0.01)
+spin_vel_sd.set(starcopy['spin_vel_sd'])
+
+
+
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
            distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
-           lum_power]
+           lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)

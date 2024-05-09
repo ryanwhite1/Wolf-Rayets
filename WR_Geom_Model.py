@@ -57,6 +57,13 @@ def euler_angles(coords, Omega, i, w):
             rotate_x(jnp.deg2rad(i)) @ (
             rotate_z(jnp.deg2rad(w)) @ coords))
 
+def inv_rotate_x(angle):
+    return rotate_x(angle).T
+def inv_rotate_y(angle):
+    return rotate_y(angle).T
+def inv_rotate_z(angle):
+    return rotate_z(angle).T
+
 
 
 # def kepler_solve_sub_sub(i, E0_ecc_mi):
@@ -141,6 +148,32 @@ def nonlinear_accel(x, t, rt, amax):
     t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
     return jnp.abs(t_est - t)
 
+def spin_orbit_mult(true_anom, direction, stardata):
+    # derotate = rotate_x(jnp.deg2rad(stardata['spin_inc'])) @ (rotate_z(jnp.deg2rad(stardata['spin_Omega'])) @ direction)
+    # inclination = jnp.arccos(derotate[2] / jnp.linalg.norm(derotate)) - jnp.pi / 2
+    # open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.sin(inclination)**2
+    # vel_mult = 1 + stardata['spin_vel_mult'] * jnp.sin(inclination)**2
+    # return jnp.max(jnp.array([open_angle_mult, 0])), vel_mult
+    
+    inclination = jnp.pi / 2 + jnp.deg2rad(stardata['spin_inc']) * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega']))
+    
+    inclination = jnp.rad2deg(inclination)
+    
+    dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
+    # dist = inclination - 90
+    
+    
+    spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
+    spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
+    open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
+    open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
+    vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
+    
+    # open_angle_mult = 1 
+    # vel_mult = 1
+    return open_angle_mult, vel_mult
+    
+
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     '''
     '''
@@ -154,12 +187,15 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     turned_off = jnp.heaviside(turn_off - transf_nu, 0)
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
     
-    half_angle = jnp.deg2rad(stardata['open_angle']) / 2
+    oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)
+    
+    half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2
+    half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
 
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
                         jnp.sin(half_angle) * jnp.sin(theta), 
                         (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
-    circle *= widths[i]
+    # circle *= widths[i]
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
     ### if you think about it, the CW shock occurs more or less around the equatorial winds so it shouldnt have a huge effect
     # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
@@ -170,6 +206,9 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
     # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
     spiral_time = widths[i] / stardata['windspeed1']
+    
+    # circle *= spiral_time * (stardata['windspeed1'] * v_mult)
+    circle *= widths[i] * v_mult
     
     valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
     t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
@@ -230,7 +269,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
     #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
     ## gaussian scaling for companion photodissociation
-    comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-0.5 * (angular_dist / comp_halftheta)**2)
+    comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-(angular_dist / comp_halftheta)**2)
     comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
     companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
                                       comp_gaussian, jnp.ones(len(weights)))
@@ -258,6 +297,33 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
+    
+    
+    
+    
+    
+    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
+    
+    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    
+    # az_circle = inv_rotate_x(alpha) @ (inv_rotate_z(beta) @ circle)
+    # ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
+    
+    ## The coordinate transformations below are from user DougLitke from
+    ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
+    # x = x + in_comp_plume * (-x + new_x)
+    # y = y + in_comp_plume * (-y + new_y)
+    # z = z + in_comp_plume * (-z + new_z)
+    
+    # circle = jnp.array([x, y, z])
+    
+    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
     
     # now calculate the weights of each point according the their orbital variation
@@ -317,8 +383,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
                             jnp.sin(true_anomaly), 
                             jnp.zeros(n_time)])
     positions2 = jnp.copy(positions1)
-    positions1 *= -r1      # position in the orbital frame
-    positions2 *=  r2     # position in the orbital frame
+    positions1 *= r1      # position in the orbital frame
+    positions2 *= -r2     # position in the orbital frame
     
     widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
     
@@ -390,7 +456,7 @@ def smooth_histogram2d(particles, weights, stardata):
     '''
     '''
     
-    im_size = 100
+    im_size = 256
     
     x = particles[0, :]
     y = particles[1, :]
@@ -683,12 +749,19 @@ def plot_orbit(stardata):
 
 
 
-# wr112 = wrb.WR112.copy()
-# wr112['phase'] = 0.47948
-# particles, weights = gui_funcs[15](wrb.WR112)
-# X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
-# plot_spiral(X, Y, H)
+wr112 = wrb.WR112.copy()
+wr112['phase'] = 0.47948
+particles, weights = gui_funcs[10](wrb.WR112)
+X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
+plot_spiral(X, Y, H)
 
+import pickle
+
+with open('particles.pickle', 'wb') as handle:
+    pickle.dump(particles, handle)
+
+with open('weights.pickle', 'wb') as handle:
+    pickle.dump(weights, handle)
 
 
 
