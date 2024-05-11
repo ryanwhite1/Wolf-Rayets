@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed May  8 11:14:43 2024
+Created on Sat May 11 22:20:48 2024
 
 @author: ryanw
 """
+
 import numpy as np
 import jax.numpy as jnp
 from jax import jit, vmap, grad
@@ -20,164 +21,191 @@ import emcee
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-@jit
-def dust_plume_for_gif(stardata):
+def smooth_histogram2d(particles, weights, stardata):
     '''
+    '''
+    
+    im_size = 15
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 4. / im_size)
+    _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
+    
+    x_indices = jnp.digitize(x, xedges) - 1
+    y_indices = jnp.digitize(y, yedges) - 1
+    
+    side_width = xedges[1] - xedges[0]
+    
+    alphas = x%side_width
+    betas = y%side_width
+    
+    a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
+    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    
+    # one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    print(x_indices, one_minus_a_indices)
+    
+    one_minus_a_indices = one_minus_a_indices.astype(int)
+    one_minus_b_indices = one_minus_b_indices.astype(int)
+    
+    # now check the indices that are out of bounds
+    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
+    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
+    
+    x_edge_check = x_edge_check.astype(int)
+    y_edge_check = y_edge_check.astype(int)
+    
+    main_quadrant = a_s * b_s * weights
+    horizontal_quadrant = (side_width - a_s) * b_s * weights
+    vertical_quadrant = a_s * (side_width - b_s) * weights
+    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights
+
+    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
+    # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
+    
+    H = jnp.zeros((im_size, im_size))
+    
+    H = H.at[x_indices, y_indices].add(main_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
+    
+    X, Y = jnp.meshgrid(xedges, yedges)
+    # H = H.T
+    H /= jnp.max(H)
+    
+    # H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    # shape = 30 // 2  # choose just large enough grid for our gaussian
+    # gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    # gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    # gxy /= gxy.sum()
+    
+    # H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    # H /= jnp.max(H)
+    # H = H**stardata['lum_power']
+    
+    return X, Y, H
+def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
+    ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
+        applying a Gaussian blur.
     Parameters
     ----------
-    stardata : dict
+    particles : ndarray (Ndim, Nparticles)
+        Particle positions in cartesian coordinates
+    weights : array (Nparticles)
+        Weight of each particle in the histogram (for orbital/azimuthal variations)
+    sigma : 
     '''
-    phase = stardata['phase']%1
+    im_size = 15
     
-    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    x = particles[0, :]
+    y = particles[1, :]
     
-    n_orbits = 1
-    n_t = 1000       # circles per orbital period
-    n_points = 400   # points per circle
-    n_particles = n_points * n_t * n_orbits
-    n_time = n_t * n_orbits
-    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
-    particles, weights = gm.dust_plume_sub(theta, times, n_orbits, period_s, stardata)
-    return particles, weights
+    _, xedges, yedges = jnp.histogram2d(x, y, bins=[xbins, ybins], weights=weights)
+    
+    x_indices = jnp.digitize(x, xedges) - 1
+    y_indices = jnp.digitize(y, yedges) - 1
+    
+    side_width = xedges[1] - xedges[0]
+    
+    alphas = x%side_width
+    betas = y%side_width
+    
+    a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
+    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    
+    # one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    one_minus_a_indices = one_minus_a_indices.astype(int)
+    one_minus_b_indices = one_minus_b_indices.astype(int)
+    
+    # now check the indices that are out of bounds
+    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
+    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
+    
+    
+    
+    x_edge_check = x_edge_check.astype(int)
+    y_edge_check = y_edge_check.astype(int)
+    
+    main_quadrant = a_s * b_s * weights
+    horizontal_quadrant = (side_width - a_s) * b_s * weights
+    vertical_quadrant = a_s * (side_width - b_s) * weights
+    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights
+    
+    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
+    # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
+    
+    H = jnp.zeros((im_size, im_size))
+    
+    H = H.at[x_indices, y_indices].add(main_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
+    
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    H /= jnp.max(H)
+    
+    # H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    # shape = 30 // 2  # choose just large enough grid for our gaussian
+    # gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    # gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    # gxy /= gxy.sum()
+    
+    # H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    # H /= jnp.max(H)
+    # H = H**stardata['lum_power']
+    
+    return X, Y, H
 
-def orbital_positions(stardata):
-    
-    phase = stardata['phase']%1
-    
-    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
-    
-    n_orbits = 1
-    n_t = 100       # circles per orbital period
-    n_points = 40   # points per circle
-    n_particles = n_points * n_t * n_orbits
-    n_time = n_t * n_orbits
-    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
-    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
-    n_time = len(times)
-    n_t = n_time / n_orbits
-    ecc = stardata['eccentricity']
-    # E, true_anomaly = kepler_solve(times, period_s, ecc)
-    
-    E, true_anomaly = gm.kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
-    
-    a1, a2 = gm.calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
-    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
-    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
-    
-    positions1 = jnp.array([jnp.cos(true_anomaly), 
-                            jnp.sin(true_anomaly), 
-                            jnp.zeros(n_time)])
-    positions2 = jnp.copy(positions1)
-    positions1 *= r1      # position in the orbital frame
-    positions2 *= -r2     # position in the orbital frame
-    
-    return positions1, positions2
 
-def transform_orbits(pos1, pos2, stardata):
-    pos1 = gm.euler_angles(pos1, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
-    pos2 = gm.euler_angles(pos2, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
-    pos1 = 60 * 60 * 180 / jnp.pi * jnp.arctan(pos1 / (stardata['distance'] * 3.086e13))
-    pos2 = 60 * 60 * 180 / jnp.pi * jnp.arctan(pos2 / (stardata['distance'] * 3.086e13))
-    return pos1, pos2
+stardata = wrb.apep
+stardata['sigma'] = 0.01
 
-def transform_pole(pole, stardata):
-    pole = gm.rotate_x(jnp.deg2rad(stardata['spin_inc'])) @ (gm.rotate_z(jnp.deg2rad(stardata['spin_Omega'])) @ pole)
-    # pole = gm.rotate_z(jnp.deg2rad(stardata['spin_Omega'])) @ (gm.rotate_x(jnp.deg2rad(stardata['spin_inc'])) @ pole)
-    pole = gm.euler_angles(pole, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
-    pole = 60 * 60 * 180 / jnp.pi * jnp.arctan(pole / (stardata['distance'] * 3.086e13))
-    return pole
+p1 = np.array([1., 1., 1.])
+p2 = np.array([2., 3., 2.])
+p3 = np.array([0., 0., 0.])
+p4 = np.array([-3., -5., 1.])
+p5 = np.array([2., -3., 0.])
+particles = np.column_stack((p1, p2, p3, p4, p5))
 
+weights = np.ones(particles.shape[1])
+X, Y, H = smooth_histogram2d(particles, weights, stardata)
 
-# @jit
-def orbit_spiral_gif(stardata):
-    '''
-    '''
-    starcopy = stardata.copy()
-    fig, ax = plt.subplots(figsize=(6, 6))
+for add in [0, 0.5, 1, 1.5]:
+    p1 = np.array([1., 1., 1.])
+    p2 = np.array([2., 3., 2.])
+    p3 = np.array([0., 0., 0.])
+    p4 = np.array([-3., -5., 1.])
+    p5 = np.array([2., -3., 0.])
     
-    every = 1
-    length = 10
-    # now calculate some parameters for the animation frames and timing
-    # nt = int(stardata['period'])    # roughly one year per frame
-    nt = 30
-    # nt = 10
-    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
-    fps = len(frames) // length  # fps for the final animation
+    p1[0] += add
+    p4[1] += add
     
-    phases = jnp.linspace(0, 1, nt)
-    pos1, pos2 = orbital_positions(test_system)
-    pos1, pos2 = transform_orbits(pos1, pos2, starcopy)
+    particles = np.column_stack((p1, p2, p3, p4, p5))
     
+    weights = np.ones(particles.shape[1])
+    _, _, H = smooth_histogram2d_w_bins(particles, weights, stardata, X[0, :], Y[:, 0])
     
-    lim = 2 * max(np.max(np.abs(pos1)), np.max(np.abs(pos2)))
-    xbins = np.linspace(-lim, lim, 257)
-    ybins = np.linspace(-lim, lim, 257)
-    ax.set_aspect('equal')
-    
-    a1, _ = gm.calculate_semi_major(stardata['period'] * 365.25 * 24 * 60 * 60, stardata['m1'], stardata['m2'])
-    
-    # @jit
-    def animate(i):
-        ax.cla()
-        # if i%20 == 0:
-        #     print(i)
-        print(i)
-        starcopy['phase'] = phases[i] + 0.5
-        particles, weights = dust_plume_for_gif(starcopy)
-        
-        pos1, pos2 = orbital_positions(starcopy)
-        pole1 = pos1[:, -1] + jnp.array([0, 0, 0.0005 * a1])
-        pole2 = pos1[:, -1] - jnp.array([0, 0, 0.0005 * a1])
-        pos1, pos2 = transform_orbits(pos1, pos2, starcopy)
-
-        X, Y, H = gm.spiral_grid_w_bins(particles, weights, starcopy, xbins, ybins)
-        ax.pcolormesh(X, Y, H, cmap='hot')
-        
-        
-        ax.plot(pos1[0, :], pos1[1, :], c='w')
-        ax.plot(pos2[0, :], pos2[1, :], c='w')
-        ax.scatter([pos1[0, -1], pos2[0, -1]], [pos1[1, -1], pos2[1, -1]], c=['tab:cyan', 'w'], s=100)
-        
-        pole1 = transform_pole(pole1, starcopy)
-        pole2 = transform_pole(pole2, starcopy)
-        ax.plot([pos1[0, -1], pole1[0]], [pos1[1, -1], pole1[1]], c='tab:blue')
-        ax.plot([pos1[0, -1], pole2[0]], [pos1[1, -1], pole2[1]], c='tab:red')
-        
-        ax.set(xlim=(-lim, lim), ylim=(-lim, lim))
-        ax.set_facecolor('k')
-        ax.set_axis_off()
-        ax.text(0.3 * lim, -0.8 * lim, f"Phase = {starcopy['phase']%1:.2f}", c='w', fontsize=14)
-        fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-        return fig, 
-
-    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    ani.save(f"orbit_spiral.gif", writer='pillow', fps=fps)
-    
-# test_system = wrb.apep.copy()
-
-test_system = {"m1":22.,                # solar masses
-        "m2":10.,                # solar masses
-        "eccentricity":0.5, 
-        "inclination":60.,       # degrees
-        "asc_node":254.1,         # degrees
-        "arg_peri":10.6,           # degrees
-        "open_angle":40.,       # degrees (full opening angle)
-        "period":1.,           # years
-        "distance":10.,        # pc
-        "windspeed1":0.1,       # km/s
-        "windspeed2":2400.,      # km/s
-        "turn_on":-180.,         # true anomaly (degrees)
-        "turn_off":180.,         # true anomaly (degrees)
-        "oblate":0.,
-        "nuc_dist":0.0001, "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
-        "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0., "az_min":270.,
-        "comp_incl":127.1, "comp_az":116.5, "comp_open":0., "comp_reduction":0., "comp_plume":1.,
-        "phase":0.6, 
-        "sigma":1.5,              # sigma for gaussian blur
-        "histmax":1., "lum_power":1, 
-        "spin_inc":45., "spin_Omega":90., "spin_oa_mult":0.5, "spin_vel_mult":1., "spin_oa_sd":60., "spin_vel_sd":60.}
-
-orbit_spiral_gif(test_system)
+    gm.plot_spiral(X, Y, H)
