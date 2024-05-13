@@ -162,22 +162,12 @@ def spin_orbit_mult(true_anom, direction, stardata):
     dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
     # dist = inclination - 90
     
-    # gaussians for the open-angle/velocity-latitude curve
+    
     spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
     spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
     open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
     open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
-    
-    
-    # # test with a power law
-    # x = jnp.abs(dist / 90 - 1)
-    # spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.001]))
-    # spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.001]))
-    # open_angle_mult = 1 - stardata['spin_oa_mult'] * x**(1 / spin_oa_sd)
-    # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
-    # vel_mult = 1 + stardata['spin_vel_mult'] * x**(1 / spin_vel_sd)
-    
     
     # open_angle_mult = 1 
     # vel_mult = 1
@@ -471,7 +461,7 @@ def smooth_histogram2d(particles, weights, stardata):
     x = particles[0, :]
     y = particles[1, :]
     
-    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    # weights = jnp.where((x != 0) & (y != 0), weights, 0)
     
     xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
     bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
@@ -498,8 +488,14 @@ def smooth_histogram2d(particles, weights, stardata):
     
     a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
     b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
-    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
-    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    
+    one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
     
     # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
     # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
@@ -509,6 +505,8 @@ def smooth_histogram2d(particles, weights, stardata):
     # now check the indices that are out of bounds
     x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
     y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
+    
+    
     
     x_edge_check = x_edge_check.astype(int)
     y_edge_check = y_edge_check.astype(int)
@@ -542,6 +540,89 @@ def smooth_histogram2d(particles, weights, stardata):
     # H = H.at[one_minus_a_indices, y_indices].add(horizontal_quadrant)
     # H = H.at[x_indices, one_minus_b_indices].add(vertical_quadrant)
     # H = H.at[one_minus_a_indices, one_minus_b_indices].add(corner_quadrant)
+    
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    H /= jnp.max(H)
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    H /= jnp.max(H)
+    H = H**stardata['lum_power']
+    
+    return X, Y, H
+
+@jit
+def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
+    ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
+        applying a Gaussian blur.
+    Parameters
+    ----------
+    particles : ndarray (Ndim, Nparticles)
+        Particle positions in cartesian coordinates
+    weights : array (Nparticles)
+        Weight of each particle in the histogram (for orbital/azimuthal variations)
+    sigma : 
+    '''
+    im_size = 256
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    _, xedges, yedges = jnp.histogram2d(x, y, bins=[xbins, ybins], weights=weights)
+    
+    x_indices = jnp.digitize(x, xedges) - 1
+    y_indices = jnp.digitize(y, yedges) - 1
+    
+    side_width = xedges[1] - xedges[0]
+    
+    alphas = x%side_width
+    betas = y%side_width
+    
+    a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
+    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    
+    one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
+    
+    one_minus_a_indices = one_minus_a_indices.astype(int)
+    one_minus_b_indices = one_minus_b_indices.astype(int)
+    
+    # now check the indices that are out of bounds
+    x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
+    y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
+    
+    
+    
+    x_edge_check = x_edge_check.astype(int)
+    y_edge_check = y_edge_check.astype(int)
+    
+    main_quadrant = a_s * b_s * weights
+    horizontal_quadrant = (side_width - a_s) * b_s * weights
+    vertical_quadrant = a_s * (side_width - b_s) * weights
+    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights
+    
+    # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
+    # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
+    
+    H = jnp.zeros((im_size, im_size))
+    
+    H = H.at[x_indices, y_indices].add(main_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
     
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
@@ -765,6 +846,12 @@ def plot_orbit(stardata):
 # X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
 # plot_spiral(X, Y, H)
 
+# np.savetxt('particles.csv', particles, delimiter=',')
+# np.savetxt('weights.csv', weights, delimiter=',')
+
+# particles = np.array(particles)
+# weights = np.array(weights)
+
 # import pickle
 
 # with open('particles.pickle', 'wb') as handle:
@@ -772,8 +859,6 @@ def plot_orbit(stardata):
 
 # with open('weights.pickle', 'wb') as handle:
 #     pickle.dump(weights, handle)
-
-
 
 
 

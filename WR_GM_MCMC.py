@@ -371,11 +371,21 @@ init_params = apep.copy()
 
 
 
+# def man_loglike(e):
+#     starcopy = apep.copy()
+#     starcopy['eccentricity'] = e
+#     samp_particles, samp_weights = gm.dust_plume(starcopy)
+#     _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, starcopy)
+#     # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
+#     samp_H = samp_H.flatten()
+    
+#     return -0.5 * jnp.sum(jnp.square((samp_H - obs) / obs_err))
+
 def man_loglike(e):
     starcopy = apep.copy()
     starcopy['eccentricity'] = e
     samp_particles, samp_weights = gm.dust_plume(starcopy)
-    _, _, samp_H = gm.smooth_histogram2d(samp_particles, samp_weights, starcopy)
+    _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
     # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
     samp_H = samp_H.flatten()
     
@@ -387,7 +397,7 @@ like = jit(vmap(jax.value_and_grad(man_loglike)))
 
 
 
-n = 50
+n = 20
 numpyro_logLike = np.zeros(n)
 manual_logLike = np.zeros(n)
 eccentricities = np.linspace(0, 0.9, n)
