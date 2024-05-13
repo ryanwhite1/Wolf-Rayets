@@ -162,12 +162,22 @@ def spin_orbit_mult(true_anom, direction, stardata):
     dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
     # dist = inclination - 90
     
-    
+    # gaussians for the open-angle/velocity-latitude curve
     spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
     spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
     open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
     open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
+    
+    
+    # # test with a power law
+    # x = jnp.abs(dist / 90 - 1)
+    # spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.001]))
+    # spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.001]))
+    # open_angle_mult = 1 - stardata['spin_oa_mult'] * x**(1 / spin_oa_sd)
+    # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
+    # vel_mult = 1 + stardata['spin_vel_mult'] * x**(1 / spin_vel_sd)
+    
     
     # open_angle_mult = 1 
     # vel_mult = 1
@@ -749,19 +759,19 @@ def plot_orbit(stardata):
 
 
 
-wr112 = wrb.WR112.copy()
-wr112['phase'] = 0.47948
-particles, weights = gui_funcs[10](wrb.WR112)
-X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
-plot_spiral(X, Y, H)
+# wr112 = wrb.WR112.copy()
+# wr112['phase'] = 0.47948
+# particles, weights = gui_funcs[10](wrb.WR112)
+# X, Y, H = smooth_histogram2d(particles, weights, wrb.WR112)
+# plot_spiral(X, Y, H)
 
-import pickle
+# import pickle
 
-with open('particles.pickle', 'wb') as handle:
-    pickle.dump(particles, handle)
+# with open('particles.pickle', 'wb') as handle:
+#     pickle.dump(particles, handle)
 
-with open('weights.pickle', 'wb') as handle:
-    pickle.dump(weights, handle)
+# with open('weights.pickle', 'wb') as handle:
+#     pickle.dump(weights, handle)
 
 
 
