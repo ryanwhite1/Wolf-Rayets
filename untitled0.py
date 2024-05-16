@@ -31,7 +31,7 @@ def smooth_histogram2d(particles, weights, stardata):
     y = particles[1, :]
     
     xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
-    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 4. / im_size)
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
     _, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights, range=jnp.array([[-bound, bound], [-bound, bound]]))
     
     x_indices = jnp.digitize(x, xedges) - 1
@@ -52,8 +52,6 @@ def smooth_histogram2d(particles, weights, stardata):
     
     # one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
     # one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
-    
-    print(x_indices, one_minus_a_indices)
     
     one_minus_a_indices = one_minus_a_indices.astype(int)
     one_minus_b_indices = one_minus_b_indices.astype(int)
@@ -84,17 +82,17 @@ def smooth_histogram2d(particles, weights, stardata):
     # H = H.T
     H /= jnp.max(H)
     
-    # H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     
-    # shape = 30 // 2  # choose just large enough grid for our gaussian
-    # gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
-    # gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
-    # gxy /= gxy.sum()
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
     
-    # H = signal.convolve(H, gxy, mode='same', method='fft')
+    H = signal.convolve(H, gxy, mode='same', method='fft')
     
-    # H /= jnp.max(H)
-    # H = H**stardata['lum_power']
+    H /= jnp.max(H)
+    H = H**stardata['lum_power']
     
     return X, Y, H
 def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
@@ -141,8 +139,6 @@ def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
     y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
     
-    
-    
     x_edge_check = x_edge_check.astype(int)
     y_edge_check = y_edge_check.astype(int)
     
@@ -165,17 +161,17 @@ def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     H = H.T
     H /= jnp.max(H)
     
-    # H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     
-    # shape = 30 // 2  # choose just large enough grid for our gaussian
-    # gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
-    # gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
-    # gxy /= gxy.sum()
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
     
-    # H = signal.convolve(H, gxy, mode='same', method='fft')
+    H = signal.convolve(H, gxy, mode='same', method='fft')
     
-    # H /= jnp.max(H)
-    # H = H**stardata['lum_power']
+    H /= jnp.max(H)
+    H = H**stardata['lum_power']
     
     return X, Y, H
 
@@ -191,6 +187,7 @@ p5 = np.array([2., -3., 0.])
 particles = np.column_stack((p1, p2, p3, p4, p5))
 
 weights = np.ones(particles.shape[1])
+# weights[0] = 0.5
 X, Y, H = smooth_histogram2d(particles, weights, stardata)
 
 for add in [0, 0.5, 1, 1.5]:
@@ -205,7 +202,7 @@ for add in [0, 0.5, 1, 1.5]:
     
     particles = np.column_stack((p1, p2, p3, p4, p5))
     
-    weights = np.ones(particles.shape[1])
     _, _, H = smooth_histogram2d_w_bins(particles, weights, stardata, X[0, :], Y[:, 0])
     
-    gm.plot_spiral(X, Y, H)
+    ax = gm.plot_spiral(X, Y, H)
+    ax.scatter(particles[0, :], particles[1, :])

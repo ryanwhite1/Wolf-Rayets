@@ -163,11 +163,22 @@ def spin_orbit_mult(true_anom, direction, stardata):
     # dist = inclination - 90
     
     
+    # gaussians for the open-angle/velocity-latitude curve
     spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
     spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
     open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
     open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
+    
+    
+    # # test with a power law
+    # x = jnp.abs(dist / 90 - 1)
+    # spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.001]))
+    # spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.001]))
+    # open_angle_mult = 1 - stardata['spin_oa_mult'] * x**(1 / spin_oa_sd)
+    # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
+    # vel_mult = 1 + stardata['spin_vel_mult'] * x**(1 / spin_vel_sd)
+
     
     # open_angle_mult = 1 
     # vel_mult = 1
@@ -491,11 +502,11 @@ def smooth_histogram2d(particles, weights, stardata):
     # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
     # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
     
-    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
-    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
     
-    one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
-    one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
+    # one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
     
     # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
     # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
@@ -591,11 +602,11 @@ def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
     # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
     
-    # one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
-    # one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
+    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(side_width / 2 - alphas, 0)
+    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(side_width / 2 - betas, 0)
     
-    one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
-    one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
+    # one_minus_a_indices = x_indices + 1 - 2 * jnp.heaviside(alphas - side_width / 2, 0)
+    # one_minus_b_indices = y_indices + 1 - 2 * jnp.heaviside(betas - side_width / 2, 0)
     
     one_minus_a_indices = one_minus_a_indices.astype(int)
     one_minus_b_indices = one_minus_b_indices.astype(int)
@@ -729,6 +740,7 @@ def plot_spiral(X, Y, H):
     # ax.pcolormesh(X, Y, H, norm=cols.LogNorm(vmin=1, vmax=H.max()))
     # ax.pcolormesh(X, Y, H, norm=cols.PowerNorm(gamma=1/2), cmap='hot')
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    return ax
 
 
 # @jit

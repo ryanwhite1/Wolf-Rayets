@@ -389,7 +389,7 @@ def man_loglike(e):
     # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
     samp_H = samp_H.flatten()
     
-    return -0.5 * jnp.sum(jnp.square((samp_H - obs) / obs_err))
+    return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
 
 
     
