@@ -1,0 +1,163 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Sun Mar 17 13:05:12 2024
+
+@author: ryanw
+"""
+import numpy as np
+import jax.numpy as jnp
+from jax import jit, vmap, grad
+import jax.lax as lax
+import jax.scipy.stats as stats
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+from scipy.ndimage import gaussian_filter
+import jax.scipy.signal as signal
+from matplotlib import animation
+import time
+import emcee
+import numpyro, chainconsumer, jax
+import numpyro.distributions as dists
+
+import WR_Geom_Model as gm
+import WR_binaries as wrb
+
+apep = wrb.apep.copy()
+
+### --- INFERENCE --- ###  
+particles, weights = gm.dust_plume(wrb.apep)
+    
+X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
+xbins = X[0, :]
+ybins = Y[:, 0]
+# X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
+obs_err = 0.01 * np.max(H)
+H += np.random.normal(0, obs_err, H.shape)
+gm.plot_spiral(X, Y, H)
+
+
+
+obs = H.flatten()
+obs_err = obs_err * jnp.ones(len(obs))
+
+fig, ax = plt.subplots()
+
+ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
+
+
+# fig, ax = plt.subplots()
+
+# ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
+
+system_params = apep.copy()
+
+
+def apep_model(Y, E):
+    params = system_params.copy()
+    # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
+    # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
+    params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
+    params['inclination'] = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
+    # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
+    # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
+    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
+    # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
+    # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
+    # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
+    # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
+    # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
+    # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
+    # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
+    # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
+    # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
+    # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
+    # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
+    # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
+    # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
+    # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
+    # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
+    # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
+    # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
+    # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
+    # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
+        
+    samp_particles, samp_weights = gm.dust_plume(params)
+    _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, params, xbins, ybins)
+    samp_H = samp_H.flatten()
+    # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    with numpyro.plate('plate', len(obs)):
+        numpyro.sample('obs', dists.Normal(samp_H, E), obs=Y)
+
+
+
+from numpyro.infer.util import initialize_model
+from datetime import date
+rng_key = jax.random.key(int(date.today().strftime("%Y%m%d")))
+
+rng_key, init_key = jax.random.split(rng_key)
+init_params, potential_fn_gen, *_ = initialize_model(
+    init_key,
+    apep_model,
+    model_args=(obs, obs_err),
+    dynamic_args=True,
+    init_strategy=numpyro.infer.initialization.init_to_value(values=system_params)
+)
+
+logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
+initial_position = init_params.z
+
+import blackjax
+
+num_warmup = 50
+integration_steps = 10
+# adapt = blackjax.window_adaptation(
+#     blackjax.nuts, logdensity_fn, target_acceptance_rate=0.8
+# )
+adapt = blackjax.window_adaptation(
+    blackjax.hmc, logdensity_fn, target_acceptance_rate=0.8, progress_bar=True, num_integration_steps=integration_steps
+)
+rng_key, warmup_key = jax.random.split(rng_key)
+print("warm up")
+(last_state, parameters), _ = adapt.run(warmup_key, initial_position, num_warmup)
+print("warm up done")
+# kernel = blackjax.nuts(logdensity_fn, **parameters).step
+kernel = blackjax.hmc(logdensity_fn, **parameters).step
+
+def inference_loop(rng_key, kernel, initial_state, num_samples):
+    @jax.jit
+    def one_step(state, rng_key):
+        state, info = kernel(rng_key, state)
+        return state, (state, info)
+
+    keys = jax.random.split(rng_key, num_samples)
+    _, (states, infos) = jax.lax.scan(one_step, initial_state, keys)
+
+    return states, (
+        infos.acceptance_rate,
+        infos.is_divergent,
+        infos.num_integration_steps,
+    )
+
+num_sample = 1000
+rng_key, sample_key = jax.random.split(rng_key)
+t1 = time.time()
+states, infos = inference_loop(sample_key, kernel, last_state, num_sample)
+print("HMC Completed in ", time.time() - t1, "s")
+_ = states.position["eccentricity"].block_until_ready()
+
+acceptance_rate = np.mean(infos[0])
+num_divergent = np.mean(infos[1])
+
+print(f"\Average acceptance rate: {acceptance_rate:.2f}")
+print(f"There were {100*num_divergent:.2f}% divergent transitions")
+
+
+import matplotlib.pyplot as plt
+import arviz as az
+
+idata = az.from_dict(posterior={k: v[None, ...] for k, v in states.position.items()})
+az.plot_posterior(idata, var_names=["eccentricity", 'inclination']);
+az.plot_trace(idata, var_names=["eccentricity", 'inclination'], compact=False)
+plt.tight_layout();
