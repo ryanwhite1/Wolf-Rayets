@@ -49,7 +49,7 @@ params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 1
 params_list = list(params.keys())
 
 
-n = 50
+n = 500
 fig, axes = plt.subplots(ncols=2, nrows=len(params), figsize=(12, 4*len(params_list)))
 for i, param in enumerate(params):
     
@@ -63,16 +63,29 @@ for i, param in enumerate(params):
         
         return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
 
-    like = jit(vmap(jax.value_and_grad(man_loglike)))
+    # like = jit(vmap(jax.value_and_grad(man_loglike)))
     
+    # numpyro_logLike = np.zeros(n)
+    # manual_logLike = np.zeros(n)
+    # param_vals = np.linspace(params[param][0], params[param][1], n)
+    # dx = param_vals[1] - param_vals[0]
+
+    # vals, grads = like(param_vals)
+    
+    like = jit(jax.value_and_grad(man_loglike))
     numpyro_logLike = np.zeros(n)
     manual_logLike = np.zeros(n)
     param_vals = np.linspace(params[param][0], params[param][1], n)
     dx = param_vals[1] - param_vals[0]
 
-    vals, grads = like(param_vals)
+    vals, grads = jnp.zeros(n), jnp.zeros(n)
     
-    # normalize = lambda x: (x-x.min())/(x.max()-x.min())
+    for j in range(n):
+        a, b = like(param_vals[j])
+        vals = vals.at[j].set(a)
+        grads = grads.at[j].set(b)
+    
+    
     
     ax1, ax2 = axes[i, :]
     
