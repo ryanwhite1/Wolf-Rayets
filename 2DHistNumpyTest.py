@@ -33,8 +33,8 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     xpos = np.round(x - np.min(xedges), 10)
     ypos = np.round(y - np.min(yedges), 10)
     
-    xpos = xpos + np.where(xpos%side_width == 0., 0.000001, 0.)
-    ypos = ypos + np.where(ypos%side_width == 0., 0.000001, 0.)
+    # xpos = xpos + np.where(xpos%side_width == 0., 0.000001, 0.)
+    # ypos = ypos + np.where(ypos%side_width == 0., 0.000001, 0.)
     
     
     # print(xpos)

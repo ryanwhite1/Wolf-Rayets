@@ -465,21 +465,30 @@ def dust_plume_GUI_sub(stardata, n_orb):
 def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size):
     '''
     '''
-    x = -particles[0, :]
-    y = -particles[1, :]
+    x = particles[0, :]
+    y = particles[1, :]
     
     side_width = xedges[1] - xedges[0]
     
-    x_indices = jnp.floor(abs((x + jnp.min(xedges))) / side_width).astype(int)
-    y_indices = jnp.floor(abs((y + jnp.min(yedges))) / side_width).astype(int)
+    # xpos = jnp.round(x - jnp.min(xedges), 30)
+    # ypos = jnp.round(y - jnp.min(yedges), 30)
     
-    alphas = -x%side_width
-    betas = -y%side_width
+    xpos = x - jnp.min(xedges)
+    ypos = y - jnp.min(yedges)
+    # xpos = xpos + jnp.where(xpos%side_width == 0., -1e-8, 0)
+    # ypos = ypos + jnp.where(ypos%side_width == 0., -1e-8, 0)
+    
+    x_indices = jnp.floor(xpos / side_width).astype(int)
+    y_indices = jnp.floor(ypos / side_width).astype(int)
+    
+    alphas = xpos%side_width
+    betas = ypos%side_width
     
     a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
-    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2 
-    one_minus_a_indices = x_indices - 1 + 2 * jnp.heaviside(alphas - side_width / 2, 0)
-    one_minus_b_indices = y_indices - 1 + 2 * jnp.heaviside(betas - side_width / 2, 0)
+    b_s = jnp.minimum(betas, side_width - betas) + side_width / 2
+    
+    one_minus_a_indices = x_indices + jnp.where(alphas > side_width / 2, 1, -1)
+    one_minus_b_indices = y_indices + jnp.where(betas > side_width / 2, 1, -1)
     
     one_minus_a_indices = one_minus_a_indices.astype(int)
     one_minus_b_indices = one_minus_b_indices.astype(int)
@@ -492,26 +501,21 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     y_edge_check = y_edge_check.astype(int)
     
     main_quadrant = a_s * b_s * weights
-    horizontal_quadrant = (side_width - a_s) * b_s * weights
-    vertical_quadrant = a_s * (side_width - b_s) * weights
-    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights
+    horizontal_quadrant = (side_width - a_s) * b_s * weights * x_edge_check
+    vertical_quadrant = a_s * (side_width - b_s) * weights * y_edge_check
+    corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights * x_edge_check * y_edge_check
 
     # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
     # Unlike NumPy in-place operations such as x[idx] += y, if multiple indices refer to the same location, all updates will be applied (NumPy would only apply the last update, rather than applying all updates.)
     
     H = jnp.zeros((im_size, im_size))
-    
     H = H.at[x_indices, y_indices].add(main_quadrant)
     H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
     H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
     H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
 
-    
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
-    H /= jnp.max(H)
-    
-    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     
     shape = 30 // 2  # choose just large enough grid for our gaussian
     gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
@@ -522,6 +526,9 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     H /= jnp.max(H)
     H = H**stardata['lum_power']
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    H /= jnp.max(H)
     
     return X, Y, H
 n = 256
