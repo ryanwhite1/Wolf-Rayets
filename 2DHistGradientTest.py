@@ -49,7 +49,7 @@ params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 1
 params_list = list(params.keys())
 
 
-n = 500
+n = 50
 fig, axes = plt.subplots(ncols=2, nrows=len(params), figsize=(12, 4*len(params_list)))
 for i, param in enumerate(params):
     
@@ -58,13 +58,12 @@ for i, param in enumerate(params):
         starcopy[param] = value
         samp_particles, samp_weights = gm.dust_plume(starcopy)
         _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
-        # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
         samp_H = samp_H.flatten()
         
         return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
 
     # like = jit(vmap(jax.value_and_grad(man_loglike)))
-    
+     
     # numpyro_logLike = np.zeros(n)
     # manual_logLike = np.zeros(n)
     # param_vals = np.linspace(params[param][0], params[param][1], n)

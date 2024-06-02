@@ -58,13 +58,17 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     # now check the indices that are out of bounds
     x_edge_check = jnp.heaviside(one_minus_a_indices, 1) * jnp.heaviside(im_size - one_minus_a_indices, 0)
     y_edge_check = jnp.heaviside(one_minus_b_indices, 1) * jnp.heaviside(im_size - one_minus_b_indices, 0)
-    
+    x_main_check = jnp.heaviside(x_indices, 1) * jnp.heaviside(im_size - x_indices, 0)
+    y_main_check = jnp.heaviside(y_indices, 1) * jnp.heaviside(im_size - y_indices, 0)
+
     x_edge_check = x_edge_check.astype(int)
+    x_main_check = x_main_check.astype(int)
     y_edge_check = y_edge_check.astype(int)
+    y_main_check = y_main_check.astype(int)
     
-    main_quadrant = a_s * b_s * weights
-    horizontal_quadrant = (side_width - a_s) * b_s * weights * x_edge_check
-    vertical_quadrant = a_s * (side_width - b_s) * weights * y_edge_check
+    main_quadrant = a_s * b_s * weights * x_main_check * y_main_check
+    horizontal_quadrant = (side_width - a_s) * b_s * weights * x_edge_check * y_main_check
+    vertical_quadrant = a_s * (side_width - b_s) * weights * y_edge_check * x_main_check
     corner_quadrant = (side_width - a_s) * (side_width - b_s) * weights * x_edge_check * y_edge_check
 
     # The below few lines rely fundamentally on the following line sourced from https://jax.readthedocs.io/en/latest/_autosummary/jax.numpy.ndarray.at.html :
@@ -72,9 +76,9 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     H = jnp.zeros((im_size, im_size))
     H = H.at[x_indices, y_indices].add(main_quadrant)
-    H = H.at[one_minus_a_indices, y_indices].add(x_edge_check * horizontal_quadrant)
-    H = H.at[x_indices, one_minus_b_indices].add(y_edge_check * vertical_quadrant)
-    H = H.at[one_minus_a_indices, one_minus_b_indices].add(x_edge_check * y_edge_check * corner_quadrant)
+    H = H.at[one_minus_a_indices, y_indices].add(horizontal_quadrant)
+    H = H.at[x_indices, one_minus_b_indices].add(vertical_quadrant)
+    H = H.at[one_minus_a_indices, one_minus_b_indices].add(corner_quadrant)
 
     X, Y = jnp.meshgrid(xedges, yedges)
     H = H.T
@@ -88,6 +92,7 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     H /= jnp.max(H)
     H = H**stardata['lum_power']
+    H /= jnp.max(H)
     
     H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     H /= jnp.max(H)
@@ -125,7 +130,7 @@ weights = np.ones(particles.shape[1])
 weights[0] = 0.5
 X, Y, H = smooth_histogram2d(particles, weights, stardata)
 
-for add in [0, 0.5, 1, 1.5]:
+for add in [-1, -0.5, 0, 0.5, 1, 1.5]:
     p1 = np.array([1., 1., 1.])
     p2 = np.array([2., 3., 2.])
     p3 = np.array([0., 0., 0.])
