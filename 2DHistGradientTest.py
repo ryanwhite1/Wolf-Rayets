@@ -21,7 +21,7 @@ import WR_Geom_Model as gm
 import WR_binaries as wrb
 
 apep = wrb.apep.copy()
-# apep['sigma'] = 0.01
+# apep['sigma'] = 3
 
 ### --- INFERENCE --- ###  
 particles, weights = gm.dust_plume(wrb.apep)
