@@ -203,9 +203,10 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
 
+    shifted_theta = theta + i
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
-                        jnp.sin(half_angle) * jnp.sin(theta), 
-                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(theta)])
+                        jnp.sin(half_angle) * jnp.sin(shifted_theta), 
+                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(shifted_theta)])
     # circle *= widths[i]
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
     ### if you think about it, the CW shock occurs more or less around the equatorial winds so it shouldnt have a huge effect
