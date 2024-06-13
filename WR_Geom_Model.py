@@ -216,89 +216,131 @@ def spin_orbit_mult(true_anom, direction, stardata):
     
 
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
+    ''' Creates a single ring of particles (a dust ring) in our dust plume. Applies weighting criteria as a proxy of 
+    dust brightness or absence. 
+    Parameters
+    ----------
+    i, nu : list of [int, float]
+        i is the current ring number in our plume (e.g. the 1st generated ring will be i=0, the 10th generated ring will be i=9, etc)
+        nu is the true anomaly value in radians
+    stardata : dict
+        Our dictionary of system parameters
+    theta : j/np.array 
+        1D array of length N (where N is the number of particles in one ring) that describe the angular positions of each particle
+        w.r.t the center of the ring
+    plume_direction : j/np.array
+        3xNr array of delta positions, where Nr is the total number of rings in our model. 
+        Array is calculated earlier on as pos1 - pos2, where pos1 is the main WR star position and pos2 is the binary position. 
+        With this we isolate the [:, i]th element which encodes the 3D direction of our dust plume in cartesian coordinates [x, y, z]
+    widths : j/np.array
+        1D array of length Nr that describes how wide each ring should be. We access the ith element for this single ring. 
+    
+    Returns
+    -------
+    circle : Nx4 j/np.array
+        First 3 axes correspond to the cartesian coordinates of each of the N particles in this ring. Units are in km from central binary barycenter. 
+        Fourth axis corresponds to the weights of each particle for the histogram/imaging step. 
     '''
-    '''
-    i, nu = i_nu
-    x = nu / (2 * jnp.pi)
-    transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))
-    turn_on = jnp.deg2rad(stardata['turn_on'])
-    turn_off = jnp.deg2rad(stardata['turn_off'])
-    turned_on = jnp.heaviside(transf_nu - turn_on, 0)
+    i, nu = i_nu    # get our ring number, i, and the true anomaly, nu
+    x = nu / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
+    # now we need to ensure that the rings *smoothly* wrap around as the stars orbit each other
+    # we do this by shifting our true anomaly values from the range [0, 2pi] to [-pi, pi]
+    # if we don't do this, there's a discontinuity in the dust production at nu = 0
+    transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
+    turn_on = jnp.deg2rad(stardata['turn_on'])          # convert our turn on true anomaly from degrees to radians
+    turn_off = jnp.deg2rad(stardata['turn_off'])        # convert our turn off true anomaly from degrees to radians
+    turned_on = jnp.heaviside(transf_nu - turn_on, 0)   # determine if our current true anomaly is greater than our turn on true anomaly (i.e. is dust production turned on?)
+    # we can only visible dust if the ring is far enough away (past the nucleation distance), so we're not visibly turned on unless our ring is wider than this
     turned_on *= jnp.heaviside(widths[i] - stardata['nuc_dist'] * AU2km, 1)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
-    turned_off = jnp.heaviside(turn_off - transf_nu, 0)
-    direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])
+    turned_off = jnp.heaviside(turn_off - transf_nu, 0) # determine if our current true anomaly is less than our turn off true anomaly (i.e. is dust production still turned on?)
     
-    oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)
+    direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])  # normalize our plume direction vector
     
-    half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2
+    oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
+    
+    # for the circle construction, we only use the half open angle
+    half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2  # calculate the half open angle after multiplying by our open angle factor
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
 
-    shifted_theta = theta + i
+    # we also need to effectively dither our particle angular coordinate to reduce the effect of using a finite number of rings/particles on our final image
+    shifted_theta = theta + i   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
+    # now we construct our circle *along the x axis* (i.e. all circle points have the same x value, and only look like a circle when looked at in the y-z plane)
+    # the stars are orbiting in the xy plane here, so z points out of the orbital plane
+    # the below circle are the particle coordinates in cartesian coordinates, but not in meaningful units (yet)
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
                         jnp.sin(half_angle) * jnp.sin(shifted_theta), 
                         (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(shifted_theta)])
-    # circle *= widths[i]
+    
+    
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
     ### if you think about it, the CW shock occurs more or less around the equatorial winds so it shouldnt have a huge effect
-    # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
-    #                     jnp.ones(len(theta)), 
-    #                     jnp.ones(len(theta)) * (1. + stardata['lat_v_var'] * jnp.cos(theta)**2)])
-    # circle *= widths[i] * latitude_speed_var
-    
-    ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
-    # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
-    spiral_time = widths[i] / stardata['windspeed1']
-    
-    # circle *= spiral_time * (stardata['windspeed1'] * v_mult)
-    circle *= widths[i] * v_mult
-    
-    valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
-    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
-    t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
-    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
-    dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
-    # accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
+    # # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
+    # #                     jnp.ones(len(theta)), 
+    # #                     jnp.ones(len(theta)) * (1. + stardata['lat_v_var'] * jnp.cos(theta)**2)])
+    # # circle *= widths[i] * latitude_speed_var
     
     
-    ### much more work needed for nonlinear acceleration
-    # minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
-    # # print(minim.x)
-    # dist_accel_r2 = minim.x
-    # dist_accel_r2 *= accel_r2
+    # circle *= widths[i]           # this is the width the circle should have assuming no velocity affecting effects
+    spiral_time = widths[i] / stardata['windspeed1']    # our widths are calculated by w=v*t, so we can get the 'time' of the current ring by rearranging
+    
+    circle *= widths[i] * v_mult    # our circle should have the original width multiplied by our anisotropy multiplier
+    
+    
+    # ------------------------------------------------------------------
+    ### --- More work needed for dust circle acceleration --- ###
+    # ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
+    # # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
+    # valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
+    # t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
+    # t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
+    # accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
+    # dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
+    # # accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
+    
+    
+    # ### much more work needed for nonlinear acceleration
+    # # minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
+    # # # print(minim.x)
+    # # dist_accel_r2 = minim.x
+    # # dist_accel_r2 *= accel_r2
+    # # circle += valid_dists * (dist_accel_lin + dist_accel_r2)
+    
+    # # solver = jaxopt.GradientDescent(fun=nonlinear_accel, maxiter=200)
+    # # res = solver.run(jnp.array([100*stardata['opt_thin_dist']]), t=spiral_time - t_linear, rt=stardata['opt_thin_dist'], amax=stardata['acc_max'])
+    # # dist_accel_r2 = res.params[0]
+    # # dist_accel_r2 *= accel_r2
+    # dist_accel_r2 = 0
     # circle += valid_dists * (dist_accel_lin + dist_accel_r2)
     
-    # solver = jaxopt.GradientDescent(fun=nonlinear_accel, maxiter=200)
-    # res = solver.run(jnp.array([100*stardata['opt_thin_dist']]), t=spiral_time - t_linear, rt=stardata['opt_thin_dist'], amax=stardata['acc_max'])
-    # dist_accel_r2 = res.params[0]
-    # dist_accel_r2 *= accel_r2
-    
-    dist_accel_r2 = 0
-    circle += valid_dists * (dist_accel_lin + dist_accel_r2)
+    # ------------------------------------------------------------------
     
     ### now rotate the circle to account for the star orbit direction
+    # remembering that the stars orbit in the x-y plane
     angle_x = jnp.arctan2(direction[1], direction[0]) + jnp.pi
-    circle = rotate_z(angle_x) @ circle
+    circle = rotate_z(angle_x) @ circle         # want to rotate the circle about the z axis
     
-    # circle *= turned_on * turned_off
     weights = jnp.ones(len(theta)) * turned_on * turned_off
     
+    # ------------------------------------------------------------------
     ### below accounts for the dust production not turning on instantaneously (probably negligible effect, so commented out)
     # weights = jnp.ones(len(theta))
     # sigma = jnp.deg2rad(10)
     # mult = 0.1
     # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
     # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
+    # ------------------------------------------------------------------
     
-    
-    alpha = jnp.deg2rad(stardata['comp_incl'])
+    ### Now we need to take into account the photodissociation effect from a ternary companion (specifically for Apep)
+    # start by getting the inclination and azimuth of the companion
+    alpha = jnp.deg2rad(stardata['comp_incl'])  
     beta = jnp.deg2rad(stardata['comp_az'])
-    comp_halftheta = jnp.deg2rad(stardata['comp_open'] / 2)
+    comp_halftheta = jnp.deg2rad(stardata['comp_open'] / 2) # as before, we use the half open angle in calculations
     x = circle[0, :]
     y = circle[1, :]
     z = circle[2, :]
     r = jnp.sqrt(x**2 + y**2 + z**2)
-    particles_alpha = jnp.arccos(z / r)
-    particles_beta = jnp.sign(y) * jnp.arccos(x / jnp.sqrt(x**2 + y**2))
+    particles_alpha = jnp.arccos(z / r)     # get the polar angle of the particles
+    particles_beta = jnp.sign(y) * jnp.arccos(x / jnp.sqrt(x**2 + y**2))    # get the azimuthal angle of the particles
     
     ### to get angular separation of the points on the sphere, I used the cos(alpha) = ... formula from
     # https://www.atnf.csiro.au/people/Tobias.Westmeier/tools_spherical.php#:~:text=The%20angular%20separation%20of%20two%20points%20on%20a%20shpere&text=cos(%CE%B1)%3Dcos(%CF%911)cos(,%CF%861%E2%88%92%CF%862).
@@ -316,41 +358,19 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
                                       comp_gaussian, jnp.ones(len(weights)))
     
+    weights *= companion_dissociate         # this is us 'destroying' the particles
+    
+    
+    # ------------------------------------------------------------------
     ### below code calculates another plume from the wind-companion interaction
     ### currently is commented out to save on computation
     # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
     #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
-    # # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    # # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    ## now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    ## i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
     # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
-    
-    # ## The coordinate transformations below are from user DougLitke from
-    # ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
-    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
-    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
-    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
-    
-    # x = x + in_comp_plume * (-x + new_x)
-    # y = y + in_comp_plume * (-y + new_y)
-    # z = z + in_comp_plume * (-z + new_z)
-    
-    # circle = jnp.array([x, y, z])
-    
-    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
-    
-    
-    
-    
-    
-    
-    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
-    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
-    
-    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
-    # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
-    
+    ## or instead use the below to put plume along the direction where there was already dust
     # az_circle = inv_rotate_x(alpha) @ (inv_rotate_z(beta) @ circle)
     # ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
     
@@ -367,24 +387,32 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
     
+    # ------------------------------------------------------------------
     
     # now calculate the weights of each point according the their orbital variation
-    val_orb_sd = jnp.max(jnp.array([stardata['orb_sd'], 0.01]))
+    val_orb_sd = jnp.max(jnp.array([stardata['orb_sd'], 0.01]))     # need to set a minimum orbital variation to avoid nans in the gradient
+    # we decide the weight multiplier accounting for orbital variation with a gaussian of the form
+    # w_orb = 1 - (1 - A) * exp(((nu - min) / sd)^2)
+    # that is, we take a weight of 1 (i.e. no change) as the baseline. Then we subtract off a maximum of (1 - A)*Gauss from this,
+    # where A is the 'minimum' weighting value with our orbital variation accounted for, and Gauss is our gaussian function weighting 
+    # which puts the minimum value at some true anomaly value and with a user defined standard deviation in this
     prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / val_orb_sd)**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
-    val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))
+    # this is analogous to the math for orbital variation, but instead of weighting entire rings based on the position in the orbit, 
+    # we weight particles in the ring based on azimuthal variation in dust production
+    val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
     prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
-    # we need our orbital proportion to be between 0 and 1
+    # we need our orbital weighting proportion to be between 0 and 1
     prop_orb = jnp.min(jnp.array([prop_orb, 1]))
     prop_orb = jnp.max(jnp.array([prop_orb, 0]))
     # and the same for our azimuthal proportion
     prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
-    weights *= prop_orb * prop_az
+    weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
     
-    weights *= companion_dissociate
     
+    # now set up our particles in the needed array format
     circle = jnp.array([circle[0, :], 
                         circle[1, :], 
                         circle[2, :],
