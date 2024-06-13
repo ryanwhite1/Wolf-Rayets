@@ -149,3 +149,28 @@ WR137 = {"m1":10,                # solar masses
         "sigma":3,              # sigma for gaussian blur
         "histmax":1., "lum_power":1., 
         "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1}
+
+
+
+test_system = {"m1":22.,                # solar masses
+        "m2":10.,                # solar masses
+        "eccentricity":0.5, 
+        "inclination":60.,       # degrees
+        "asc_node":254.1,         # degrees
+        "arg_peri":10.6,           # degrees
+        "open_angle":40.,       # degrees (full opening angle)
+        "period":1.,           # years
+        "distance":10.,        # pc
+        "windspeed1":0.1,       # km/s
+        "windspeed2":2400.,      # km/s
+        "turn_on":-180.,         # true anomaly (degrees)
+        "turn_off":180.,         # true anomaly (degrees)
+        "oblate":0.,
+        "nuc_dist":0.0001, "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
+        "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
+        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0., "az_min":270.,
+        "comp_incl":127.1, "comp_az":116.5, "comp_open":0., "comp_reduction":0., "comp_plume":1.,
+        "phase":0.6, 
+        "sigma":1.5,              # sigma for gaussian blur
+        "histmax":1., "lum_power":1., 
+        "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1}

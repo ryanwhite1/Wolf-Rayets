@@ -23,39 +23,69 @@ import emcee
 import jaxopt
 
 import WR_binaries as wrb
+
+# we need 64 bit math for the semi-major axis calculations
 jax.config.update("jax_enable_x64", True)
 
-M_odot = 1.98e30
-G = 6.67e-11
-c = 299792458
-yr2day = 365.25
-yr2s = yr2day * 24*60*60
+# define constants
+M_odot = 1.98e30                        # solar mass in kg
+G = 6.67e-11                            # grav constant in SI
+c = 299792458                           # speed of light m/s
+yr2day = 365.25                         # num days in a year
+yr2s = yr2day * 24*60*60                # num seconds in a year
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
-AU2km = 1.496e8
+AU2km = 1.496e8                         # km in an AU
 
 
 
 def rotate_x(angle):
+    ''' Rotation matrix about the x-axis
+    '''
     arr = jnp.array([[1, 0, 0],
-                     [0, jnp.cos(angle), jnp.sin(angle)],
-                     [0, -jnp.sin(angle), jnp.cos(angle)]])
+                     [0, jnp.cos(angle), -jnp.sin(angle)],
+                     [0, jnp.sin(angle), jnp.cos(angle)]])
     return arr
 
 def rotate_y(angle):
-    arr = jnp.array([[jnp.cos(angle), 0, -jnp.sin(angle)],
+    ''' Rotation matrix about the y-axis
+    '''
+    arr = jnp.array([[jnp.cos(angle), 0, jnp.sin(angle)],
                      [0, 1, 0],
-                     [jnp.sin(angle), 0, jnp.cos(angle)]])
+                     [-jnp.sin(angle), 0, jnp.cos(angle)]])
     return arr
 
 def rotate_z(angle):
-    arr = jnp.array([[jnp.cos(angle), jnp.sin(angle), 0],
-                     [-jnp.sin(angle), jnp.cos(angle), 0],
+    ''' Rotation matrix about the z-axis
+    '''
+    arr = jnp.array([[jnp.cos(angle), -jnp.sin(angle), 0],
+                     [jnp.sin(angle), jnp.cos(angle), 0],
                      [0, 0, 1]])
     return arr
 def euler_angles(coords, Omega, i, w):
-    return rotate_z(jnp.deg2rad(Omega)) @ (
-            rotate_x(jnp.deg2rad(i)) @ (
-            rotate_z(jnp.deg2rad(w)) @ coords))
+    ''' This function rotates coordinates in 3D space using the Z-X-Z Euler Angle rotation https://en.wikipedia.org/wiki/Euler_angles
+    This combination of rotations allows us to rotate completely in 3D space given 3 angles. 
+    To do the correct rotation w.r.t the orbital elements, we need to rotate by the negative of each angle. Note the signs
+    of the angles of the matrix representation in https://en.wikipedia.org/wiki/Orbital_elements#Euler_angle_transformations
+    
+    Parameters
+    ----------
+    coords : j/np.array
+        3xN coordinates of particles, i.e. N particles in 3D space
+    Omega : float
+        Longitude of ascending node
+    i : float
+        Inclination
+    w : float
+        Argument of periapsis, (i.e. little omega)
+    
+    Returns
+    -------
+    j/np.array
+        Rotated 3xN coordinate array
+    '''
+    return rotate_z(jnp.deg2rad(-Omega)) @ (
+            rotate_x(jnp.deg2rad(-i)) @ (
+            rotate_z(jnp.deg2rad(-w)) @ coords))
 
 def inv_rotate_x(angle):
     return rotate_x(angle).T
@@ -246,7 +276,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     circle += valid_dists * (dist_accel_lin + dist_accel_r2)
     
     ### now rotate the circle to account for the star orbit direction
-    angle_x = -jnp.arctan2(direction[1], direction[0]) + jnp.pi
+    angle_x = jnp.arctan2(direction[1], direction[0]) + jnp.pi
     circle = rotate_z(angle_x) @ circle
     
     # circle *= turned_on * turned_off
@@ -556,6 +586,46 @@ def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     im_size = n
     return smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
 
+
+
+
+@jit
+def spiral_grid(particles, weights, stardata):
+    ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
+        applying a Gaussian blur.
+    Parameters
+    ----------
+    particles : ndarray (Ndim, Nparticles)
+        Particle positions in cartesian coordinates
+    weights : array (Nparticles)
+        Weight of each particle in the histogram (for orbital/azimuthal variations)
+    sigma : 
+    '''
+    im_size = 256
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    weights = jnp.where((x != 0) & (y != 0), weights, 0)
+    
+    H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
+    X, Y = jnp.meshgrid(xedges, yedges)
+    H = H.T
+    H /= jnp.max(H)
+    
+    H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
+    
+    shape = 30 // 2  # choose just large enough grid for our gaussian
+    gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+    gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+    gxy /= gxy.sum()
+    
+    H = signal.convolve(H, gxy, mode='same', method='fft')
+    
+    H /= jnp.max(H)
+    H = H**stardata['lum_power']
+    
+    return X, Y, H
 @jit
 def spiral_grid_w_bins(particles, weights, stardata, xbins, ybins):
     ''' Takes in the particle positions and weights and calculates the 2D histogram, ignoring those points at (0,0,0), and
@@ -679,6 +749,123 @@ def plot_orbit(stardata):
     ax.plot(x1, y1)
     ax.plot(x2, y2)
     ax.set_aspect('equal')
+    
+def orbital_positions(stardata):
+    
+    phase = stardata['phase']%1
+    
+    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    
+    n_orbits = 1
+    n_t = 100       # circles per orbital period
+    n_points = 40   # points per circle
+    n_particles = n_points * n_t * n_orbits
+    n_time = n_t * n_orbits
+    theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+    times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
+    n_time = len(times)
+    n_t = n_time / n_orbits
+    ecc = stardata['eccentricity']
+    # E, true_anomaly = kepler_solve(times, period_s, ecc)
+    
+    E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    
+    a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
+    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
+    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
+    
+    positions1 = jnp.array([jnp.cos(true_anomaly), 
+                            jnp.sin(true_anomaly), 
+                            jnp.zeros(n_time)])
+    positions2 = jnp.copy(positions1)
+    positions1 *= r1      # position in the orbital frame
+    positions2 *= -r2     # position in the orbital frame
+    
+    return positions1, positions2
+
+def transform_orbits(pos1, pos2, stardata):
+    pos1 = euler_angles(pos1, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
+    pos2 = euler_angles(pos2, stardata['asc_node'], stardata['inclination'], stardata['arg_peri'])
+    pos1 = 60 * 60 * 180 / jnp.pi * jnp.arctan(pos1 / (stardata['distance'] * 3.086e13))
+    pos2 = 60 * 60 * 180 / jnp.pi * jnp.arctan(pos2 / (stardata['distance'] * 3.086e13))
+    return pos1, pos2
+
+# @jit
+def orbit_spiral_gif(stardata):
+    '''
+    '''
+    @jit
+    def dust_plume_for_gif(stardata):
+        '''
+        Parameters
+        ----------
+        stardata : dict
+        '''
+        phase = stardata['phase']%1
+        
+        period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+        
+        n_orbits = 1
+        n_t = 1000       # circles per orbital period
+        n_points = 400   # points per circle
+        n_particles = n_points * n_t * n_orbits
+        n_time = n_t * n_orbits
+        theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
+        times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
+        particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+        return particles, weights
+    starcopy = stardata.copy()
+    fig, ax = plt.subplots(figsize=(6, 6))
+    
+    every = 1
+    length = 10
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    nt = 100
+    # nt = 10
+    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    phases = jnp.linspace(0, 1, nt)
+    pos1, pos2 = orbital_positions(stardata)
+    pos1, pos2 = transform_orbits(pos1, pos2, starcopy)
+    
+    
+    lim = 2 * max(np.max(np.abs(pos1)), np.max(np.abs(pos2)))
+    xbins = np.linspace(-lim, lim, 257)
+    ybins = np.linspace(-lim, lim, 257)
+    ax.set_aspect('equal')
+    
+    
+    # @jit
+    def animate(i):
+        ax.cla()
+        if i%20 == 0:
+            print(i)
+        starcopy['phase'] = phases[i] + 0.5
+        particles, weights = dust_plume_for_gif(starcopy)
+        
+        pos1, pos2 = orbital_positions(starcopy)
+        pos1, pos2 = transform_orbits(pos1, pos2, starcopy)
+
+        X, Y, H = spiral_grid_w_bins(particles, weights, starcopy, xbins, ybins)
+        ax.pcolormesh(X, Y, H, cmap='hot')
+        
+        
+        ax.plot(pos1[0, :], pos1[1, :], c='w')
+        ax.plot(pos2[0, :], pos2[1, :], c='w')
+        ax.scatter([pos1[0, -1], pos2[0, -1]], [pos1[1, -1], pos2[1, -1]], c=['tab:cyan', 'w'], s=100)
+        
+        ax.set(xlim=(-lim, lim), ylim=(-lim, lim))
+        ax.set_facecolor('k')
+        ax.set_axis_off()
+        ax.text(0.3 * lim, -0.8 * lim, f"Phase = {starcopy['phase']%1:.2f}", c='w', fontsize=14)
+        fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+        return fig, 
+
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save(f"orbit_spiral.gif", writer='pillow', fps=fps)
 
 
 # # # for i in range(10):
@@ -736,6 +923,9 @@ def plot_orbit(stardata):
 # with open('weights.pickle', 'wb') as handle:
 #     pickle.dump(weights, handle)
 
+
+
+# orbit_spiral_gif(wrb.test_system)
 
 
 
