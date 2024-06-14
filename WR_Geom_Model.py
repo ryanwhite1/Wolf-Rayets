@@ -529,22 +529,14 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     side_width = xedges[1] - xedges[0]
     
-    # xpos = jnp.round(x - jnp.min(xedges), 12)
-    # ypos = jnp.round(y - jnp.min(yedges), 12)
-    
     xpos = x - jnp.min(xedges)
     ypos = y - jnp.min(yedges)
-    # xpos = xpos + jnp.where(xpos%side_width == 0., -1e-8, 0)
-    # ypos = ypos + jnp.where(ypos%side_width == 0., -1e-8, 0)
     
     x_indices = jnp.floor(xpos / side_width).astype(int)
     y_indices = jnp.floor(ypos / side_width).astype(int)
     
     alphas = xpos%side_width
     betas = ypos%side_width
-    
-    # alphas = jnp.where(jnp.isclose(alphas / side_width, 1., atol=1e-4), 0., alphas)
-    # betas = jnp.where(jnp.isclose(betas / side_width, 1., atol=1e-4), 0., betas)
     
     a_s = jnp.minimum(alphas, side_width - alphas) + side_width / 2
     b_s = jnp.minimum(betas, side_width - betas) + side_width / 2
@@ -599,6 +591,7 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     return X, Y, H
 n = 256
+@jit
 def smooth_histogram2d(particles, weights, stardata):
     im_size = n
     
@@ -610,6 +603,7 @@ def smooth_histogram2d(particles, weights, stardata):
     
     xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
     return smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+@jit
 def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     im_size = n
     return smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
@@ -778,6 +772,91 @@ def plot_orbit(stardata):
     ax.plot(x2, y2)
     ax.set_aspect('equal')
     
+    
+def orbital_position(stardata):
+    phase = stardata['phase']%1
+    
+    period_s = stardata['period'] * 365.25 * 24 * 60 * 60
+    
+    time = period_s * phase
+    ecc = stardata['eccentricity']
+    # E, true_anomaly = kepler_solve(times, period_s, ecc)
+    
+    E, true_anomaly = kepler(2 * jnp.pi * time / period_s, jnp.array([ecc]))
+    
+    a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
+    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
+    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
+    
+    positions1 = jnp.array([jnp.cos(true_anomaly), 
+                            jnp.sin(true_anomaly), 
+                            [0]])
+    positions2 = jnp.copy(positions1)
+    positions1 *= r1      # position in the orbital frame
+    positions2 *= -r2     # position in the orbital frame
+    
+    return positions1, positions2
+
+@jit
+def add_stars(xedges, yedges, H, stardata):
+    ''' Superimposes the actual locations of the binary system stars onto the existing histogrammed image. 
+    Also includes the third companion star for Apep.
+    
+    Parameters
+    ----------
+    xedges : j/np.array
+        1x(im_size+1) length array with the border values of each histogram bin along the x axis
+    yedges : j/np.array
+        1x(im_size+1) length array with the border values of each histogram bin along the y axis
+    H : j/np.array
+        im_size x im_size array with the histogram values of each bin
+    stardata : dict
+        Our dictionary of system parameters
+    
+    Returns
+    -------
+    H : j/np.array
+        The same H as input, but now with gaussians overlaid on the positions of each star in the system according to the 
+        parameters in `stardata`
+    '''
+    # start by recreating the spatial grid of the H array
+    bound = jnp.max(xedges)                                 # get max value in the grid
+    bins = jnp.linspace(-bound, bound, len(xedges) - 1)     # set up our bin locations -- they'll be the same for both x and y if the smooth_histogram2d function was used to create the x/yedges arrays
+    binx, biny = jnp.meshgrid(bins, bins)                   # set up the meshgrid for us to calculate the gaussians with
+    
+    pos1, pos2 = orbital_position(stardata)                 # now get the orbital positions of the two stars (in km from the inner binary barycenter)
+    
+    # now if we have a third star, we need to use the stardata parameters to determine its position
+    star3dist = stardata['star3dist'] * AU2km               # get the dist in km (the value in the dict is in AU)
+    incl, az = jnp.deg2rad(stardata['comp_incl']), jnp.deg2rad(stardata['comp_az']) # convert dict angular coordinates to radians
+    # now get the cartesian coordinates of the third star from the spherical coordinates
+    pos3 = star3dist * jnp.array([jnp.sin(incl) * jnp.cos(az),
+                                  jnp.sin(incl) * jnp.sin(az),
+                                  jnp.cos(incl)])
+    # we now need to rotate according to the system geometry and then convert to an angular measurement from an absolute one
+    pos1, pos2  = transform_orbits(pos1, pos2, stardata)
+    pos3, _     = transform_orbits(pos3, jnp.zeros(3), stardata)    # can just ignore the 2nd star in the function by setting it to zeros
+    
+    # the spread of each star sprite is stored in a logarithmic value, so lets undo that now
+    star1sd = 10**stardata['star1sd']
+    star2sd = 10**stardata['star2sd']
+    star3sd = 10**stardata['star3sd']
+    
+    # now finally spread the brightness of each star over a the bins
+    gaussian_spread = lambda amp, pos, sd: amp * jnp.exp(-((binx - pos[0])**2 + (biny - pos[1])**2) / (2 * sd**2))  # 2d gaussian function for the xy plane of 3d pos data
+    star1gaussian = gaussian_spread(stardata['star1amp'], pos1, star1sd)
+    star2gaussian = gaussian_spread(stardata['star2amp'], pos2, star2sd)
+    star3gaussian = gaussian_spread(stardata['star3amp'], pos3, star3sd)
+    
+    H = H + star1gaussian + star2gaussian + star3gaussian   # add the gaussians to the existing data
+    H /= jnp.max(H)                                         # finally normalise the data again
+    
+    return H
+    
+    
+    
+    
 def orbital_positions(stardata):
     
     phase = stardata['phase']%1
@@ -898,10 +977,11 @@ def orbit_spiral_gif(stardata):
 
 # # # for i in range(10):
 # t1 = time.time()
-# particles, weights = dust_plume(wrb.apep)
-# X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-# # print(time.time() - t1)
-# # plot_spiral(X, Y, H)
+particles, weights = dust_plume(wrb.apep)
+X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
+# print(time.time() - t1)
+H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
+plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 
@@ -931,6 +1011,9 @@ def orbit_spiral_gif(stardata):
 
 
 
+
+
+
 # wr112 = wrb.WR112.copy()
 # wr112['phase'] = 0.47948
 # particles, weights = gui_funcs[10](wrb.WR112)
@@ -950,6 +1033,9 @@ def orbit_spiral_gif(stardata):
 
 # with open('weights.pickle', 'wb') as handle:
 #     pickle.dump(weights, handle)
+
+
+
 
 
 

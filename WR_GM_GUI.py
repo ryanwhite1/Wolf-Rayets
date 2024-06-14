@@ -44,7 +44,8 @@ titles = ['Model', 'Reference', 'Difference']
 w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 particles, weights = gm.dust_plume(starcopy)
-X, Y, H_original = gm.spiral_grid(particles, weights, starcopy)
+X, Y, H_original = gm.smooth_histogram2d(particles, weights, starcopy)
+H_original = gm.add_stars(X[0, :], Y[:, 0], H_original, starcopy)
 mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
 axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=titles[0])
 
@@ -87,11 +88,13 @@ def update_frequency(param, new_val, X=X, Y=Y):
     
     particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
     
-    X_new, Y_new, H = gm.spiral_grid(particles, weights, starcopy)
+    X_new, Y_new, H = gm.smooth_histogram2d(particles, weights, starcopy)
+    H = gm.add_stars(X_new[0, :], Y_new[:, 0], H, starcopy)
     new_H = H.ravel()
     mesh.update({'array':new_H})
     
     _, _, H_diff = gm.spiral_grid_w_bins(particles, weights, starcopy, X[0, :], Y[:, 0])
+    H_diff = gm.add_stars(X[0, :], Y[:, 0], H_diff, starcopy)
     H_diff = H_diff.ravel()
     
     diff_mesh.update({'array':H_diff - H_original_ravel})
@@ -235,11 +238,37 @@ spin_vel_sd.set(starcopy['spin_vel_sd'])
 
 
 
+star1amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star1amp', v), label="Star1Amp", resolution=0.001)
+star1amp.set(starcopy['star1amp'])
+star2amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star2amp', v), label="Star2Amp", resolution=0.001)
+star2amp.set(starcopy['star2amp'])
+star3amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star3amp', v), label="Star3Amp", resolution=0.001)
+star3amp.set(starcopy['star3amp'])
+star1sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star1sd', v), label="Star1SD", resolution=0.001)
+star1sd.set(starcopy['star1sd'])
+star2sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star2sd', v), label="Star2SD", resolution=0.001)
+star2sd.set(starcopy['star2sd'])
+star3sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star3sd', v), label="Star3SD", resolution=0.001)
+star3sd.set(starcopy['star3sd'])
+star3dist = tkinter.Scale(root, from_=1., to=20000., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('star3dist', v), label="Star3Dist (AU)", resolution=1.)
+star3dist.set(starcopy['star3dist'])
+
+
+
+
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
            distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
-           lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd]
+           lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
+           star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)
