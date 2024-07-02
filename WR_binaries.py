@@ -23,12 +23,12 @@ apep = {"m1":15.,                # solar masses
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
-        "comp_incl":127.6, "comp_az":238.8, "comp_open":90., "comp_reduction":1.09, "comp_plume":1.,
+        "comp_incl":127.6, "comp_az":238.8, "comp_open":90., "comp_reduction":1.45, "comp_plume":1.,
         "phase":0.6, 
         "sigma":2.,              # sigma for gaussian blur
         "histmax":1., "lum_power":1, 
         "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1,
-        'star1amp':1, 'star1sd':-1.4, 'star2amp':1, 'star2sd':-1.4, 'star3amp':0.7, 'star3sd':-1.4, 'star3dist':1700}
+        'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
 
 # below are rough params for WR 48a
 WR48a = {"m1":15.,                  # solar masses

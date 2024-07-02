@@ -145,7 +145,7 @@ def inference_loop(rng_key, kernel, initial_state, num_samples):
 
 # inference_loop_multiple_chains = jax.pmap(inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3))
 
-num_sample = 50
+num_sample = 500
 
 ### single chain/core:
 rng_key, sample_key = jax.random.split(rng_key)
@@ -181,17 +181,7 @@ num_divergent = np.mean(infos[1])
 print(f"\Average acceptance rate: {acceptance_rate:.2f}")
 print(f"There were {100*num_divergent:.2f}% divergent transitions")
 
-
+run_num = 1
 pickle_samples = {"states":states, "infos":infos}
-with open(f'HPC/{rand_time}', 'wb') as file:
+with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(pickle_samples, file)
-
-
-
-
-import arviz as az
-
-idata = az.from_dict(posterior={k: v[None, ...] for k, v in states.position.items()})
-az.plot_posterior(idata, var_names=["eccentricity", 'inclination']);
-az.plot_trace(idata, var_names=["eccentricity", 'inclination'], compact=False)
-plt.tight_layout();

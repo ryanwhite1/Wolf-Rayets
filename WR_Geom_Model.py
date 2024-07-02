@@ -95,32 +95,6 @@ def inv_rotate_z(angle):
     return rotate_z(angle).T
 
 
-
-# def kepler_solve_sub_sub(i, E0_ecc_mi):
-#     '''
-#     '''
-#     E0, ecc, mi = E0_ecc_mi
-#     return (E0 - (E0 - ecc * jnp.sin(E0) - mi) / (1 - ecc * jnp.cos(E0)), ecc, mi)
-# def kepler_solve_sub(i, ecc, tol, M):
-#     ''' This is the main kepler equation solving step. 
-#     '''
-#     E0 = M[i]
-#     # Newton's formula to solve for eccentric anomaly
-#     E0 = lax.fori_loop(0, 20, kepler_solve_sub_sub, (E0, ecc, M[i]))[0]
-#     return E0
-# def kepler_solve(t, P, ecc):
-#     ''' Solver for Kepler's 2nd law giving the angle of an orbiter (rel. to origin) over time
-#     '''
-#     # follow the method in https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
-#     # to get true anomaly
-#     M = 2 * jnp.pi / P * t
-#     tol = 1e-8
-
-#     E = vmap(lambda i: kepler_solve_sub(i, ecc, tol, M))(jnp.arange(len(t)))
-#     # now output true anomaly (rad)
-#     return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
-
-
 ### the following kepler solver functions are from https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/#core-from-scratch
 
 def kepler_starter(mean_anom, ecc):
@@ -977,11 +951,11 @@ def orbit_spiral_gif(stardata):
 
 # # # for i in range(10):
 # t1 = time.time()
-particles, weights = dust_plume(wrb.apep)
-X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-# print(time.time() - t1)
-H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
-plot_spiral(X, Y, H)
+# particles, weights = dust_plume(wrb.apep)
+# X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
+# # print(time.time() - t1)
+# H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
+# plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 
