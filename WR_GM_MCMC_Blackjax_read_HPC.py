@@ -22,13 +22,12 @@ import pickle
 import numpyro, jax
 import numpyro.distributions as dists
 from numpyro.infer.util import initialize_model
+import blackjax
 
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-import os
-
-run_num = "1"
+run_num = "3"
 path = f'HPC/run_{run_num}/'
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
@@ -43,6 +42,8 @@ for file in files:
         chains.append(a)
         num_samples += len(a['states'].position[parameters[0]])
         
+all_chains = {parameter:jnp.array([chains[i]['states'].position[parameter] for i in range(len(files))]) for parameter in parameters}
+        
 all_positions = np.zeros((num_samples, len(parameters)))
 
 run_total = 0
@@ -55,6 +56,10 @@ for i in range(len(files)):
         all_positions[run_total:run_total + len(states), j] = states
         
     run_total += len(states)
+    
+for parameter in parameters:
+    ess = blackjax.diagnostics.effective_sample_size(all_chains[parameter], chain_axis=0, sample_axis=1)
+    print(parameter, "effective sample size is", ess)
 
 
 

@@ -12,10 +12,12 @@ os.environ["XLA_FLAGS"] = "--xla_force_host_platform_device_count={}".format(
 )
 
 import numpy as np
+import jax_tqdm as jtqdm
 import jax.numpy as jnp
 from jax import jit, vmap, grad
 import jax.lax as lax
 import jax.scipy.stats as stats
+import blackjax
 import matplotlib.pyplot as plt
 import time
 import pickle
@@ -111,22 +113,28 @@ init_params, potential_fn_gen, *_ = initialize_model(
 logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
 initial_position = init_params.z
 
-import blackjax
 
-num_warmup = 50
+
+num_warmup = 300
 integration_steps = 10
-# adapt = blackjax.window_adaptation(
-#     blackjax.nuts, logdensity_fn, target_acceptance_rate=0.8
-# )
 adapt = blackjax.window_adaptation(
-    blackjax.hmc, logdensity_fn, target_acceptance_rate=0.8, progress_bar=True, num_integration_steps=integration_steps
+    blackjax.nuts, logdensity_fn, target_acceptance_rate=0.5, progress_bar=True,
+    initial_step_size=1./integration_steps, max_num_doublings=5
 )
+# adapt = blackjax.window_adaptation(
+#     blackjax.hmc, logdensity_fn, target_acceptance_rate=0.6, progress_bar=True, 
+#     num_integration_steps=integration_steps, initial_step_size=1./integration_steps
+# )
 rng_key, warmup_key = jax.random.split(rng_key)
 print("warm up")
 (last_state, parameters), _ = adapt.run(warmup_key, initial_position, num_warmup)
 print("warm up done")
-# kernel = blackjax.nuts(logdensity_fn, **parameters).step
-kernel = blackjax.hmc(logdensity_fn, **parameters).step
+kernel = blackjax.nuts(logdensity_fn, **parameters).step
+# parameters['step_size'] = 1 / integration_steps
+# parameters['step_size'] *= 6
+# kernel = blackjax.hmc(logdensity_fn, **parameters).step
+
+# print(a)
 
 def inference_loop(rng_key, kernel, initial_state, num_samples):
     @jax.jit
@@ -145,7 +153,7 @@ def inference_loop(rng_key, kernel, initial_state, num_samples):
 
 # inference_loop_multiple_chains = jax.pmap(inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3))
 
-num_sample = 500
+num_sample = 300
 
 ### single chain/core:
 rng_key, sample_key = jax.random.split(rng_key)
@@ -178,10 +186,10 @@ _ = states.position["eccentricity"].block_until_ready()
 acceptance_rate = np.mean(infos[0])
 num_divergent = np.mean(infos[1])
 
-print(f"\Average acceptance rate: {acceptance_rate:.2f}")
+print(f"Average acceptance rate: {acceptance_rate:.2f}")
 print(f"There were {100*num_divergent:.2f}% divergent transitions")
 
-run_num = 1
+run_num = 3
 pickle_samples = {"states":states, "infos":infos}
 with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(pickle_samples, file)
