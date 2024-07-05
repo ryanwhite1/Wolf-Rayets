@@ -36,7 +36,7 @@ yr2s = yr2day * 24*60*60                # num seconds in a year
 kms2pcyr = 60*60*24*yr2day / (3.086e13) # km/s to pc/yr
 AU2km = 1.496e8                         # km in an AU
 
-
+master_key = jax.random.key(0)
 
 def rotate_x(angle):
     ''' Rotation matrix about the x-axis
@@ -215,7 +215,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
         First 3 axes correspond to the cartesian coordinates of each of the N particles in this ring. Units are in km from central binary barycenter. 
         Fourth axis corresponds to the weights of each particle for the histogram/imaging step. 
     '''
-    i, nu = i_nu    # get our ring number, i, and the true anomaly, nu
+    i, nu, key = i_nu    # get our ring number, i, and the true anomaly, nu
     x = nu / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
     # now we need to ensure that the rings *smoothly* wrap around as the stars orbit each other
     # we do this by shifting our true anomaly values from the range [0, 2pi] to [-pi, pi]
@@ -236,14 +236,16 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2  # calculate the half open angle after multiplying by our open angle factor
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
 
+    # rand_key = 
+    rand_theta = jax.random.uniform(key, shape=theta.shape) * 2. * jnp.pi
     # we also need to effectively dither our particle angular coordinate to reduce the effect of using a finite number of rings/particles on our final image
     shifted_theta = theta + i   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
     # now we construct our circle *along the x axis* (i.e. all circle points have the same x value, and only look like a circle when looked at in the y-z plane)
     # the stars are orbiting in the xy plane here, so z points out of the orbital plane
     # the below circle are the particle coordinates in cartesian coordinates, but not in meaningful units (yet)
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
-                        jnp.sin(half_angle) * jnp.sin(shifted_theta), 
-                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(shifted_theta)])
+                        jnp.sin(half_angle) * jnp.sin(rand_theta), 
+                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(rand_theta)])
     
     
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
@@ -376,7 +378,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # this is analogous to the math for orbital variation, but instead of weighting entire rings based on the position in the orbit, 
     # we weight particles in the ring based on azimuthal variation in dust production
     val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((rand_theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
     # we need our orbital weighting proportion to be between 0 and 1
     prop_orb = jnp.min(jnp.array([prop_orb, 1]))
@@ -409,7 +411,7 @@ def calculate_semi_major(period_s, m1, m2):
 
 
 
-def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
+def dust_plume_sub(theta, times, n_orbits, period_s, stardata, key):
     
     n_time = len(times)
     n_t = n_time / n_orbits
@@ -434,8 +436,9 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
-        
-    particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
+    key, *subkeys = jax.random.split(key, n_time+1)
+    subkeys = jnp.array(subkeys)
+    particles = vmap(lambda i_nu_key: dust_circle(i_nu_key, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly, subkeys))
 
     weights = particles[:, 3, :].flatten()
     particles = particles[:, :3, :]
@@ -456,7 +459,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
 @jit
-def dust_plume(stardata):
+def dust_plume(stardata, key):
     '''
     Parameters
     ----------
@@ -473,13 +476,13 @@ def dust_plume(stardata):
     n_time = n_t * n_orbits
     theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
-    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata, key)
     return particles, weights
   
     
-gui_funcs = [lambda stardata, i=i: dust_plume_GUI_sub(stardata, i) for i in range(1, 20)]
+gui_funcs = [lambda stardata, key, i=i: dust_plume_GUI_sub(stardata, key, i) for i in range(1, 20)]
 gui_funcs = [jit(gui_funcs[i]) for i in range(len(gui_funcs))]
-def dust_plume_GUI_sub(stardata, n_orb):
+def dust_plume_GUI_sub(stardata, key, n_orb):
     phase = stardata['phase']%1
     
     period_s = stardata['period'] * 365.25 * 24 * 60 * 60
@@ -491,7 +494,7 @@ def dust_plume_GUI_sub(stardata, n_orb):
     n_time = n_t * n_orbits
     theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
     times = period_s * jnp.linspace(phase, n_orbits + phase, n_time)
-    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata)
+    particles, weights = dust_plume_sub(theta, times, n_orbits, period_s, stardata, key)
     return particles, weights
 
 

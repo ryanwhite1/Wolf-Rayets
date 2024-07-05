@@ -16,6 +16,7 @@ import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 import emcee
+import jax
 
 import WR_Geom_Model as gm
 import WR_binaries as wrb
@@ -34,6 +35,9 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
+global key
+key = jax.random.key(int(time.time()))
+
 starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
 
@@ -43,7 +47,7 @@ root.wm_title("Embedding in Tk")
 titles = ['Model', 'Reference', 'Difference']
 w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
-particles, weights = gm.dust_plume(starcopy)
+particles, weights = gm.dust_plume(starcopy, key)
 X, Y, H_original = gm.smooth_histogram2d(particles, weights, starcopy)
 H_original = gm.add_stars(X[0, :], Y[:, 0], H_original, starcopy)
 mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
@@ -86,7 +90,9 @@ button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 def update_frequency(param, new_val, X=X, Y=Y):
     starcopy[param] = float(new_val)
     
-    particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
+    global key
+    key, subkey = jax.random.split(key, 2)
+    particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy, subkey)
     
     X_new, Y_new, H = gm.smooth_histogram2d(particles, weights, starcopy)
     H = gm.add_stars(X_new[0, :], Y_new[:, 0], H, starcopy)
