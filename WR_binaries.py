@@ -10,7 +10,7 @@ apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
         "eccentricity":0.7, 
         "inclination":23.8,      # degrees
-        "asc_node":164.1,           # degrees
+        "asc_node":164.1,        # degrees
         "arg_peri":10.6,         # degrees
         "open_angle":125.,       # degrees (full opening angle)
         "period":125.,           # years

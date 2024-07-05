@@ -36,6 +36,7 @@ particles, weights = gm.dust_plume(wrb.apep)
 X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
 xbins = X[0, :]
 ybins = Y[:, 0]
+H = gm.add_stars(xbins, ybins, H, wrb.apep)
 # X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
 obs_err = 0.01 * np.max(H)
 H += np.random.normal(0, obs_err, H.shape)
@@ -66,13 +67,13 @@ def apep_model(Y, E):
     params['inclination'] = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
     # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
     # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
     # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-    # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
-    # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
+    turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
     # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
@@ -85,12 +86,13 @@ def apep_model(Y, E):
     # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
-    # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
+    phase = numpyro.sample("phase", dists.Normal(apep['phase'], 0.1))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
         
     samp_particles, samp_weights = gm.dust_plume(params)
     _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, params, xbins, ybins)
+    samp_H = gm.add_stars(xbins, ybins, samp_H, params)
     samp_H = samp_H.flatten()
     # samp_H = jnp.nan_to_num(samp_H, 1e4)
     with numpyro.plate('plate', len(obs)):
@@ -153,7 +155,7 @@ def inference_loop(rng_key, kernel, initial_state, num_samples):
 
 # inference_loop_multiple_chains = jax.pmap(inference_loop, in_axes=(0, None, 0, None), static_broadcasted_argnums=(1, 3))
 
-num_sample = 300
+num_sample = 400
 
 ### single chain/core:
 rng_key, sample_key = jax.random.split(rng_key)
@@ -189,7 +191,7 @@ num_divergent = np.mean(infos[1])
 print(f"Average acceptance rate: {acceptance_rate:.2f}")
 print(f"There were {100*num_divergent:.2f}% divergent transitions")
 
-run_num = 3
+run_num = 4
 pickle_samples = {"states":states, "infos":infos}
 with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(pickle_samples, file)

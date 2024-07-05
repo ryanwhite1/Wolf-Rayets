@@ -33,38 +33,43 @@ files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
 chains = []
 num_samples = 0
-parameters = ['eccentricity', 'inclination']
-display_params = ['$e$', '$i$']
+model_parameters = ['eccentricity', 'inclination']
+display_params = [r'$e$', r'$i$']
+# model_parameters = ['eccentricity', 'inclination', 'open_angle', 'phase', 'turn_on', 'turn_off']
+# display_params = [r'$e$', r'$i$', r'$\theta_{OA}$', r'$\phi$', r'$\nu_{on}$', r'$\nu_{off}$']
 
 for file in files:
     with open(path + file, 'rb') as f:
         a = pickle.load(f)
         chains.append(a)
-        num_samples += len(a['states'].position[parameters[0]])
+        num_samples += len(a['states'].position[model_parameters[0]])
         
-all_chains = {parameter:jnp.array([chains[i]['states'].position[parameter] for i in range(len(files))]) for parameter in parameters}
+all_chains = {parameter:jnp.array([chains[i]['states'].position[parameter] for i in range(len(files))]) for parameter in model_parameters}
         
-all_positions = np.zeros((num_samples, len(parameters)))
+all_positions = np.zeros((num_samples, len(model_parameters)))
 
 run_total = 0
-fig, axes = plt.subplots(ncols=len(parameters))
+fig, axes = plt.subplots(nrows=len(model_parameters), sharex=True, gridspec_kw={'hspace':0})
+
 for i in range(len(files)):
-    for j, parameter in enumerate(parameters):
+    for j, parameter in enumerate(model_parameters):
         states = chains[i]['states'].position[parameter]
         axes[j].plot(np.arange(len(states)), states)
+        axes[j].set(ylabel=parameter)
         
         all_positions[run_total:run_total + len(states), j] = states
         
     run_total += len(states)
     
-for parameter in parameters:
+for parameter in model_parameters:
     ess = blackjax.diagnostics.effective_sample_size(all_chains[parameter], chain_axis=0, sample_axis=1)
     print(parameter, "effective sample size is", ess)
 
 
-
+fig = plt.figure(figsize=(8, 8))
 import corner
 figure = corner.corner(all_positions, 
+                       fig=fig,
                        labels=display_params,
                        quantiles=[0.16, 0.5, 0.84],
                        show_titles=True)
