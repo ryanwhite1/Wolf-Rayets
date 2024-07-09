@@ -1009,14 +1009,15 @@ def orbit_spiral_gif(stardata):
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"orbit_spiral.gif", writer='pillow', fps=fps)
 
-
-# # # for i in range(10):
-# t1 = time.time()
-particles, weights = dust_plume(wrb.apep)
-X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-# print(time.time() - t1)
-H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
-plot_spiral(X, Y, H)
+# apep = wrb.apep.copy()
+# # apep['comp_reduction'] = 0
+# # # # for i in range(10):
+# # t1 = time.time()
+# particles, weights = dust_plume(apep)
+# X, Y, H = smooth_histogram2d(particles, weights, apep)
+# # print(time.time() - t1)
+# H = add_stars(X[0, :], Y[:, 0], H, apep)
+# plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 

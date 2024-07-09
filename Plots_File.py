@@ -21,8 +21,11 @@ import emcee
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-def apep_plot():
-    star = wrb.apep
+def apep_plot(filename, custom_params={}):
+    star = wrb.apep.copy()
+    
+    for param in custom_params:
+        star[param] = custom_params[param]
     
     particles, weights = gm.dust_plume(star)
     X, Y, H = gm.smooth_histogram2d(particles, weights, star)
@@ -31,8 +34,8 @@ def apep_plot():
     ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
     
-    fig.savefig('Images/Apep_Plot.png', dpi=400, bbox_inches='tight')
-    fig.savefig('Images/Apep_Plot.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(f'Images/{filename}.png', dpi=400, bbox_inches='tight')
+    fig.savefig(f'Images/{filename}.pdf', dpi=400, bbox_inches='tight')
 
 def apep_cone_plot():
     def turning_point(data):
@@ -48,7 +51,7 @@ def apep_cone_plot():
                 sign = np.sign(deriv[i])
         return indices.astype(int)
             
-    star = wrb.apep
+    star = wrb.apep.copy()
     
     particles, weights = gm.dust_plume(star)
     X, Y, H = gm.smooth_histogram2d(particles, weights, star)
@@ -99,10 +102,112 @@ def apep_cone_plot():
     fig.savefig('Images/Apep_Cone.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Cone.pdf', dpi=400, bbox_inches='tight')
     
+
+def smooth_hist_demo():
+    im_size = 16
+    
+    x = np.array([-1.1, 0, 0.5, 0.54, -0.536, -0.6])
+    y = np.array([0, 0, 0.67, -0.698, -0.6, 0.7])
+    
+    particles = np.array([x, y])
+    weights = np.ones(len(x))
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    stardata = wrb.test_system.copy()
+    stardata['sigma'] = 0.1
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+    
+    fig, ax = plt.subplots()
+    ax.set_facecolor('k')
+    ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    ax.scatter(x, y, rasterized=True)
+    for i in range(len(xedges)):
+        ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+        ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+    ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
+    
+    fig.savefig('Images/Smooth_Hist_Demo.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Smooth_Hist_Demo.pdf', dpi=400, bbox_inches='tight')
+    
+def smooth_hist_gif():
+    im_size = 10
+    
+    x = np.array([-0.8])
+    y = np.array([0])
+    
+    particles = np.array([x, y])
+    weights = np.ones(len(x))
+    
+    xbound = ybound = 1
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    stardata = wrb.test_system.copy()
+    stardata['sigma'] = 0.1
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+    
+    fig, ax = plt.subplots()
+    ax.set_facecolor('k')
+    mesh = ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    scatter = ax.scatter(x, y, rasterized=True)
+    ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
+    for i in range(len(xedges)):
+        ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+        ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+    
+    
+    every = 1
+    length = 10
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    nt = 100
+    # nt = 10
+    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    xs = np.linspace(x[0], 1, nt)
+    ys = xs**2
+    
+    Hs = []
+    for i in range(nt):
+        current_xs = np.array([xs[i], 0])
+        current_ys = np.array([ys[i], 0])
+        particles = np.array([current_xs, current_ys])
+        weights = np.array([1, 0])
+        X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+        Hs.append(H)
+    
+    def animate(i):
+        if i%(nt // 10) == 0:
+            print(i/nt * 100, "%", sep='')
+        # current_xs = np.array([xs[i], 0])
+        # current_ys = np.array([ys[i], 0])
+        # particles = np.array([current_xs, current_ys])
+        # weights = np.array([1, 0])
+        # X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+        # ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+        # ax.scatter(xs[i], ys[i], rasterized=True)
+        
+        mesh.set_array(Hs[i])
+        scatter.set_offsets(np.c_[xs[i], ys[i]])
+        return fig, 
+
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save(f"Images/Smooth_Hist_Gif.gif", writer='pillow', fps=fps)
+    
     
 def main():
-    apep_plot()
-    apep_cone_plot()
+    # apep_plot('Apep_Plot')
+    # apep_plot('Apep_Plot_No_Photodiss', custom_params={'comp_reduction':0})
+    # apep_cone_plot()
+    
+    # smooth_hist_demo()
+    smooth_hist_gif()
     
 
 
