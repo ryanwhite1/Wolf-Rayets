@@ -93,7 +93,7 @@ def update_frequency(param, new_val, X=X, Y=Y):
     new_H = H.ravel()
     mesh.update({'array':new_H})
     
-    _, _, H_diff = gm.spiral_grid_w_bins(particles, weights, starcopy, X[0, :], Y[:, 0])
+    _, _, H_diff = gm.smooth_histogram2d_w_bins(particles, weights, starcopy, X[0, :], Y[:, 0])
     H_diff = gm.add_stars(X[0, :], Y[:, 0], H_diff, starcopy)
     H_diff = H_diff.ravel()
     

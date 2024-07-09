@@ -216,11 +216,12 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
         Fourth axis corresponds to the weights of each particle for the histogram/imaging step. 
     '''
     i, nu = i_nu    # get our ring number, i, and the true anomaly, nu
-    x = nu / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
-    # now we need to ensure that the rings *smoothly* wrap around as the stars orbit each other
-    # we do this by shifting our true anomaly values from the range [0, 2pi] to [-pi, pi]
-    # if we don't do this, there's a discontinuity in the dust production at nu = 0
-    transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
+    # x = nu / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
+    # # now we need to ensure that the rings *smoothly* wrap around as the stars orbit each other
+    # # we do this by shifting our true anomaly values from the range [0, 2pi] to [-pi, pi]
+    # # if we don't do this, there's a discontinuity in the dust production at nu = 0
+    # transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
+    transf_nu = (nu - jnp.pi)%(2 * jnp.pi) - jnp.pi
     turn_on = jnp.deg2rad(stardata['turn_on'])          # convert our turn on true anomaly from degrees to radians
     turn_off = jnp.deg2rad(stardata['turn_off'])        # convert our turn off true anomaly from degrees to radians
     turned_on = jnp.heaviside(transf_nu - turn_on, 0)   # determine if our current true anomaly is greater than our turn on true anomaly (i.e. is dust production turned on?)
@@ -230,8 +231,8 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])  # normalize our plume direction vector
     
-    oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
-    
+    # oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
+    v_mult = oa_mult = 1
     # for the circle construction, we only use the half open angle
     half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2  # calculate the half open angle after multiplying by our open angle factor
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
@@ -243,7 +244,10 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # the below circle are the particle coordinates in cartesian coordinates, but not in meaningful units (yet)
     circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
                         jnp.sin(half_angle) * jnp.sin(shifted_theta), 
-                        (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(shifted_theta)])
+                        jnp.sin(half_angle) * jnp.cos(shifted_theta)])
+    # circle = jnp.array([jnp.ones(len(theta)) * jnp.cos(half_angle), 
+    #                     jnp.sin(half_angle) * jnp.sin(shifted_theta), 
+    #                     (1 - stardata['oblate']) * jnp.sin(half_angle) * jnp.cos(shifted_theta)])
     
     
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
@@ -412,7 +416,7 @@ def calculate_semi_major(period_s, m1, m2):
 def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     n_time = len(times)
-    n_t = n_time / n_orbits
+    n_t = int(n_time / n_orbits)
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
@@ -436,6 +440,63 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
         
     particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
+    
+    
+    
+    # mean_anomaly = jnp.deg2rad(jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t))# + jnp.pi
+    # min_anomaly = jnp.deg2rad(stardata['turn_on']) + jnp.pi 
+    # # mean_anomaly = min_anomaly + (times - )
+    
+    # max_anomaly = max(times)%period_s
+    # # print(mean_anomaly)
+    # E, true_anomaly = kepler(mean_anomaly, jnp.array([ecc]))
+    # # E, true_anomaly = kepler(2 * jnp.pi * times[:n_t] / period_s, jnp.array([ecc]))
+    # # E = jnp.linspace(jnp.deg2rad(stardata['turn_on']), jnp.deg2rad(stardata['turn_off']), n_t)
+    # # true_anomaly = jnp.arccos((jnp.cos(E) - stardata['eccentricity']) / (1. - stardata['eccentricity'] * jnp.cos(E)))
+    # # true_anomaly = jnp.repeat(true_anomaly, n_orbits)
+    # # x = true_anomaly / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
+    # # transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
+    
+    # # transf_turn_on = jnp.deg2rad(stardata['turn_on'])%(2 * jnp.pi) - jnp.pi
+    # # transf_turn_off = jnp.deg2rad(stardata['turn_off'])%(2 * jnp.pi) - jnp.pi
+    # # transf_turn_on = -jnp.deg2rad(stardata['turn_on']) + jnp.pi
+    # # transf_turn_off = -jnp.deg2rad(stardata['turn_off']) + jnp.pi
+    
+    # # anom_min = jnp.min(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
+    # # anom_max = jnp.max(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
+    
+    # # # transf_nu = (true_anomaly - jnp.pi)%(2 * jnp.pi) - jnp.pi
+    # # # ring_anomalies = jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t)
+    # # ring_anomalies = jnp.linspace(anom_min, anom_max, n_t)
+    # # ring_anomalies = jnp.repeat(ring_anomalies, n_orbits)
+    
+    # # ring_anomalies = jnp.deg2rad(ring_anomalies) + jnp.pi
+    
+    # a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
+    # r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    # r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
+    # # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
+    
+    # positions1 = jnp.array([jnp.cos(true_anomaly), 
+    #                         jnp.sin(true_anomaly), 
+    #                         jnp.zeros(n_time)])
+    # positions2 = jnp.copy(positions1)
+    # positions1 *= r1      # position in the orbital frame
+    # positions2 *= -r2     # position in the orbital frame
+    
+    # # widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
+    # widths = stardata['windspeed1'] * period_s * (n_orbits - E / (2 * jnp.pi))
+    
+    # plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
+    
+        
+    # particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
+
+
+
+
+
+
 
     weights = particles[:, 3, :].flatten()
     particles = particles[:, :3, :]
@@ -455,7 +516,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
-@jit
+# @jit
 def dust_plume(stardata):
     '''
     Parameters
@@ -468,7 +529,7 @@ def dust_plume(stardata):
     
     n_orbits = 1
     n_t = 1000       # circles per orbital period
-    n_points = 400   # points per circle
+    n_points = 500   # points per circle
     n_particles = n_points * n_t * n_orbits
     n_time = n_t * n_orbits
     theta = 2 * jnp.pi * jnp.linspace(0, 1, n_points)
@@ -951,11 +1012,11 @@ def orbit_spiral_gif(stardata):
 
 # # # for i in range(10):
 # t1 = time.time()
-# particles, weights = dust_plume(wrb.apep)
-# X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
-# # print(time.time() - t1)
-# H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
-# plot_spiral(X, Y, H)
+particles, weights = dust_plume(wrb.apep)
+X, Y, H = smooth_histogram2d(particles, weights, wrb.apep)
+# print(time.time() - t1)
+H = add_stars(X[0, :], Y[:, 0], H, wrb.apep)
+plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 
@@ -1014,6 +1075,7 @@ def orbit_spiral_gif(stardata):
 
 
 # orbit_spiral_gif(wrb.test_system)
+
 
 
 

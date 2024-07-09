@@ -16,19 +16,22 @@ import jax.scipy.signal as signal
 from matplotlib import animation
 import time
 import emcee
+from tqdm import tqdm
+import sys
 
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
 apep = wrb.apep.copy()
-# apep['sigma'] = 3
+# apep['sigma'] = 8
 
 ### --- INFERENCE --- ###  
-particles, weights = gm.dust_plume(wrb.apep)
+particles, weights = gm.dust_plume(apep)
     
-X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
+X, Y, H = gm.smooth_histogram2d(particles, weights, apep)
 xbins = X[0, :]
 ybins = Y[:, 0]
+H = gm.add_stars(xbins, ybins, H, apep)
 # X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
 obs_err = 0.01 * np.max(H)
 H += np.random.normal(0, obs_err, H.shape)
@@ -49,7 +52,7 @@ params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 1
 params_list = list(params.keys())
 
 i = 0
-param = 'open_angle'
+param = 'eccentricity'
 n = 50
 
 # for i, param in enumerate(params):
@@ -59,6 +62,7 @@ def man_loglike(value):
     starcopy[param] = value
     samp_particles, samp_weights = gm.dust_plume(starcopy)
     _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
+    samp_H = gm.add_stars(xbins, ybins, samp_H, starcopy)
     samp_H = samp_H.flatten()
     
     return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
@@ -68,6 +72,7 @@ def pixel_loglike(value):
     starcopy[param] = value
     samp_particles, samp_weights = gm.dust_plume(starcopy)
     _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
+    samp_H = gm.add_stars(xbins, ybins, samp_H, starcopy)
     samp_H = samp_H.flatten()
     
     return -0.5 * ((samp_H - obs) / obs_err)**2
@@ -91,7 +96,7 @@ dx = param_vals[1] - param_vals[0]
 
 vals, grads = jnp.zeros(n), jnp.zeros(n)
 
-for j in range(n):
+for j in tqdm(range(n)):
     a, b = like(param_vals[j])
     vals = vals.at[j].set(a)
     grads = grads.at[j].set(b)
@@ -116,7 +121,7 @@ phases = jnp.linspace(0, 1, nt)
 iter_arrays = []
 grad_arrays = []
 
-for j in range(n):
+for j in tqdm(range(n)):
     iter_vals = pixel_loglike(param_vals[j])
     iter_vals = jnp.reshape(iter_vals, H.shape)
     grad_vals = pixel_gradient(param_vals[j])
@@ -146,11 +151,20 @@ ax3.set(xlabel=param)
 ax1.set(title='Pixel Log Likelihood')
 ax2.set(title='Pixel Log Likelihood Gradient')
 
+plot1 = ax1.pcolormesh(X, Y, iter_arrays[j], vmin=iter_min, vmax=iter_max, cmap='viridis')
+plot2 = ax2.pcolormesh(X, Y, grad_arrays[j], vmin=grad_min, vmax=grad_max, cmap='RdBu')
+
+print("Starting animation.")
+
 from matplotlib import animation
 def animate(j):
-    ax1.pcolormesh(X, Y, iter_arrays[j], vmin=iter_min, vmax=iter_max, cmap='viridis')
+    if j%(nt // 10) == 0:
+        print(j/nt * 100, "%", sep='')
+    # ax1.pcolormesh(X, Y, iter_arrays[j], vmin=iter_min, vmax=iter_max, cmap='viridis')
+    # # ax2.pcolormesh(X, Y, grad_arrays[j], vmin=grad_min, vmax=grad_max, cmap='RdBu')
     # ax2.pcolormesh(X, Y, grad_arrays[j], vmin=grad_min, vmax=grad_max, cmap='RdBu')
-    ax2.pcolormesh(X, Y, grad_arrays[j], vmin=grad_min, vmax=grad_max, cmap='RdBu')
+    plot1.set_array(iter_arrays[j])
+    plot2.set_array(grad_arrays[j])
     fig.suptitle(f'{param}={param_vals[j]:.3f}')
     param_line.set_xdata(param_vals[j])
     return fig, 
