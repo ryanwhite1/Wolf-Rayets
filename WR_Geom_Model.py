@@ -300,12 +300,17 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     weights = jnp.ones(len(theta)) * turned_on * turned_off
     
     # ------------------------------------------------------------------
-    ### below accounts for the dust production not turning on instantaneously (probably negligible effect, so commented out)
+    ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect, so commented out)
     # weights = jnp.ones(len(theta))
-    # sigma = jnp.deg2rad(10)
+    sigma = jnp.deg2rad(5)
     # mult = 0.1
     # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
     # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
+    
+    residual_on = (1 - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
+    residual_off = (1 - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
+    residual = jnp.min(jnp.array([residual_on + residual_off, 1]))
+    weights = weights + residual
     # ------------------------------------------------------------------
     
     ### Now we need to take into account the photodissociation effect from a ternary companion (specifically for Apep)
@@ -1009,15 +1014,16 @@ def orbit_spiral_gif(stardata):
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"orbit_spiral.gif", writer='pillow', fps=fps)
 
-# apep = wrb.apep.copy()
+system = wrb.apep.copy()
+# system = wrb.WR140.copy()
 # # apep['comp_reduction'] = 0
 # # # # for i in range(10):
 # # t1 = time.time()
-# particles, weights = dust_plume(apep)
-# X, Y, H = smooth_histogram2d(particles, weights, apep)
-# # print(time.time() - t1)
-# H = add_stars(X[0, :], Y[:, 0], H, apep)
-# plot_spiral(X, Y, H)
+particles, weights = dust_plume(system)
+X, Y, H = smooth_histogram2d(particles, weights, system)
+# print(time.time() - t1)
+H = add_stars(X[0, :], Y[:, 0], H, system)
+plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 

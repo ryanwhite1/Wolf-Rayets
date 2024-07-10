@@ -53,7 +53,7 @@ params_list = list(params.keys())
 
 i = 0
 param = 'eccentricity'
-n = 50
+n = 500
 
 # for i, param in enumerate(params):
     
@@ -170,6 +170,6 @@ def animate(j):
     return fig, 
 
 ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-ani.save(f"gradienttest_{param}.gif", writer='pillow', fps=fps)
+ani.save(f"gradienttest_{param}_test.gif", writer='pillow', fps=fps)
     
 
