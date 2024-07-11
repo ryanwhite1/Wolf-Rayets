@@ -185,13 +185,6 @@ def smooth_hist_gif():
     def animate(i):
         if i%(nt // 10) == 0:
             print(i/nt * 100, "%", sep='')
-        # current_xs = np.array([xs[i], 0])
-        # current_ys = np.array([ys[i], 0])
-        # particles = np.array([current_xs, current_ys])
-        # weights = np.array([1, 0])
-        # X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
-        # ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
-        # ax.scatter(xs[i], ys[i], rasterized=True)
         
         mesh.set_array(Hs[i])
         scatter.set_offsets(np.c_[xs[i], ys[i]])
@@ -199,6 +192,40 @@ def smooth_hist_gif():
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"Images/Smooth_Hist_Gif.gif", writer='pillow', fps=fps)
+    
+    # now for the normal histogramming
+    fig, ax = plt.subplots()
+    ax.set_facecolor('k')
+    current_xs = np.array([xs[0], 0])
+    current_ys = np.array([ys[0], 0])
+    weights = np.array([1, 0])
+    H, X, Y = np.histogram2d(current_xs, current_ys, bins=X[0], weights=weights)
+    mesh = ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    scatter = ax.scatter(x, y, rasterized=True)
+    ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
+    for i in range(len(xedges)):
+        ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+        ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+    Hs = []
+    for i in range(nt):
+        current_xs = np.array([xs[i], 0])
+        current_ys = np.array([ys[i], 0])
+        H, _, _ = np.histogram2d(current_xs, current_ys, bins=X, weights=weights)
+        Hs.append(H.T)
+    
+    def animate(i):
+        if i%(nt // 10) == 0:
+            print(i/nt * 100, "%", sep='')
+        
+        mesh.set_array(Hs[i])
+        scatter.set_offsets(np.c_[xs[i], ys[i]])
+        return fig, 
+
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save(f"Images/Normal_Hist_Gif.gif", writer='pillow', fps=fps)
+    
+    
+    
     
     
 def main():
