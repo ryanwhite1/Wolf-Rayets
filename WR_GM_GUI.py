@@ -34,7 +34,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.apep.copy()
+starcopy = wrb.WR48a.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()
@@ -261,6 +261,11 @@ star3dist = tkinter.Scale(root, from_=1., to=20000., orient=tkinter.HORIZONTAL,
 star3dist.set(starcopy['star3dist'])
 
 
+gradual_turn = tkinter.Scale(root, from_=0.01, to=180., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('gradual_turn', v), label="Gradual Turn", resolution=0.1)
+gradual_turn.set(starcopy['gradual_turn'])
+
+
 
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
@@ -268,7 +273,7 @@ sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
            lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
-           star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist]
+           star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)

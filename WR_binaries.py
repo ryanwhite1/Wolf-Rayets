@@ -19,6 +19,7 @@ apep = {"m1":15.,                # solar masses
         "windspeed2":2400.,      # km/s
         "turn_on":-114.,         # true anomaly (degrees)
         "turn_off":145.,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
@@ -33,25 +34,26 @@ apep = {"m1":15.,                # solar masses
 # below are rough params for WR 48a
 WR48a = {"m1":15.,                  # solar masses
         "m2":10.,                   # solar masses
-        "eccentricity":0.1, 
-        "inclination":75,           # degrees
-        "asc_node":0,               # degrees
-        "arg_peri":20,              # degrees
-        "open_angle":110,           # degrees (full opening angle)
+        "eccentricity":0.74, 
+        "inclination":74.,           # degrees
+        "asc_node":174.,               # degrees
+        "arg_peri":116.,              # degrees
+        "open_angle":37.,           # degrees (full opening angle)
         "period":32.5,              # years
-        "distance":3500,            # pc
-        "windspeed1":700,           # km/s
-        "windspeed2":2400,          # km/s
-        "turn_on":-140,             # true anomaly (degrees)
-        "turn_off":140,             # true anomaly (degrees)
+        "distance":4000.,            # pc
+        "windspeed1":2100.,           # km/s
+        "windspeed2":900.,          # km/s
+        "turn_on":-121.,             # true anomaly (degrees)
+        "turn_off":137.,             # true anomaly (degrees)
+        "gradual_turn":16.,
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
-        "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90,
+        "orb_sd":40., "orb_amp":0., "orb_min":180, "az_sd":45., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
-        "phase":0.6, 
+        "phase":0.5, 
         "sigma":2,                  # sigma for gaussian blur
-        "histmax":1, "lum_power":1., 
+        "histmax":0.3, "lum_power":1., 
         "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1,
         'star1amp':0., 'star1sd':-1., 'star2amp':0., 'star2sd':-1., 'star3amp':0., 'star3sd':-1., 'star3dist':0.}
 

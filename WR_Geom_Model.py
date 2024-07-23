@@ -302,7 +302,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # ------------------------------------------------------------------
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect, so commented out)
     # weights = jnp.ones(len(theta))
-    sigma = jnp.deg2rad(5)
+    sigma = jnp.deg2rad(stardata['gradual_turn'])
     # mult = 0.1
     # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
     # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
