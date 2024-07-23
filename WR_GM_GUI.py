@@ -34,7 +34,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR140.copy()
+starcopy = wrb.WR48a.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()

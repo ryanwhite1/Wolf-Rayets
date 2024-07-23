@@ -1120,14 +1120,16 @@ def generate_lightcurve(stardata, n=100, shells=1):
 
 # orbit_spiral_gif(wrb.test_system)
 
-# test_48a = wrb.WR48a.copy()
-# # test_48a['hist_max'] = 1.
-# # test_48a['eccentricity'] = 0.26
-# # test_48a['star2amp'] = 3.
+test_48a = wrb.WR48a.copy()
+# test_48a['hist_max'] = 1.
+# test_48a['eccentricity'] = 0.26
+# test_48a['star2amp'] = 3.
 
-# phases, fluxes = generate_lightcurve(test_48a, shells=2)
-# fig, ax = plt.subplots()
-# ax.scatter(phases, np.log(fluxes))
+phases, fluxes = generate_lightcurve(wrb.WR140, shells=2)
+shift = -0.1 
+shift = 0
+fig, ax = plt.subplots()
+ax.scatter((phases+shift)%1, np.log(fluxes))
 
 
 
