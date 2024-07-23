@@ -37,7 +37,7 @@ WR48a = {"m1":15.,                  # solar masses
         "eccentricity":0.74, 
         "inclination":74.,           # degrees
         "asc_node":174.,               # degrees
-        "arg_peri":116.,              # degrees
+        "arg_peri":124.,              # degrees
         "open_angle":37.,           # degrees (full opening angle)
         "period":32.5,              # years
         "distance":4000.,            # pc
@@ -72,6 +72,7 @@ WR112 = {"m1":15.,                # solar masses
         "windspeed2":2400,      # km/s
         "turn_on":-180,         # true anomaly (degrees)
         "turn_off":180,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
@@ -97,6 +98,7 @@ WR140 = {"m1":8.4,                # solar masses
         "windspeed2":2400,      # km/s
         "turn_on":-135,         # true anomaly (degrees)
         "turn_off":135,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":50., "opt_thin_dist":220.,           # nucleation and optically thin distance (AU)
         "acc_max":900,                               # maximum acceleration (km/s/yr)
@@ -122,6 +124,7 @@ WR104 = {"m1":10,                # solar masses
         "windspeed2":2000,      # km/s
         "turn_on":-180,         # true anomaly (degrees)
         "turn_off":180,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
@@ -147,6 +150,7 @@ WR137 = {"m1":10,                # solar masses
         "windspeed2":2000,      # km/s
         "turn_on":-180,         # true anomaly (degrees)
         "turn_off":180,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
@@ -173,6 +177,7 @@ test_system = {"m1":22.,                # solar masses
         "windspeed2":2400.,      # km/s
         "turn_on":-180.,         # true anomaly (degrees)
         "turn_off":180.,         # true anomaly (degrees)
+        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":0.0001, "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)

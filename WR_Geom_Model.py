@@ -238,7 +238,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
 
     # we also need to effectively dither our particle angular coordinate to reduce the effect of using a finite number of rings/particles on our final image
-    shifted_theta = theta + i   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
+    shifted_theta = (theta + i)%(2*jnp.pi)   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
     # now we construct our circle *along the x axis* (i.e. all circle points have the same x value, and only look like a circle when looked at in the y-z plane)
     # the stars are orbiting in the xy plane here, so z points out of the orbital plane
     # the below circle are the particle coordinates in cartesian coordinates, but not in meaningful units (yet)
@@ -385,7 +385,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # this is analogous to the math for orbital variation, but instead of weighting entire rings based on the position in the orbit, 
     # we weight particles in the ring based on azimuthal variation in dust production
     val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
+    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((shifted_theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
     # we need our orbital weighting proportion to be between 0 and 1
     prop_orb = jnp.min(jnp.array([prop_orb, 1]))
@@ -521,7 +521,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
-# @jit
+@jit
 def dust_plume(stardata):
     '''
     Parameters
@@ -1013,17 +1013,54 @@ def orbit_spiral_gif(stardata):
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"orbit_spiral.gif", writer='pillow', fps=fps)
+    
 
-system = wrb.apep.copy()
-# system = wrb.WR140.copy()
-# # apep['comp_reduction'] = 0
-# # # # for i in range(10):
-# # t1 = time.time()
-particles, weights = dust_plume(system)
-X, Y, H = smooth_histogram2d(particles, weights, system)
-# print(time.time() - t1)
-H = add_stars(X[0, :], Y[:, 0], H, system)
-plot_spiral(X, Y, H)
+def generate_lightcurve(stardata, n=100, shells=1):
+    phases = jnp.linspace(0, 1, n)
+    fluxes = np.zeros(n)
+    
+    for i in range(n):
+        starcopy = stardata.copy()
+        starcopy['phase'] = phases[i]
+        
+        particles, weights = gui_funcs[shells](starcopy)
+        
+        
+        im_size = 256
+        
+        x = particles[0, :]
+        y = particles[1, :]
+        
+        H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
+        X, Y = jnp.meshgrid(xedges, yedges)
+        H = H.T
+        
+        H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'] * jnp.max(H))
+        
+        shape = 30 // 2  # choose just large enough grid for our gaussian
+        gx, gy = jnp.meshgrid(jnp.arange(-shape, shape+1, 1), jnp.arange(-shape, shape+1, 1))
+        gxy = jnp.exp(- (gx*gx + gy*gy) / (2 * stardata['sigma']**2))
+        gxy /= gxy.sum()
+        
+        H = signal.convolve(H, gxy, mode='same', method='fft')
+        
+        # H = add_stars(X[0, :], Y[:, 0], H, starcopy)
+        
+        fluxes[i] = jnp.max(H)
+        # fluxes[i] = np.percentile(H, 75)
+    
+    return phases, fluxes
+
+# system = wrb.apep.copy()
+# # system = wrb.WR140.copy()
+# # # apep['comp_reduction'] = 0
+# # # # # for i in range(10):
+# # # t1 = time.time()
+# particles, weights = dust_plume(system)
+# X, Y, H = smooth_histogram2d(particles, weights, system)
+# # print(time.time() - t1)
+# H = add_stars(X[0, :], Y[:, 0], H, system)
+# plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 
@@ -1082,6 +1119,15 @@ plot_spiral(X, Y, H)
 
 
 # orbit_spiral_gif(wrb.test_system)
+
+# test_48a = wrb.WR48a.copy()
+# # test_48a['hist_max'] = 1.
+# # test_48a['eccentricity'] = 0.26
+# # test_48a['star2amp'] = 3.
+
+# phases, fluxes = generate_lightcurve(test_48a, shells=2)
+# fig, ax = plt.subplots()
+# ax.scatter(phases, np.log(fluxes))
 
 
 
