@@ -331,44 +331,61 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     term2 = jnp.sin(alpha) * jnp.sin(particles_alpha) * jnp.cos(beta - particles_beta)
     angular_dist = jnp.arccos(term1 + term2)
     
-    photodis_prop = 1   # how much of the plume is photodissociated by the companion. set to < 1 if you want a another plume generated
-    ## linear scaling for companion photodissociation
-    # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
-    #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
-    ## gaussian scaling for companion photodissociation
-    comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-(angular_dist / comp_halftheta)**2)
-    comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
-    companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
-                                      comp_gaussian, jnp.ones(len(weights)))
+    # photodis_prop = 1   # how much of the plume is photodissociated by the companion. set to < 1 if you want a another plume generated
+    # ## linear scaling for companion photodissociation
+    # # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
+    # #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
+    # ## gaussian scaling for companion photodissociation
+    # comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-(angular_dist / comp_halftheta)**2)
+    # comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
+    # companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
+    #                                   comp_gaussian, jnp.ones(len(weights)))
     
-    weights *= companion_dissociate         # this is us 'destroying' the particles
+    # weights *= companion_dissociate         # this is us 'destroying' the particles
     
     
     # ------------------------------------------------------------------
-    ### below code calculates another plume from the wind-companion interaction
-    ### currently is commented out to save on computation
+    ## below code calculates another plume from the wind-companion interaction
+    ## currently is commented out to save on computation
+    
+    # below populates companion plume with points taken from a narrow region around the ring edge
     # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
     #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
-    ## now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    ## i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # below populates companion plume with points from the entire photodissociation region
+    in_comp_plume = jnp.where(angular_dist < comp_halftheta, jnp.ones(len(x)), jnp.zeros(len(x)))
+    plume_weight = jnp.ones(len(x))
+    
+    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
     # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
-    ## or instead use the below to put plume along the direction where there was already dust
-    # az_circle = inv_rotate_x(alpha) @ (inv_rotate_z(beta) @ circle)
-    # ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
     
-    ## The coordinate transformations below are from user DougLitke from
-    ## https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
-    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
-    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
-    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
-    # x = x + in_comp_plume * (-x + new_x)
-    # y = y + in_comp_plume * (-y + new_y)
-    # z = z + in_comp_plume * (-z + new_z)
+    # or instead use the below to put plume along the direction where there was already dust
+    az_circle = rotate_x(alpha) @ (rotate_z(beta) @ circle)
+    ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
     
-    # circle = jnp.array([x, y, z])
+    # or instead use the below to put the plume centered on a point with a gaussian fall off of angle
+    # ring_theta = jnp.linspace(1e-4, 1., len(x)) * 
+    ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    comp_plume_max = stardata['comp_plume_max'] % 360.
+    val_comp_plume_sd = jnp.max(jnp.array([stardata['comp_plume_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
+    plume_particle_distance = jnp.minimum(abs(ring_theta * 180/jnp.pi - stardata['comp_plume_max']), 
+                                          abs(ring_theta * 180/jnp.pi - stardata['comp_plume_max'] + 360))
+    comp_plume_weights = jnp.exp(-0.5 * (plume_particle_distance / val_comp_plume_sd)**2)
+    
+    # The coordinate transformations below are from user DougLitke from
+    # https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
+    x = x + in_comp_plume * (-x + new_x)
+    y = y + in_comp_plume * (-y + new_y)
+    z = z + in_comp_plume * (-z + new_z)
+    
+    circle = jnp.array([x, y, z])
     
     # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
+    weights *= (1 - in_comp_plume * (1 - stardata['comp_plume'] * comp_plume_weights))
     
     # ------------------------------------------------------------------
     
@@ -1051,16 +1068,16 @@ def generate_lightcurve(stardata, n=100, shells=1):
     
     return phases, fluxes
 
-# system = wrb.apep.copy()
-# # system = wrb.WR140.copy()
-# # # apep['comp_reduction'] = 0
-# # # # # for i in range(10):
-# # # t1 = time.time()
-# particles, weights = dust_plume(system)
-# X, Y, H = smooth_histogram2d(particles, weights, system)
-# # print(time.time() - t1)
-# H = add_stars(X[0, :], Y[:, 0], H, system)
-# plot_spiral(X, Y, H)
+system = wrb.apep.copy()
+# system = wrb.WR140.copy()
+# # apep['comp_reduction'] = 0
+# # # # for i in range(10):
+# # t1 = time.time()
+particles, weights = dust_plume(system)
+X, Y, H = smooth_histogram2d(particles, weights, system)
+# print(time.time() - t1)
+H = add_stars(X[0, :], Y[:, 0], H, system)
+plot_spiral(X, Y, H)
 
 # # # # plot_3d(particles, weights)
 
@@ -1120,16 +1137,16 @@ def generate_lightcurve(stardata, n=100, shells=1):
 
 # orbit_spiral_gif(wrb.test_system)
 
-test_48a = wrb.WR48a.copy()
-# test_48a['hist_max'] = 1.
-# test_48a['eccentricity'] = 0.26
-# test_48a['star2amp'] = 3.
+# test_48a = wrb.WR48a.copy()
+# # test_48a['hist_max'] = 1.
+# # test_48a['eccentricity'] = 0.26
+# # test_48a['star2amp'] = 3.
 
-phases, fluxes = generate_lightcurve(wrb.WR140, shells=2)
-shift = -0.1 
-shift = 0
-fig, ax = plt.subplots()
-ax.scatter((phases+shift)%1, np.log(fluxes))
+# phases, fluxes = generate_lightcurve(wrb.WR140, shells=2)
+# shift = -0.1 
+# shift = 0
+# fig, ax = plt.subplots()
+# ax.scatter((phases+shift)%1, np.log(fluxes))
 
 
 

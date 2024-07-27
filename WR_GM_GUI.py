@@ -34,7 +34,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR48a.copy()
+starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
 
 root = tkinter.Tk()
@@ -190,7 +190,7 @@ compreduc = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
 compreduc.set(starcopy['comp_reduction'])
 compplume = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
                      command=lambda v: update_frequency('comp_plume', v), label="Companion Plume", resolution=0.01)
-compplume.set(starcopy['comp_reduction'])
+compplume.set(starcopy['comp_plume'])
 histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,
                         command=lambda v: update_frequency('histmax', v), label="Max Brightness", resolution=0.01)
 histmax.set(starcopy['histmax'])
@@ -266,6 +266,14 @@ gradual_turn = tkinter.Scale(root, from_=0.01, to=180., orient=tkinter.HORIZONTA
 gradual_turn.set(starcopy['gradual_turn'])
 
 
+comp_plume_sd = tkinter.Scale(root, from_=0.01, to=180., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('comp_plume_sd', v), label="comp_plume_sd", resolution=0.1)
+comp_plume_sd.set(starcopy['comp_plume_sd'])
+comp_plume_max = tkinter.Scale(root, from_=0., to=540., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('comp_plume_max', v), label="comp_plume_max", resolution=0.1)
+comp_plume_max.set(starcopy['comp_plume_max'])
+
+
 
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
@@ -273,7 +281,8 @@ sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,
            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
            lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
-           star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn]
+           star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn, 
+           comp_plume_sd, comp_plume_max]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)

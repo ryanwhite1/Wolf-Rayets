@@ -24,7 +24,8 @@ apep = {"m1":15.,                # solar masses
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
-        "comp_incl":127.6, "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":0.,
+        "comp_incl":127.6, "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
+        "comp_plume_sd":20., "comp_plume_max":373.,
         "phase":0.6, 
         "sigma":2.,              # sigma for gaussian blur
         "histmax":1., "lum_power":1, 
