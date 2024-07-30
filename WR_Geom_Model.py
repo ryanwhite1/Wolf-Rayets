@@ -318,15 +318,14 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
     # weights = jnp.ones(len(theta))
     sigma = jnp.deg2rad(stardata['gradual_turn'])
-    sigma = jnp.max(jnp.array([sigma, 0.01]))
-    # mult = 0.1
-    # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
-    # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
+    sigma = jnp.max(jnp.array([sigma, 0.001]))
     
     residual_on = (1 - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
     residual_off = (1 - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
     residual = jnp.min(jnp.array([residual_on + residual_off, 1]))
     weights = weights + residual
+    
+    
     # ------------------------------------------------------------------
     
     ### Now we need to take into account the photodissociation effect from a ternary companion (specifically for Apep)
@@ -486,11 +485,10 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     
     
-    # ecc = 0. 
     ecc_factor = jnp.sqrt((1 - ecc) / (1 + ecc))
     
-    # turn_on_true_anom = jnp.deg2rad(stardata['turn_on']) + jnp.pi 
-    turn_on_true_anom = jnp.max(jnp.array([-180., stardata['turn_on'] - stardata['gradual_turn']]))
+    ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
+    turn_on_true_anom = jnp.max(jnp.array([-179.9999, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
     turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
     # turn_on_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_on_true_anom / 2.))
     turn_on_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
@@ -499,7 +497,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # turn_on_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom), -ecc - jnp.cos(turn_on_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom)) / (1 + ecc * jnp.cos(turn_on_true_anom))
     
     # turn_off_true_anom = jnp.deg2rad(stardata['turn_off']) + jnp.pi 
-    turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + stardata['gradual_turn']]))
+    ## set our 'upper' true anomaly bound to be [nu_off + 2 * sigma, 180), where the sigma is our gradual turn off (i.e. we go up to 2 sigma gradual turn off)
+    turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + 2. * stardata['gradual_turn']]))
     turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
     # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
     turn_off_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
@@ -527,9 +526,9 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     positions1 *= r1      # position in the orbital frame
     positions2 *= -r2     # position in the orbital frame
     
-    # print(turn_on_mean_anom, turn_off_mean_anom)
-    
-    widths = stardata['windspeed1'] * period_s * (n_orbits - (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi))
+    # turn_on_mean_anom, turn_off_... are in range (-pi, pi]. Need to add pi to get in range (0, 2pi], then divide by 2pi to get in range (0, 1].
+    non_dimensional_times = (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi)
+    widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
