@@ -318,6 +318,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
     # weights = jnp.ones(len(theta))
     sigma = jnp.deg2rad(stardata['gradual_turn'])
+    sigma = jnp.max(jnp.array([sigma, 0.01]))
     # mult = 0.1
     # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
     # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
@@ -489,7 +490,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     ecc_factor = jnp.sqrt((1 - ecc) / (1 + ecc))
     
     # turn_on_true_anom = jnp.deg2rad(stardata['turn_on']) + jnp.pi 
-    turn_on_true_anom = (jnp.deg2rad(stardata['turn_on']))%(2 * jnp.pi) 
+    turn_on_true_anom = jnp.max(jnp.array([-180., stardata['turn_on'] - stardata['gradual_turn']]))
+    turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
     # turn_on_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_on_true_anom / 2.))
     turn_on_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
     turn_on_mean_anom = turn_on_ecc_anom - ecc * jnp.sin(turn_on_ecc_anom)
@@ -497,7 +499,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # turn_on_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom), -ecc - jnp.cos(turn_on_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom)) / (1 + ecc * jnp.cos(turn_on_true_anom))
     
     # turn_off_true_anom = jnp.deg2rad(stardata['turn_off']) + jnp.pi 
-    turn_off_true_anom = (jnp.deg2rad(stardata['turn_off']))%(2 * jnp.pi) 
+    turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + stardata['gradual_turn']]))
+    turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
     # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
     turn_off_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
     turn_off_mean_anom = turn_off_ecc_anom - ecc * jnp.sin(turn_off_ecc_anom)
@@ -508,7 +511,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # print(turn_off_mean_anom)
     # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom + 2 * jnp.pi, len(times))%(2 * jnp.pi)
     mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))%(2 * jnp.pi)
-    print(mean_anomalies)
+    # print(mean_anomalies)
     
     E, true_anomaly = kepler(mean_anomalies, jnp.array([ecc]))
     
@@ -524,7 +527,9 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     positions1 *= r1      # position in the orbital frame
     positions2 *= -r2     # position in the orbital frame
     
-    widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) / (2 * jnp.pi))
+    # print(turn_on_mean_anom, turn_off_mean_anom)
+    
+    widths = stardata['windspeed1'] * period_s * (n_orbits - (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi))
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
