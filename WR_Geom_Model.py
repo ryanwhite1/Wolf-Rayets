@@ -509,7 +509,19 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # print(turn_on_mean_anom)
     # print(turn_off_mean_anom)
     # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom + 2 * jnp.pi, len(times))%(2 * jnp.pi)
-    mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))%(2 * jnp.pi)
+
+    # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))%(2 * jnp.pi)
+    
+    delta_M = turn_off_mean_anom - turn_on_mean_anom
+    mean_anomalies = ((jnp.linspace(stardata['phase'], n_orbits + stardata['phase'], len(times))%1) * delta_M + turn_on_mean_anom)%(2 * jnp.pi)
+    
+    
+    phase_radians = 2 * jnp.pi * stardata['phase']
+    mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
+    # mean_anomalies = jnp.where((phase_radians < turn_off_mean_anom) or (phase_radians > (turn_on_mean_anom%(2*jnp.pi))), 
+    #                            mean_anomalies - phase_radians)
+    
+    
     # print(mean_anomalies)
     
     E, true_anomaly = kepler(mean_anomalies, jnp.array([ecc]))
@@ -527,70 +539,36 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     positions2 *= -r2     # position in the orbital frame
     
     # turn_on_mean_anom, turn_off_... are in range (-pi, pi]. Need to add pi to get in range (0, 2pi], then divide by 2pi to get in range (0, 1].
-    non_dimensional_times = (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi)
+    # non_dimensional_times = (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi)
+    
+    
+    # t0 = turn_on_mean_anom%(2.*jnp.pi)/(2.*jnp.pi) - stardata['phase']
+    # t1 = stardata['phase'] - turn_off_mean_anom / (2. * jnp.pi)
+    # t = jnp.linspace(t0, t1, len(times))
+    # # t = jnp.where(t < 0, t + 1, t)
+    # non_dimensional_times = jnp.where(t > 1, t - 1, t)
+    # non_dimensional_times = t
+    
+    # t0 = turn_on_mean_anom%(2. * jnp.pi) / (2. * jnp.pi) - stardata['phase']
+    # t1 = 1 - (stardata['phase'] - turn_off_mean_anom / (2. * jnp.pi))
+    # non_dimensional_times = jnp.linspace(t0, t1, len(times))
+    # print(t0, t1)
+    
+    
+    non_dimensional_times = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))
+    non_dimensional_times = 2*jnp.pi - phase_radians - (2*jnp.pi - non_dimensional_times%(2*jnp.pi))
+    non_dimensional_times /= 2*jnp.pi
+    non_dimensional_times = non_dimensional_times%1
+    # print(non_dimensional_times)
+    
+
     widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
+    # print(widths / 1e11)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
         
     particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    # mean_anomaly = jnp.deg2rad(jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t))# + jnp.pi
-    # min_anomaly = jnp.deg2rad(stardata['turn_on']) + jnp.pi 
-    # # mean_anomaly = min_anomaly + (times - )
-    
-    # max_anomaly = max(times)%period_s
-    # # print(mean_anomaly)
-    # E, true_anomaly = kepler(mean_anomaly, jnp.array([ecc]))
-    # # E, true_anomaly = kepler(2 * jnp.pi * times[:n_t] / period_s, jnp.array([ecc]))
-    # # E = jnp.linspace(jnp.deg2rad(stardata['turn_on']), jnp.deg2rad(stardata['turn_off']), n_t)
-    # # true_anomaly = jnp.arccos((jnp.cos(E) - stardata['eccentricity']) / (1. - stardata['eccentricity'] * jnp.cos(E)))
-    # # true_anomaly = jnp.repeat(true_anomaly, n_orbits)
-    # # x = true_anomaly / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
-    # # transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
-    
-    # # transf_turn_on = jnp.deg2rad(stardata['turn_on'])%(2 * jnp.pi) - jnp.pi
-    # # transf_turn_off = jnp.deg2rad(stardata['turn_off'])%(2 * jnp.pi) - jnp.pi
-    # # transf_turn_on = -jnp.deg2rad(stardata['turn_on']) + jnp.pi
-    # # transf_turn_off = -jnp.deg2rad(stardata['turn_off']) + jnp.pi
-    
-    # # anom_min = jnp.min(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
-    # # anom_max = jnp.max(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
-    
-    # # # transf_nu = (true_anomaly - jnp.pi)%(2 * jnp.pi) - jnp.pi
-    # # # ring_anomalies = jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t)
-    # # ring_anomalies = jnp.linspace(anom_min, anom_max, n_t)
-    # # ring_anomalies = jnp.repeat(ring_anomalies, n_orbits)
-    
-    # # ring_anomalies = jnp.deg2rad(ring_anomalies) + jnp.pi
-    
-    # a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
-    # r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    # r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
-    # # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
-    
-    # positions1 = jnp.array([jnp.cos(true_anomaly), 
-    #                         jnp.sin(true_anomaly), 
-    #                         jnp.zeros(n_time)])
-    # positions2 = jnp.copy(positions1)
-    # positions1 *= r1      # position in the orbital frame
-    # positions2 *= -r2     # position in the orbital frame
-    
-    # # widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
-    # widths = stardata['windspeed1'] * period_s * (n_orbits - E / (2 * jnp.pi))
-    
-    # plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
-    
-        
-    # particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
 
 
 
