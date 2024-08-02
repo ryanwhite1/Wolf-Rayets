@@ -517,7 +517,9 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     
     phase_radians = 2 * jnp.pi * stardata['phase']
-    mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
+    # mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = (jnp.linspace(0, delta_M, n_t) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = jnp.tile(mean_anomalies, n_orbits)
     # mean_anomalies = jnp.where((phase_radians < turn_off_mean_anom) or (phase_radians > (turn_on_mean_anom%(2*jnp.pi))), 
     #                            mean_anomalies - phase_radians)
     
@@ -554,12 +556,21 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # non_dimensional_times = jnp.linspace(t0, t1, len(times))
     # print(t0, t1)
     
+    shell_times = jnp.arange(n_orbits)
+    shell_times = jnp.repeat(shell_times, n_t)
     
-    non_dimensional_times = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))
-    non_dimensional_times = 2*jnp.pi - phase_radians - (2*jnp.pi - non_dimensional_times%(2*jnp.pi))
-    non_dimensional_times /= 2*jnp.pi
+    non_dimensional_times = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, n_t)
+    non_dimensional_times = (non_dimensional_times%(2*jnp.pi) - phase_radians) / (2. * jnp.pi)
     non_dimensional_times = non_dimensional_times%1
-    # print(non_dimensional_times)
+    non_dimensional_times = jnp.tile(non_dimensional_times, n_orbits)
+    
+    non_dimensional_times = shell_times + non_dimensional_times
+    
+    
+    
+    
+    
+    
     
 
     widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
