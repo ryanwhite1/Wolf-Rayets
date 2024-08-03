@@ -11,6 +11,7 @@ from jax import jit, vmap, grad
 import jax
 import jax.lax as lax
 import jax.scipy.stats as stats
+from jax.interpreters import ad
 from jax.scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -140,6 +141,7 @@ def kepler_solver_impl(mean_anom, ecc):
     ecc_anom = jnp.where(high, 2 * jnp.pi - ecc_anom, ecc_anom)
 
     return ecc_anom
+@jax.custom_jvp
 def kepler(mean_anom, ecc):
     ''' Kepler solver implemented in jaxoplanet. 
     https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/
@@ -157,7 +159,35 @@ def kepler(mean_anom, ecc):
         The true anomaly for each of the input mean anomalies
     '''
     E = kepler_solver_impl(mean_anom, ecc)
-    return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
+    return E
+
+
+@kepler.defjvp
+def kepler_solver_jvp(primals, tangents):
+    mean_anom, ecc = primals
+    d_mean_anom, d_ecc = tangents
+
+    # Run the solver from above to compute `ecc_anom`
+    ecc_anom = kepler(mean_anom, ecc)
+
+    # Propagate the derivatives using the implicit function theorem
+    dEdM = 1 / (1 - ecc * jnp.cos(ecc_anom))
+    dEde = jnp.sin(ecc_anom) * dEdM
+    d_ecc_anom = dEdM * make_zero(d_mean_anom) + dEde * make_zero(d_ecc)
+
+    return ecc_anom, d_ecc_anom
+
+
+def make_zero(tan):
+    # This is a helper function to handle symbolic zeros (i.e. parameters
+    # that are not being differentiated)
+    if type(tan) is ad.Zero:
+        return ad.zeros_like_aval(tan.aval)
+    else:
+        return tan
+
+def true_from_eccentric_anomaly(E, ecc):
+    return 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
 
 
 
@@ -460,7 +490,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    # E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    # E = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    # true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     # a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     # r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -513,10 +544,10 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))%(2 * jnp.pi)
     
     delta_M = turn_off_mean_anom - turn_on_mean_anom
-    mean_anomalies = ((jnp.linspace(stardata['phase'], n_orbits + stardata['phase'], len(times))%1) * delta_M + turn_on_mean_anom)%(2 * jnp.pi)
+    mean_anomalies = ((jnp.linspace(stardata['phase'], n_orbits + stardata['phase'], len(times))%1) * delta_M + turn_on_mean_anom)%(2. * jnp.pi)
     
     
-    phase_radians = 2 * jnp.pi * stardata['phase']
+    phase_radians = 2. * jnp.pi * stardata['phase']
     # mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
     mean_anomalies = (jnp.linspace(0, delta_M, n_t) + turn_on_mean_anom)%(2. * jnp.pi)
     mean_anomalies = jnp.tile(mean_anomalies, n_orbits)
@@ -526,7 +557,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     # print(mean_anomalies)
     
-    E, true_anomaly = kepler(mean_anomalies, jnp.array([ecc]))
+    E = kepler(mean_anomalies, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -605,7 +637,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
 
     return 60 * 60 * 180 / jnp.pi * jnp.arctan(particles / (stardata['distance'] * 3.086e13)), weights
 
-# @jit
+@jit
 def dust_plume(stardata):
     '''
     Parameters
@@ -906,7 +938,8 @@ def orbital_position(stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    E, true_anomaly = kepler(2 * jnp.pi * time / period_s, jnp.array([ecc]))
+    E = kepler(2 * jnp.pi * time / period_s, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -999,7 +1032,8 @@ def orbital_positions(stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    E = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
