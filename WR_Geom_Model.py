@@ -99,46 +99,46 @@ def inv_rotate_z(angle):
 ### the following kepler solver functions are from https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/#core-from-scratch
 
 def kepler_starter(mean_anom, ecc):
-    ome = 1 - ecc
+    ome = 1. - ecc
     M2 = jnp.square(mean_anom)
-    alpha = 3 * jnp.pi / (jnp.pi - 6 / jnp.pi)
-    alpha += 1.6 / (jnp.pi - 6 / jnp.pi) * (jnp.pi - mean_anom) / (1 + ecc)
-    d = 3 * ome + alpha * ecc
+    alpha = 3. * jnp.pi / (jnp.pi - 6. / jnp.pi)
+    alpha += 1.6 / (jnp.pi - 6. / jnp.pi) * (jnp.pi - mean_anom) / (1. + ecc)
+    d = 3. * ome + alpha * ecc
     alphad = alpha * d
-    r = (3 * alphad * (d - ome) + M2) * mean_anom
-    q = 2 * alphad * ome - M2
+    r = (3. * alphad * (d - ome) + M2) * mean_anom
+    q = 2. * alphad * ome - M2
     q2 = jnp.square(q)
     w = jnp.square(jnp.cbrt(jnp.abs(r) + jnp.sqrt(q2 * q + r * r)))
-    return (2 * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
+    return (2. * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
 def kepler_refiner(mean_anom, ecc, ecc_anom):
-    ome = 1 - ecc
+    ome = 1. - ecc
     sE = ecc_anom - jnp.sin(ecc_anom)
-    cE = 1 - jnp.cos(ecc_anom)
+    cE = 1. - jnp.cos(ecc_anom)
 
     f_0 = ecc * sE + ecc_anom * ome - mean_anom
     f_1 = ecc * cE + ome
     f_2 = ecc * (ecc_anom - sE)
-    f_3 = 1 - f_1
+    f_3 = 1. - f_1
     d_3 = -f_0 / (f_1 - 0.5 * f_0 * f_2 / f_1)
-    d_4 = -f_0 / (f_1 + 0.5 * d_3 * f_2 + (d_3 * d_3) * f_3 / 6)
+    d_4 = -f_0 / (f_1 + 0.5 * d_3 * f_2 + (d_3 * d_3) * f_3 / 6.)
     d_42 = d_4 * d_4
-    dE = -f_0 / (f_1 + 0.5 * d_4 * f_2 + d_4 * d_4 * f_3 / 6 - d_42 * d_4 * f_2 / 24)
+    dE = -f_0 / (f_1 + 0.5 * d_4 * f_2 + d_4 * d_4 * f_3 / 6. - d_42 * d_4 * f_2 / 24.)
 
     return ecc_anom + dE
 @jnp.vectorize
 def kepler_solver_impl(mean_anom, ecc):
-    mean_anom = mean_anom % (2 * jnp.pi)
+    mean_anom = mean_anom % (2. * jnp.pi)
 
     # We restrict to the range [0, pi)
     high = mean_anom > jnp.pi
-    mean_anom = jnp.where(high, 2 * jnp.pi - mean_anom, mean_anom)
+    mean_anom = jnp.where(high, 2. * jnp.pi - mean_anom, mean_anom)
 
     # Solve
     ecc_anom = kepler_starter(mean_anom, ecc)
     ecc_anom = kepler_refiner(mean_anom, ecc, ecc_anom)
 
     # Re-wrap back into the full range
-    ecc_anom = jnp.where(high, 2 * jnp.pi - ecc_anom, ecc_anom)
+    ecc_anom = jnp.where(high, 2. * jnp.pi - ecc_anom, ecc_anom)
 
     return ecc_anom
 @jax.custom_jvp
@@ -171,7 +171,7 @@ def kepler_solver_jvp(primals, tangents):
     ecc_anom = kepler(mean_anom, ecc)
 
     # Propagate the derivatives using the implicit function theorem
-    dEdM = 1 / (1 - ecc * jnp.cos(ecc_anom))
+    dEdM = 1. / (1. - ecc * jnp.cos(ecc_anom))
     dEde = jnp.sin(ecc_anom) * dEdM
     d_ecc_anom = dEdM * make_zero(d_mean_anom) + dEde * make_zero(d_ecc)
 
@@ -187,7 +187,7 @@ def make_zero(tan):
         return tan
 
 def true_from_eccentric_anomaly(E, ecc):
-    return 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
+    return 2. * jnp.arctan2(jnp.sqrt(1. + ecc) * jnp.sin(E / 2.), jnp.sqrt(1. - ecc) * jnp.cos(E / 2.))
 
 
 
