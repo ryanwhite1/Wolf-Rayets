@@ -11,6 +11,7 @@ from jax import jit, vmap, grad
 import jax
 import jax.lax as lax
 import jax.scipy.stats as stats
+from jax.interpreters import ad
 from jax.scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -98,51 +99,95 @@ def inv_rotate_z(angle):
 ### the following kepler solver functions are from https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/#core-from-scratch
 
 def kepler_starter(mean_anom, ecc):
-    ome = 1 - ecc
+    ome = 1. - ecc
     M2 = jnp.square(mean_anom)
-    alpha = 3 * jnp.pi / (jnp.pi - 6 / jnp.pi)
-    alpha += 1.6 / (jnp.pi - 6 / jnp.pi) * (jnp.pi - mean_anom) / (1 + ecc)
-    d = 3 * ome + alpha * ecc
+    alpha = 3. * jnp.pi / (jnp.pi - 6. / jnp.pi)
+    alpha += 1.6 / (jnp.pi - 6. / jnp.pi) * (jnp.pi - mean_anom) / (1. + ecc)
+    d = 3. * ome + alpha * ecc
     alphad = alpha * d
-    r = (3 * alphad * (d - ome) + M2) * mean_anom
-    q = 2 * alphad * ome - M2
+    r = (3. * alphad * (d - ome) + M2) * mean_anom
+    q = 2. * alphad * ome - M2
     q2 = jnp.square(q)
     w = jnp.square(jnp.cbrt(jnp.abs(r) + jnp.sqrt(q2 * q + r * r)))
-    return (2 * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
+    return (2. * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
 def kepler_refiner(mean_anom, ecc, ecc_anom):
-    ome = 1 - ecc
+    ome = 1. - ecc
     sE = ecc_anom - jnp.sin(ecc_anom)
-    cE = 1 - jnp.cos(ecc_anom)
+    cE = 1. - jnp.cos(ecc_anom)
 
     f_0 = ecc * sE + ecc_anom * ome - mean_anom
     f_1 = ecc * cE + ome
     f_2 = ecc * (ecc_anom - sE)
-    f_3 = 1 - f_1
+    f_3 = 1. - f_1
     d_3 = -f_0 / (f_1 - 0.5 * f_0 * f_2 / f_1)
-    d_4 = -f_0 / (f_1 + 0.5 * d_3 * f_2 + (d_3 * d_3) * f_3 / 6)
+    d_4 = -f_0 / (f_1 + 0.5 * d_3 * f_2 + (d_3 * d_3) * f_3 / 6.)
     d_42 = d_4 * d_4
-    dE = -f_0 / (f_1 + 0.5 * d_4 * f_2 + d_4 * d_4 * f_3 / 6 - d_42 * d_4 * f_2 / 24)
+    dE = -f_0 / (f_1 + 0.5 * d_4 * f_2 + d_4 * d_4 * f_3 / 6. - d_42 * d_4 * f_2 / 24.)
 
     return ecc_anom + dE
 @jnp.vectorize
 def kepler_solver_impl(mean_anom, ecc):
-    mean_anom = mean_anom % (2 * jnp.pi)
+    mean_anom = mean_anom % (2. * jnp.pi)
 
     # We restrict to the range [0, pi)
     high = mean_anom > jnp.pi
-    mean_anom = jnp.where(high, 2 * jnp.pi - mean_anom, mean_anom)
+    mean_anom = jnp.where(high, 2. * jnp.pi - mean_anom, mean_anom)
 
     # Solve
     ecc_anom = kepler_starter(mean_anom, ecc)
     ecc_anom = kepler_refiner(mean_anom, ecc, ecc_anom)
 
     # Re-wrap back into the full range
-    ecc_anom = jnp.where(high, 2 * jnp.pi - ecc_anom, ecc_anom)
+    ecc_anom = jnp.where(high, 2. * jnp.pi - ecc_anom, ecc_anom)
 
     return ecc_anom
+@jax.custom_jvp
 def kepler(mean_anom, ecc):
+    ''' Kepler solver implemented in jaxoplanet. 
+    https://jax.exoplanet.codes/en/latest/tutorials/core-from-scratch/
+    Parameters
+    ----------
+    mean_anom : jnp.array
+        Our mean anomalies that we want to solve for the eccentric and true anomaly
+    ecc : jnp.array
+        Array of 1 element, the eccentricity of the orbit
+    Returns
+    -------
+    E : jnp.array
+        The eccentric anomaly for each of the input mean anomalies
+    nu : jnp.array
+        The true anomaly for each of the input mean anomalies
+    '''
     E = kepler_solver_impl(mean_anom, ecc)
-    return E, 2 * jnp.arctan2(jnp.sqrt(1 + ecc) * jnp.sin(E / 2), jnp.sqrt(1 - ecc) * jnp.cos(E / 2))
+    return E
+
+
+@kepler.defjvp
+def kepler_solver_jvp(primals, tangents):
+    mean_anom, ecc = primals
+    d_mean_anom, d_ecc = tangents
+
+    # Run the solver from above to compute `ecc_anom`
+    ecc_anom = kepler(mean_anom, ecc)
+
+    # Propagate the derivatives using the implicit function theorem
+    dEdM = 1. / (1. - ecc * jnp.cos(ecc_anom))
+    dEde = jnp.sin(ecc_anom) * dEdM
+    d_ecc_anom = dEdM * make_zero(d_mean_anom) + dEde * make_zero(d_ecc)
+
+    return ecc_anom, d_ecc_anom
+
+
+def make_zero(tan):
+    # This is a helper function to handle symbolic zeros (i.e. parameters
+    # that are not being differentiated)
+    if type(tan) is ad.Zero:
+        return ad.zeros_like_aval(tan.aval)
+    else:
+        return tan
+
+def true_from_eccentric_anomaly(E, ecc):
+    return 2. * jnp.arctan2(jnp.sqrt(1. + ecc) * jnp.sin(E / 2.), jnp.sqrt(1. - ecc) * jnp.cos(E / 2.))
 
 
 
@@ -252,10 +297,10 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     ### below attempts to model latitude varying windspeed -- don't see this significantly in apep
     ### if you think about it, the CW shock occurs more or less around the equatorial winds so it shouldnt have a huge effect
-    # # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
-    # #                     jnp.ones(len(theta)), 
-    # #                     jnp.ones(len(theta)) * (1. + stardata['lat_v_var'] * jnp.cos(theta)**2)])
-    # # circle *= widths[i] * latitude_speed_var
+    # latitude_speed_var = jnp.array([jnp.ones(len(theta)), 
+    #                     jnp.ones(len(theta)), 
+    #                     jnp.ones(len(theta)) * (1. + stardata['lat_v_var'] * jnp.cos(theta)**2)])
+    # circle *= latitude_speed_var
     
     
     # circle *= widths[i]           # this is the width the circle should have assuming no velocity affecting effects
@@ -300,17 +345,17 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     weights = jnp.ones(len(theta)) * turned_on * turned_off
     
     # ------------------------------------------------------------------
-    ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect, so commented out)
+    ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
     # weights = jnp.ones(len(theta))
     sigma = jnp.deg2rad(stardata['gradual_turn'])
-    # mult = 0.1
-    # weights *= 1 - (1 - turned_on - mult * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2))
-    # weights *= 1 - (1 - turned_off - mult * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2))
+    sigma = jnp.max(jnp.array([sigma, 0.001]))
     
     residual_on = (1 - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
     residual_off = (1 - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
     residual = jnp.min(jnp.array([residual_on + residual_off, 1]))
     weights = weights + residual
+    
+    
     # ------------------------------------------------------------------
     
     ### Now we need to take into account the photodissociation effect from a ternary companion (specifically for Apep)
@@ -331,61 +376,64 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     term2 = jnp.sin(alpha) * jnp.sin(particles_alpha) * jnp.cos(beta - particles_beta)
     angular_dist = jnp.arccos(term1 + term2)
     
-    # photodis_prop = 1   # how much of the plume is photodissociated by the companion. set to < 1 if you want a another plume generated
-    # ## linear scaling for companion photodissociation
-    # # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
-    # #                                  (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
-    # ## gaussian scaling for companion photodissociation
-    # comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-(angular_dist / comp_halftheta)**2)
-    # comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
-    # companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
-    #                                   comp_gaussian, jnp.ones(len(weights)))
+    photodis_prop = 1   # how much of the plume is photodissociated by the companion. set to < 1 if you want a another plume generated
     
-    # weights *= companion_dissociate         # this is us 'destroying' the particles
+    ## linear scaling for companion photodissociation
+    # companion_dissociate = jnp.where(angular_dist < comp_halftheta,
+    #                                   (1 - stardata['comp_reduction'] * jnp.ones(len(weights))), jnp.ones(len(weights)))
+    # companion_dissociate = jnp.maximum(jnp.zeros(len(companion_dissociate)), companion_dissociate)
+    
+    ## gaussian scaling for companion photodissociation
+    comp_gaussian = 1 - stardata['comp_reduction'] * jnp.exp(-(angular_dist / comp_halftheta)**2)
+    comp_gaussian = jnp.maximum(comp_gaussian, jnp.zeros(len(comp_gaussian))) # need weight value to be between 0 and 1
+    companion_dissociate = jnp.where(angular_dist < photodis_prop * comp_halftheta,
+                                      comp_gaussian, jnp.ones(len(weights)))
+    
+    weights *= companion_dissociate         # this is us 'destroying' the particles
     
     
-    # ------------------------------------------------------------------
-    ## below code calculates another plume from the wind-companion interaction
-    ## currently is commented out to save on computation
+    # # ------------------------------------------------------------------
+    # ## below code calculates another plume from the wind-companion interaction
+    # ## currently is commented out to save on computation
     
-    # below populates companion plume with points taken from a narrow region around the ring edge
-    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
-    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
+    # # below populates companion plume with points taken from a narrow region around the ring edge
+    # # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+    # #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
-    # below populates companion plume with points from the entire photodissociation region
-    in_comp_plume = jnp.where(angular_dist < comp_halftheta, jnp.ones(len(x)), jnp.zeros(len(x)))
-    plume_weight = jnp.ones(len(x))
+    # # below populates companion plume with points from the entire photodissociation region (also means that we can't have a semi-photodissociated region!!)
+    # in_comp_plume = jnp.where(angular_dist < comp_halftheta, jnp.ones(len(x)), jnp.zeros(len(x)))
+    # plume_weight = jnp.ones(len(x))
     
-    # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
-    # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
+    # # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]
+    # # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    
+    # # or instead use the below to put plume along the direction where there was already dust
+    # az_circle = rotate_x(alpha) @ (rotate_z(beta) @ circle)
+    # ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
+    
+    # # or instead use the below to put the plume centered on a point with a gaussian fall off of angle
+    # # ring_theta = jnp.linspace(1e-4, 1., len(x)) * 
     # ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
+    # comp_plume_max = stardata['comp_plume_max'] % 360.
+    # val_comp_plume_sd = jnp.max(jnp.array([stardata['comp_plume_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
+    # plume_particle_distance = jnp.minimum(abs(ring_theta * 180/jnp.pi - comp_plume_max), 
+    #                                       abs(ring_theta * 180/jnp.pi - comp_plume_max + 360))
+    # comp_plume_weights = jnp.exp(-0.5 * (plume_particle_distance / val_comp_plume_sd)**2)
     
-    # or instead use the below to put plume along the direction where there was already dust
-    az_circle = rotate_x(alpha) @ (rotate_z(beta) @ circle)
-    ring_theta = 3*jnp.pi/2 + jnp.sign(az_circle[1, :]) * jnp.arccos(az_circle[0, :] / jnp.sqrt(az_circle[0, :]**2 + az_circle[1, :]**2))
+    # # The coordinate transformations below are from user DougLitke from
+    # # https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
+    # new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
+    # new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
+    # new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
+    # x = x + in_comp_plume * (-x + new_x)
+    # y = y + in_comp_plume * (-y + new_y)
+    # z = z + in_comp_plume * (-z + new_z)
     
-    # or instead use the below to put the plume centered on a point with a gaussian fall off of angle
-    # ring_theta = jnp.linspace(1e-4, 1., len(x)) * 
-    ring_theta = jnp.linspace(0, i * len(x), len(x))%(2*jnp.pi)
-    comp_plume_max = stardata['comp_plume_max'] % 360.
-    val_comp_plume_sd = jnp.max(jnp.array([stardata['comp_plume_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
-    plume_particle_distance = jnp.minimum(abs(ring_theta * 180/jnp.pi - stardata['comp_plume_max']), 
-                                          abs(ring_theta * 180/jnp.pi - stardata['comp_plume_max'] + 360))
-    comp_plume_weights = jnp.exp(-0.5 * (plume_particle_distance / val_comp_plume_sd)**2)
+    # circle = jnp.array([x, y, z])
     
-    # The coordinate transformations below are from user DougLitke from
-    # https://math.stackexchange.com/questions/643130/circle-on-sphere?newreg=42e38786904e43a0a2805fa325e52b92
-    new_x = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.cos(beta) * jnp.cos(ring_theta) - jnp.sin(comp_halftheta) * jnp.sin(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.cos(beta))
-    new_y = r * (jnp.sin(comp_halftheta) * jnp.cos(alpha) * jnp.sin(beta) * jnp.cos(ring_theta) + jnp.sin(comp_halftheta) * jnp.cos(beta) * jnp.sin(ring_theta) + jnp.cos(comp_halftheta) * jnp.sin(alpha) * jnp.sin(beta))
-    new_z = r * (-jnp.sin(comp_halftheta) * jnp.sin(alpha) * jnp.cos(ring_theta) + jnp.cos(comp_halftheta) * jnp.cos(alpha))
-    x = x + in_comp_plume * (-x + new_x)
-    y = y + in_comp_plume * (-y + new_y)
-    z = z + in_comp_plume * (-z + new_z)
-    
-    circle = jnp.array([x, y, z])
-    
-    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
-    weights *= (1 - in_comp_plume * (1 - stardata['comp_plume'] * comp_plume_weights))
+    # # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume']))
+    # weights *= (1 - in_comp_plume * (1 - stardata['comp_plume'] * comp_plume_weights))
     
     # ------------------------------------------------------------------
     
@@ -442,57 +490,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
-    
-    a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
-    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
-    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
-    
-    positions1 = jnp.array([jnp.cos(true_anomaly), 
-                            jnp.sin(true_anomaly), 
-                            jnp.zeros(n_time)])
-    positions2 = jnp.copy(positions1)
-    positions1 *= r1      # position in the orbital frame
-    positions2 *= -r2     # position in the orbital frame
-    
-    widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
-    
-    plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
-    
-        
-    particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
-    
-    
-    
-    # mean_anomaly = jnp.deg2rad(jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t))# + jnp.pi
-    # min_anomaly = jnp.deg2rad(stardata['turn_on']) + jnp.pi 
-    # # mean_anomaly = min_anomaly + (times - )
-    
-    # max_anomaly = max(times)%period_s
-    # # print(mean_anomaly)
-    # E, true_anomaly = kepler(mean_anomaly, jnp.array([ecc]))
-    # # E, true_anomaly = kepler(2 * jnp.pi * times[:n_t] / period_s, jnp.array([ecc]))
-    # # E = jnp.linspace(jnp.deg2rad(stardata['turn_on']), jnp.deg2rad(stardata['turn_off']), n_t)
-    # # true_anomaly = jnp.arccos((jnp.cos(E) - stardata['eccentricity']) / (1. - stardata['eccentricity'] * jnp.cos(E)))
-    # # true_anomaly = jnp.repeat(true_anomaly, n_orbits)
-    # # x = true_anomaly / (2 * jnp.pi)       # convert true anomaly to proportion from 0 to 1
-    # # transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
-    
-    # # transf_turn_on = jnp.deg2rad(stardata['turn_on'])%(2 * jnp.pi) - jnp.pi
-    # # transf_turn_off = jnp.deg2rad(stardata['turn_off'])%(2 * jnp.pi) - jnp.pi
-    # # transf_turn_on = -jnp.deg2rad(stardata['turn_on']) + jnp.pi
-    # # transf_turn_off = -jnp.deg2rad(stardata['turn_off']) + jnp.pi
-    
-    # # anom_min = jnp.min(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
-    # # anom_max = jnp.max(jnp.array([transf_turn_on, transf_turn_off]))%(2 * jnp.pi) - jnp.pi
-    
-    # # # transf_nu = (true_anomaly - jnp.pi)%(2 * jnp.pi) - jnp.pi
-    # # # ring_anomalies = jnp.linspace(stardata['turn_on'], stardata['turn_off'], n_t)
-    # # ring_anomalies = jnp.linspace(anom_min, anom_max, n_t)
-    # # ring_anomalies = jnp.repeat(ring_anomalies, n_orbits)
-    
-    # # ring_anomalies = jnp.deg2rad(ring_anomalies) + jnp.pi
+    # E = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    # true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     # a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     # r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -506,13 +505,113 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # positions1 *= r1      # position in the orbital frame
     # positions2 *= -r2     # position in the orbital frame
     
-    # # widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
-    # widths = stardata['windspeed1'] * period_s * (n_orbits - E / (2 * jnp.pi))
+    # widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
     
     # plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
     
         
     # particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
+    
+    
+    
+    
+    
+    ecc_factor = jnp.sqrt((1 - ecc) / (1 + ecc))
+    
+    ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
+    turn_on_true_anom = jnp.max(jnp.array([-179.9999, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
+    turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
+    # turn_on_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_on_true_anom / 2.))
+    turn_on_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
+    turn_on_mean_anom = turn_on_ecc_anom - ecc * jnp.sin(turn_on_ecc_anom)
+    
+    # turn_on_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom), -ecc - jnp.cos(turn_on_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom)) / (1 + ecc * jnp.cos(turn_on_true_anom))
+    
+    # turn_off_true_anom = jnp.deg2rad(stardata['turn_off']) + jnp.pi 
+    ## set our 'upper' true anomaly bound to be [nu_off + 2 * sigma, 180), where the sigma is our gradual turn off (i.e. we go up to 2 sigma gradual turn off)
+    turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + 2. * stardata['gradual_turn']]))
+    turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
+    # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
+    turn_off_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
+    turn_off_mean_anom = turn_off_ecc_anom - ecc * jnp.sin(turn_off_ecc_anom)
+    
+    # turn_off_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom), -ecc - jnp.cos(turn_off_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom)) / (1 + ecc * jnp.cos(turn_off_true_anom))
+    
+    # print(turn_on_mean_anom)
+    # print(turn_off_mean_anom)
+    # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom + 2 * jnp.pi, len(times))%(2 * jnp.pi)
+
+    # mean_anomalies = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times))%(2 * jnp.pi)
+    
+    delta_M = turn_off_mean_anom - turn_on_mean_anom
+    mean_anomalies = ((jnp.linspace(stardata['phase'], n_orbits + stardata['phase'], len(times))%1) * delta_M + turn_on_mean_anom)%(2. * jnp.pi)
+    
+    
+    phase_radians = 2. * jnp.pi * stardata['phase']
+    # mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = (jnp.linspace(0, delta_M, n_t) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = jnp.tile(mean_anomalies, n_orbits)
+    # mean_anomalies = jnp.where((phase_radians < turn_off_mean_anom) or (phase_radians > (turn_on_mean_anom%(2*jnp.pi))), 
+    #                            mean_anomalies - phase_radians)
+    
+    
+    # print(mean_anomalies)
+    
+    E = kepler(mean_anomalies, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
+    
+    a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
+    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
+    # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
+    
+    positions1 = jnp.array([jnp.cos(true_anomaly), 
+                            jnp.sin(true_anomaly), 
+                            jnp.zeros(n_time)])
+    positions2 = jnp.copy(positions1)
+    positions1 *= r1      # position in the orbital frame
+    positions2 *= -r2     # position in the orbital frame
+    
+    # turn_on_mean_anom, turn_off_... are in range (-pi, pi]. Need to add pi to get in range (0, 2pi], then divide by 2pi to get in range (0, 1].
+    # non_dimensional_times = (jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, len(times)) + jnp.pi) / (2 * jnp.pi)
+    
+    
+    # t0 = turn_on_mean_anom%(2.*jnp.pi)/(2.*jnp.pi) - stardata['phase']
+    # t1 = stardata['phase'] - turn_off_mean_anom / (2. * jnp.pi)
+    # t = jnp.linspace(t0, t1, len(times))
+    # # t = jnp.where(t < 0, t + 1, t)
+    # non_dimensional_times = jnp.where(t > 1, t - 1, t)
+    # non_dimensional_times = t
+    
+    # t0 = turn_on_mean_anom%(2. * jnp.pi) / (2. * jnp.pi) - stardata['phase']
+    # t1 = 1 - (stardata['phase'] - turn_off_mean_anom / (2. * jnp.pi))
+    # non_dimensional_times = jnp.linspace(t0, t1, len(times))
+    # print(t0, t1)
+    
+    shell_times = jnp.arange(n_orbits)
+    shell_times = jnp.repeat(shell_times, n_t)
+    
+    non_dimensional_times = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, n_t)
+    non_dimensional_times = (non_dimensional_times%(2*jnp.pi) - phase_radians) / (2. * jnp.pi)
+    non_dimensional_times = non_dimensional_times%1
+    non_dimensional_times = jnp.tile(non_dimensional_times, n_orbits)
+    
+    non_dimensional_times = shell_times + non_dimensional_times
+    
+    
+    
+    
+    
+    
+    
+
+    widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
+    # print(widths / 1e11)
+    
+    plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
+    
+        
+    particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
 
 
 
@@ -839,7 +938,8 @@ def orbital_position(stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    E, true_anomaly = kepler(2 * jnp.pi * time / period_s, jnp.array([ecc]))
+    E = kepler(2 * jnp.pi * time / period_s, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
@@ -932,7 +1032,8 @@ def orbital_positions(stardata):
     ecc = stardata['eccentricity']
     # E, true_anomaly = kepler_solve(times, period_s, ecc)
     
-    E, true_anomaly = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    E = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
     r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 

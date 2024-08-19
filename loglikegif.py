@@ -23,6 +23,7 @@ import WR_Geom_Model as gm
 import WR_binaries as wrb
 
 apep = wrb.apep.copy()
+apep['phase'] = 0.8
 # apep['sigma'] = 8
 
 ### --- INFERENCE --- ###  
@@ -48,12 +49,12 @@ ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
 import numpyro, chainconsumer, jax
 
-params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 179]}
+params = {'eccentricity':[0.65, 0.75], 'inclination':[0, 180], 'open_angle':[0.1, 179]}
 params_list = list(params.keys())
 
 i = 0
 param = 'eccentricity'
-n = 500
+n = 100
 
 # for i, param in enumerate(params):
     
@@ -170,6 +171,6 @@ def animate(j):
     return fig, 
 
 ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-ani.save(f"gradienttest_{param}_test.gif", writer='pillow', fps=fps)
+ani.save(f"gradienttest_{param}_test_{nt}_new_TEST.gif", writer='pillow', fps=fps)
     
 
