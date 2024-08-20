@@ -108,7 +108,7 @@ def kepler_starter(mean_anom, ecc):
     r = (3. * alphad * (d - ome) + M2) * mean_anom
     q = 2. * alphad * ome - M2
     q2 = jnp.square(q)
-    w = jnp.square(jnp.cbrt(jnp.abs(r) + jnp.sqrt(q2 * q + r * r)))
+    w = jnp.square(jnp.cbrt(jnp.abs(r) + zero_safe_sqrt(q2 * q + r * r)))
     return (2. * r * w / (jnp.square(w) + w * q + q2) + mean_anom) / d
 def kepler_refiner(mean_anom, ecc, ecc_anom):
     ome = 1. - ecc
@@ -186,8 +186,42 @@ def make_zero(tan):
     else:
         return tan
 
+### below couple of functions from Shashank!
+@jax.custom_jvp
+def zero_safe_arctan2(x, y):
+    return jnp.arctan2(x, y)
+
+
+@zero_safe_arctan2.defjvp
+def zero_safe_arctan2_jvp(primals, tangents):
+    (x, y) = primals
+    (x_dot, y_dot) = tangents
+    primal_out = zero_safe_arctan2(x, y)
+    tol = 10 * jnp.finfo(jax.dtypes.result_type(x)).eps
+    cond_x = jnp.logical_and(x > -tol, x < tol)
+    cond_y = jnp.logical_and(y > -tol, y < tol)
+    cond = jnp.logical_and(cond_x, cond_y)
+    denom = jnp.where(cond, jnp.ones_like(x), x**2 + y**2)
+    tangent_out = (y * x_dot - x * y_dot) / denom
+    return primal_out, tangent_out
+
+@jax.custom_jvp
+def zero_safe_sqrt(x):
+    return jnp.sqrt(x)
+
+@zero_safe_sqrt.defjvp
+def zero_safe_sqrt_jvp(primals, tangents):
+    (x,) = primals
+    (x_dot,) = tangents
+    primal_out = jnp.sqrt(x)
+    cond = jnp.less_equal(x, 10 * jnp.finfo(jax.dtypes.result_type(x)).eps)
+    val_where = jnp.where(cond, jnp.ones_like(x), x)
+    denom = val_where**0.5
+    tangent_out = 0.5 * x_dot / denom
+    return primal_out, tangent_out  # Return only primal and tangent
+
 def true_from_eccentric_anomaly(E, ecc):
-    return 2. * jnp.arctan2(jnp.sqrt(1. + ecc) * jnp.sin(E / 2.), jnp.sqrt(1. - ecc) * jnp.cos(E / 2.))
+    return 2. * zero_safe_arctan2(zero_safe_sqrt(1. + ecc) * jnp.sin(E / 2.), zero_safe_sqrt(1. - ecc) * jnp.cos(E / 2.))
 
 
 
@@ -266,24 +300,24 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # # we do this by shifting our true anomaly values from the range [0, 2pi] to [-pi, pi]
     # # if we don't do this, there's a discontinuity in the dust production at nu = 0
     # transf_nu = 2 * jnp.pi * (x + jnp.floor(0.5 - x))   # this is this transformed true anomaly 
-    transf_nu = (nu - jnp.pi)%(2 * jnp.pi) - jnp.pi
+    transf_nu = (nu - jnp.pi)%(2. * jnp.pi) - jnp.pi
     turn_on = jnp.deg2rad(stardata['turn_on'])          # convert our turn on true anomaly from degrees to radians
     turn_off = jnp.deg2rad(stardata['turn_off'])        # convert our turn off true anomaly from degrees to radians
-    turned_on = jnp.heaviside(transf_nu - turn_on, 0)   # determine if our current true anomaly is greater than our turn on true anomaly (i.e. is dust production turned on?)
+    turned_on = jnp.heaviside(transf_nu - turn_on, 0.)   # determine if our current true anomaly is greater than our turn on true anomaly (i.e. is dust production turned on?)
     # we can only visible dust if the ring is far enough away (past the nucleation distance), so we're not visibly turned on unless our ring is wider than this
-    turned_on *= jnp.heaviside(widths[i] - stardata['nuc_dist'] * AU2km, 1)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
-    turned_off = jnp.heaviside(turn_off - transf_nu, 0) # determine if our current true anomaly is less than our turn off true anomaly (i.e. is dust production still turned on?)
+    turned_on *= jnp.heaviside(widths[i] - stardata['nuc_dist'] * AU2km, 1.)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
+    turned_off = jnp.heaviside(turn_off - transf_nu, 0.) # determine if our current true anomaly is less than our turn off true anomaly (i.e. is dust production still turned on?)
     
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])  # normalize our plume direction vector
     
     # oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
-    v_mult = oa_mult = 1
+    v_mult = oa_mult = 1.
     # for the circle construction, we only use the half open angle
-    half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2  # calculate the half open angle after multiplying by our open angle factor
-    half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2]))
+    half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2.  # calculate the half open angle after multiplying by our open angle factor
+    half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2.]))
 
     # we also need to effectively dither our particle angular coordinate to reduce the effect of using a finite number of rings/particles on our final image
-    shifted_theta = (theta + i)%(2*jnp.pi)   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
+    shifted_theta = (theta + i)%(2.*jnp.pi)   # since theta is in radians, we can just add our (integer) ring number which will somewhat randomly shift the data
     # now we construct our circle *along the x axis* (i.e. all circle points have the same x value, and only look like a circle when looked at in the y-z plane)
     # the stars are orbiting in the xy plane here, so z points out of the orbital plane
     # the below circle are the particle coordinates in cartesian coordinates, but not in meaningful units (yet)
@@ -339,7 +373,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     ### now rotate the circle to account for the star orbit direction
     # remembering that the stars orbit in the x-y plane
-    angle_x = jnp.arctan2(direction[1], direction[0]) + jnp.pi
+    angle_x = zero_safe_arctan2(direction[1], direction[0]) + jnp.pi
     circle = rotate_z(angle_x) @ circle         # want to rotate the circle about the z axis
     
     weights = jnp.ones(len(theta)) * turned_on * turned_off
@@ -350,9 +384,9 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     sigma = jnp.deg2rad(stardata['gradual_turn'])
     sigma = jnp.max(jnp.array([sigma, 0.001]))
     
-    residual_on = (1 - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
-    residual_off = (1 - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
-    residual = jnp.min(jnp.array([residual_on + residual_off, 1]))
+    residual_on = (1. - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
+    residual_off = (1. - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
+    residual = jnp.min(jnp.array([residual_on + residual_off, 1.]))
     weights = weights + residual
     
     
@@ -362,7 +396,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # start by getting the inclination and azimuth of the companion
     alpha = jnp.deg2rad(stardata['comp_incl'])  
     beta = jnp.deg2rad(stardata['comp_az'])
-    comp_halftheta = jnp.deg2rad(stardata['comp_open'] / 2) # as before, we use the half open angle in calculations
+    comp_halftheta = jnp.deg2rad(stardata['comp_open'] / 2.) # as before, we use the half open angle in calculations
     x = circle[0, :]
     y = circle[1, :]
     z = circle[2, :]
@@ -444,20 +478,20 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # that is, we take a weight of 1 (i.e. no change) as the baseline. Then we subtract off a maximum of (1 - A)*Gauss from this,
     # where A is the 'minimum' weighting value with our orbital variation accounted for, and Gauss is our gaussian function weighting 
     # which puts the minimum value at some true anomaly value and with a user defined standard deviation in this
-    prop_orb = 1 - (1 - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180/jnp.pi + 180) - stardata['orb_min']) / val_orb_sd)**2) # weight proportion from orbital variation
+    prop_orb = 1. - (1. - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180./jnp.pi + 180.) - stardata['orb_min']) / val_orb_sd)**2) # weight proportion from orbital variation
     
     # now from azimuthal variation
     # this is analogous to the math for orbital variation, but instead of weighting entire rings based on the position in the orbit, 
     # we weight particles in the ring based on azimuthal variation in dust production
     val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
-    prop_az = 1 - (1 - stardata['az_amp']) * jnp.exp(-0.5 * ((shifted_theta * 180/jnp.pi - stardata['az_min']) / val_az_sd)**2)
+    prop_az = 1. - (1. - stardata['az_amp']) * jnp.exp(-0.5 * ((shifted_theta * 180./jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
     # we need our orbital weighting proportion to be between 0 and 1
-    prop_orb = jnp.min(jnp.array([prop_orb, 1]))
-    prop_orb = jnp.max(jnp.array([prop_orb, 0]))
+    prop_orb = jnp.min(jnp.array([prop_orb, 1.]))
+    prop_orb = jnp.max(jnp.array([prop_orb, 0.]))
     # and the same for our azimuthal proportion
     prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
-    weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
+    # weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
     
     
     # now set up our particles in the needed array format
@@ -516,26 +550,26 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     
     
-    ecc_factor = jnp.sqrt((1 - ecc) / (1 + ecc))
+    ecc_factor = jnp.sqrt((1. - ecc) / (1. + ecc))
     
     ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
-    turn_on_true_anom = jnp.max(jnp.array([-179.9999, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
+    turn_on_true_anom = jnp.max(jnp.array([-180., stardata['turn_on'] - 2. * stardata['gradual_turn']]))
     turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
     # turn_on_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_on_true_anom / 2.))
-    turn_on_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
+    turn_on_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
     turn_on_mean_anom = turn_on_ecc_anom - ecc * jnp.sin(turn_on_ecc_anom)
     
-    # turn_on_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom), -ecc - jnp.cos(turn_on_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom)) / (1 + ecc * jnp.cos(turn_on_true_anom))
+    # turn_on_mean_anom = zero_safe_arctan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom), -ecc - jnp.cos(turn_on_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_on_true_anom)) / (1 + ecc * jnp.cos(turn_on_true_anom))
     
     # turn_off_true_anom = jnp.deg2rad(stardata['turn_off']) + jnp.pi 
     ## set our 'upper' true anomaly bound to be [nu_off + 2 * sigma, 180), where the sigma is our gradual turn off (i.e. we go up to 2 sigma gradual turn off)
     turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + 2. * stardata['gradual_turn']]))
     turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
     # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
-    turn_off_ecc_anom = 2. * jnp.atan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
+    turn_off_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
     turn_off_mean_anom = turn_off_ecc_anom - ecc * jnp.sin(turn_off_ecc_anom)
     
-    # turn_off_mean_anom = jnp.atan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom), -ecc - jnp.cos(turn_off_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom)) / (1 + ecc * jnp.cos(turn_off_true_anom))
+    # turn_off_mean_anom = zero_safe_arctan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom), -ecc - jnp.cos(turn_off_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom)) / (1 + ecc * jnp.cos(turn_off_true_anom))
     
     # print(turn_on_mean_anom)
     # print(turn_off_mean_anom)
