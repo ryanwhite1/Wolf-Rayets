@@ -472,18 +472,19 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # ------------------------------------------------------------------
     
     # now calculate the weights of each point according the their orbital variation
-    val_orb_sd = jnp.max(jnp.array([stardata['orb_sd'], 0.01]))     # need to set a minimum orbital variation to avoid nans in the gradient
+    val_orb_sd = jnp.max(jnp.array([stardata['orb_sd'], 0.0001]))     # need to set a minimum orbital variation to avoid nans in the gradient
     # we decide the weight multiplier accounting for orbital variation with a gaussian of the form
     # w_orb = 1 - (1 - A) * exp(((nu - min) / sd)^2)
     # that is, we take a weight of 1 (i.e. no change) as the baseline. Then we subtract off a maximum of (1 - A)*Gauss from this,
     # where A is the 'minimum' weighting value with our orbital variation accounted for, and Gauss is our gaussian function weighting 
     # which puts the minimum value at some true anomaly value and with a user defined standard deviation in this
     prop_orb = 1. - (1. - stardata['orb_amp']) * jnp.exp(-0.5 * (((transf_nu*180./jnp.pi + 180.) - stardata['orb_min']) / val_orb_sd)**2) # weight proportion from orbital variation
+    prop_orb += 1 - jnp.heaviside(val_orb_sd - 1., 1.)
     
     # now from azimuthal variation
     # this is analogous to the math for orbital variation, but instead of weighting entire rings based on the position in the orbit, 
     # we weight particles in the ring based on azimuthal variation in dust production
-    val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.01]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
+    val_az_sd = jnp.max(jnp.array([stardata['az_sd'], 0.0001]))   # need to set a minimum azimuthal variation to avoid nans in the gradient
     prop_az = 1. - (1. - stardata['az_amp']) * jnp.exp(-0.5 * ((shifted_theta * 180./jnp.pi - stardata['az_min']) / val_az_sd)**2)
     
     # we need our orbital weighting proportion to be between 0 and 1
@@ -491,7 +492,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     prop_orb = jnp.max(jnp.array([prop_orb, 0.]))
     # and the same for our azimuthal proportion
     prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
-    # weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
+    weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
     
     
     # now set up our particles in the needed array format
