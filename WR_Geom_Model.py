@@ -553,8 +553,10 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     ecc_factor = jnp.sqrt((1. - ecc) / (1. + ecc))
     
+    max_anom = 180. - 1e-4  # we get errors when our turn on/off are at +/- 180 degrees exactly
+    
     ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
-    turn_on_true_anom = jnp.max(jnp.array([-180., stardata['turn_on'] - 2. * stardata['gradual_turn']]))
+    turn_on_true_anom = jnp.max(jnp.array([-max_anom, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
     turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
     # turn_on_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_on_true_anom / 2.))
     turn_on_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
@@ -564,7 +566,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     # turn_off_true_anom = jnp.deg2rad(stardata['turn_off']) + jnp.pi 
     ## set our 'upper' true anomaly bound to be [nu_off + 2 * sigma, 180), where the sigma is our gradual turn off (i.e. we go up to 2 sigma gradual turn off)
-    turn_off_true_anom = jnp.min(jnp.array([180., stardata['turn_off'] + 2. * stardata['gradual_turn']]))
+    turn_off_true_anom = jnp.min(jnp.array([max_anom, stardata['turn_off'] + 2. * stardata['gradual_turn']]))
     turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
     # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
     turn_off_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
@@ -774,15 +776,18 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     H = signal.convolve(H, gxy, mode='same', method='fft')
     
     H /= jnp.max(H)
-    H = H**stardata['lum_power']
-    H /= jnp.max(H)
+    
     
     H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'])
     H /= jnp.max(H)
     
+    H = jnp.where(stardata['lum_power'] == 1., H, jnp.abs(H))
+    H = H**stardata['lum_power']
+    H /= jnp.max(H)
+    
     return X, Y, H
 n = 256
-@jit
+# @jit
 def smooth_histogram2d(particles, weights, stardata):
     im_size = n
     
@@ -1204,16 +1209,46 @@ def generate_lightcurve(stardata, n=100, shells=1):
     
     return phases, fluxes
 
+def plume_velocity_map(particles, weights, stardata):
+    '''TODO: will need to update the `particle_speeds` line to actually calculate the speed of each particle once anisotropy is included
+    '''
+    X, Y, H = smooth_histogram2d(particles, weights, system)
+    xbins = X[0, :]
+    ybins = Y[:, 0]
+    
+    
+    radii = jnp.linalg.norm(particles, axis=0)
+    # radii /= max(radii)
+    plane_radii = jnp.linalg.norm(particles[:2, :], axis=0)
+    # plane_radii /= max(plane_radii)
+    
+    particle_speeds = stardata['windspeed1'] * plane_radii / radii
+    
+    fig, ax = plt.subplots()
+    n = 10
+    scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], alpha=0.1 * weights[::n], cmap='plasma')
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    ax.set_facecolor('k')
+    fig.colorbar(scatter, label='Recoverable Velocity in POS (km/s)')
+    
+    return particle_speeds
+    
+
 system = wrb.apep.copy()
-# system = wrb.WR140.copy()
+# system = wrb.WR112.copy()
+# system['lum_power'] = 1
+system = wrb.WR140.copy()
 # # apep['comp_reduction'] = 0
 # # # # for i in range(10):
 # # t1 = time.time()
-particles, weights = dust_plume(system)
+# particles, weights = dust_plume(system)
+particles, weights = gui_funcs[2](system)
 X, Y, H = smooth_histogram2d(particles, weights, system)
 # print(time.time() - t1)
-H = add_stars(X[0, :], Y[:, 0], H, system)
+# H = add_stars(X[0, :], Y[:, 0], H, system)
 plot_spiral(X, Y, H)
+
+velocities = plume_velocity_map(particles, weights, system)
 
 # # # # plot_3d(particles, weights)
 

@@ -19,7 +19,7 @@ apep = {"m1":15.,                # solar masses
         "windspeed2":2400.,      # km/s
         "turn_on":-114.,         # true anomaly (degrees)
         "turn_off":145.,         # true anomaly (degrees)
-        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
+        "gradual_turn":1.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
@@ -52,6 +52,7 @@ WR48a = {"m1":15.,                  # solar masses
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
         "orb_sd":40., "orb_amp":0., "orb_min":180, "az_sd":45., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.7, 
         "sigma":2,                  # sigma for gaussian blur
         "histmax":0.3, "lum_power":1., 
@@ -79,6 +80,7 @@ WR112 = {"m1":15.,                # solar masses
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
         "histmax":0.03, "lum_power":1.3, 
@@ -90,7 +92,7 @@ WR140 = {"m1":8.4,                # solar masses
         "m2":20,                # solar masses
         "eccentricity":0.8964, 
         "inclination":119.6,       # degrees
-        "asc_node":360-95.,         # degrees
+        "asc_node":275.,         # degrees
         "arg_peri":180-46.8,           # degrees
         "open_angle":80,       # degrees (full opening angle)
         "period":2896.35/365.25,           # years
@@ -99,12 +101,13 @@ WR140 = {"m1":8.4,                # solar masses
         "windspeed2":2400,      # km/s
         "turn_on":-135,         # true anomaly (degrees)
         "turn_off":135,         # true anomaly (degrees)
-        "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
+        "gradual_turn":0.5,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":50., "opt_thin_dist":220.,           # nucleation and optically thin distance (AU)
         "acc_max":900,                               # maximum acceleration (km/s/yr)
         "orb_sd":80., "orb_amp":0., "orb_min":180, "az_sd":60., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.6, 
         "sigma":2,              # sigma for gaussian blur
         "histmax":1, "lum_power":1., 
@@ -131,6 +134,7 @@ WR104 = {"m1":10,                # solar masses
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.7, 
         "sigma":6,              # sigma for gaussian blur
         "histmax":0.2, "lum_power":1., 
@@ -157,6 +161,7 @@ WR137 = {"m1":10,                # solar masses
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.9, 
         "sigma":3,              # sigma for gaussian blur
         "histmax":1., "lum_power":1., 
@@ -184,6 +189,7 @@ test_system = {"m1":22.,                # solar masses
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0., "az_min":270.,
         "comp_incl":127.1, "comp_az":116.5, "comp_open":0., "comp_reduction":0., "comp_plume":1.,
+        "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.6, 
         "sigma":1.5,              # sigma for gaussian blur
         "histmax":1., "lum_power":1., 
