@@ -305,8 +305,8 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     turn_off = jnp.deg2rad(stardata['turn_off'])        # convert our turn off true anomaly from degrees to radians
     turned_on = jnp.heaviside(transf_nu - turn_on, 0.)   # determine if our current true anomaly is greater than our turn on true anomaly (i.e. is dust production turned on?)
     # we can only visible dust if the ring is far enough away (past the nucleation distance), so we're not visibly turned on unless our ring is wider than this
-    turned_on *= jnp.heaviside(widths[i] - stardata['nuc_dist'] * AU2km, 1.)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
     turned_off = jnp.heaviside(turn_off - transf_nu, 0.) # determine if our current true anomaly is less than our turn off true anomaly (i.e. is dust production still turned on?)
+    nucleated = jnp.heaviside(widths[i] - stardata['nuc_dist'] * AU2km, 1.)   # nucleation distance (no dust if less than nucleation dist), converted from AU to km
     
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])  # normalize our plume direction vector
     
@@ -376,7 +376,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     angle_x = zero_safe_arctan2(direction[1], direction[0]) + jnp.pi
     circle = rotate_z(angle_x) @ circle         # want to rotate the circle about the z axis
     
-    weights = jnp.ones(len(theta)) * turned_on * turned_off
+    weights = jnp.ones(len(theta)) * turned_on * turned_off * nucleated
     
     # ------------------------------------------------------------------
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
@@ -387,7 +387,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     residual_on = (1. - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
     residual_off = (1. - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
     residual = jnp.min(jnp.array([residual_on + residual_off, 1.]))
-    weights = weights + residual
+    weights = weights + residual * nucleated
     
     
     # ------------------------------------------------------------------
