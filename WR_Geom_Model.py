@@ -348,12 +348,16 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     ### Below few lines handle acceleration of dust from radiation pressure -- only super relevant when phase is tiny
     # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
     # will need to change the t_linear calculation when modelling anisotropic wind!
-    valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
-    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
-    t_linear = (-stardata['windspeed1'] + jnp.sqrt(stardata['windspeed1']**2 + 2 * stardata['acc_max']/yr2s * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km)) / (stardata['acc_max']/yr2s)
-    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
-    dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
-    circle += valid_dists * dist_accel_lin
+    acceleration_range = (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km     # get the distance for which acceleration occurs
+    acc_kms = stardata['acc_max']/yr2s                                                  # convert acceleration from km/s/yr to km/s/s
+    valid_dists = jnp.heaviside(acceleration_range, 1)    # only want to apply acceleration if our optically thin dist is larger than the nucleation distance
+    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']                   # assume no acceleration prior to the nucleation distance, so get the time that the wind was travelling up to nuc_dist
+    # now solve for the time that the wind is in the acceleration zone, assuming 'd = vt + 0.5at^2' and using the quadratic formula for strictly positive time
+    t_linear = (-stardata['windspeed1'] + jnp.sqrt(stardata['windspeed1']**2 + 2 * acc_kms * acceleration_range)) / acc_kms
+    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)   # we can only have acceleration if the current spiral time is greater than the time of no acceleration (i.e. if we're passed the nucleation distance)
+    # now calculate our extra contribution of velocity from the time spent in the acceleration zone
+    dist_accel_lin = accel_lin * 0.5 * acc_kms * jnp.min(jnp.array([spiral_time - t_noaccel, t_linear]))**2
+    circle *= 1 + (valid_dists * dist_accel_lin) / (widths[i] * v_mult)  # expand our circle by the extra contribution of acceleration
     
     # ------------------------------------------------------------------
     
