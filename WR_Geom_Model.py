@@ -345,29 +345,15 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # ------------------------------------------------------------------
     ### --- More work needed for dust circle acceleration --- ###
-    # ### Below few lines handle acceleration of dust from radiation pressure -- only relevant when phase is tiny
-    # # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
-    # valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
-    # t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
-    # t_linear = 2 * jnp.sqrt(valid_dists * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km / (2 * stardata['acc_max']/yr2s))
-    # accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
-    # dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
-    # # accel_r2 = jnp.heaviside(spiral_time - t_linear, 0)
-    
-    
-    # ### much more work needed for nonlinear acceleration
-    # # minim = minimize(nonlinear_accel, jnp.array([10*stardata['opt_thin_dist']]), args=(spiral_time - t_linear, stardata['opt_thin_dist'], stardata['acc_max']), method='BFGS', tol=1e-6)
-    # # # print(minim.x)
-    # # dist_accel_r2 = minim.x
-    # # dist_accel_r2 *= accel_r2
-    # # circle += valid_dists * (dist_accel_lin + dist_accel_r2)
-    
-    # # solver = jaxopt.GradientDescent(fun=nonlinear_accel, maxiter=200)
-    # # res = solver.run(jnp.array([100*stardata['opt_thin_dist']]), t=spiral_time - t_linear, rt=stardata['opt_thin_dist'], amax=stardata['acc_max'])
-    # # dist_accel_r2 = res.params[0]
-    # # dist_accel_r2 *= accel_r2
-    # dist_accel_r2 = 0
-    # circle += valid_dists * (dist_accel_lin + dist_accel_r2)
+    ### Below few lines handle acceleration of dust from radiation pressure -- only super relevant when phase is tiny
+    # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
+    # will need to change the t_linear calculation when modelling anisotropic wind!
+    valid_dists = jnp.heaviside(stardata['opt_thin_dist'] - stardata['nuc_dist'], 1)
+    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']
+    t_linear = (-stardata['windspeed1'] + jnp.sqrt(stardata['windspeed1']**2 + 2 * stardata['acc_max']/yr2s * (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km)) / (stardata['acc_max']/yr2s)
+    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)
+    dist_accel_lin = accel_lin * 0.5 * stardata['acc_max']/yr2s * jnp.min(jnp.array([spiral_time, t_linear]))**2
+    circle += valid_dists * dist_accel_lin
     
     # ------------------------------------------------------------------
     
@@ -787,7 +773,7 @@ def smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_siz
     
     return X, Y, H
 n = 256
-# @jit
+@jit
 def smooth_histogram2d(particles, weights, stardata):
     im_size = n
     
@@ -1241,14 +1227,14 @@ system = wrb.WR140.copy()
 # # apep['comp_reduction'] = 0
 # # # # for i in range(10):
 # # t1 = time.time()
-# particles, weights = dust_plume(system)
-particles, weights = gui_funcs[2](system)
+particles, weights = dust_plume(system)
+# particles, weights = gui_funcs[2](system)
 X, Y, H = smooth_histogram2d(particles, weights, system)
 # print(time.time() - t1)
 # H = add_stars(X[0, :], Y[:, 0], H, system)
 plot_spiral(X, Y, H)
 
-velocities = plume_velocity_map(particles, weights, system)
+# velocities = plume_velocity_map(particles, weights, system)
 
 # # # # plot_3d(particles, weights)
 
