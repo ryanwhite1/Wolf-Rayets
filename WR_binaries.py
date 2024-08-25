@@ -42,7 +42,7 @@ apep_aniso = {"m1":15.,                # solar masses
         "distance":2400.,        # pc
         "windspeed1":660.,       # km/s
         "windspeed2":2400.,      # km/s
-        "turn_on":-100.,         # true anomaly (degrees)
+        "turn_on":-114.,         # true anomaly (degrees)
         "turn_off":143.,         # true anomaly (degrees)
         "gradual_turn":0.2,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,

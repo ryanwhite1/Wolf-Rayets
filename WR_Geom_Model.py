@@ -1199,10 +1199,47 @@ def generate_lightcurve(stardata, n=100, shells=1):
     
     return phases, fluxes
 
+def ring_velocities(stardata, n_orb, n_rings):
+    ecc = stardata['eccentricity']
+    ecc_factor = jnp.sqrt((1. - ecc) / (1. + ecc))
+    
+    max_anom = 180. - 1e-4  # we get errors when our turn on/off are at +/- 180 degrees exactly
+    
+    ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
+    turn_on_true_anom = jnp.max(jnp.array([-max_anom, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
+    turn_on_true_anom = (jnp.deg2rad(turn_on_true_anom))%(2. * jnp.pi) 
+    turn_on_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_on_true_anom / 2.), 1./ecc_factor)
+    turn_on_mean_anom = turn_on_ecc_anom - ecc * jnp.sin(turn_on_ecc_anom)
+    
+    ## set our 'upper' true anomaly bound to be [nu_off + 2 * sigma, 180), where the sigma is our gradual turn off (i.e. we go up to 2 sigma gradual turn off)
+    turn_off_true_anom = jnp.min(jnp.array([max_anom, stardata['turn_off'] + 2. * stardata['gradual_turn']]))
+    turn_off_true_anom = (jnp.deg2rad(turn_off_true_anom))%(2. * jnp.pi) 
+    turn_off_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
+    turn_off_mean_anom = turn_off_ecc_anom - ecc * jnp.sin(turn_off_ecc_anom)
+    
+    delta_M = turn_off_mean_anom - turn_on_mean_anom
+    mean_anomalies = ((jnp.linspace(stardata['phase'], n_orb + stardata['phase'], n_rings*n_orb)%1) * delta_M + turn_on_mean_anom)%(2. * jnp.pi)
+    
+
+    mean_anomalies = (jnp.linspace(0, delta_M, n_rings) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = jnp.tile(mean_anomalies, n_orb)
+    E = kepler(mean_anomalies, jnp.array([ecc]))
+    true_anomaly = true_from_eccentric_anomaly(E, ecc)
+    
+    temp = np.array([(spin_orbit_mult(true_anomaly[i], [1], stardata)) for i in range(len(true_anomaly))])
+    oa_mult = temp[:, 0]
+    v_mult = temp[:, 1]
+    return oa_mult, v_mult
+
 def plume_velocity_map(particles, weights, stardata):
     '''TODO: will need to update the `particle_speeds` line to actually calculate the speed of each particle once anisotropy is included
     '''
-    X, Y, H = smooth_histogram2d(particles, weights, system)
+    n_t = 1000       # circles per orbital period
+    n_points = 400   # points per circle
+    
+    n_orb = len(particles[0, :]) // (n_t * n_points)
+    
+    X, Y, H = smooth_histogram2d(particles, weights, stardata)
     xbins = X[0, :]
     ybins = Y[:, 0]
     
@@ -1212,7 +1249,10 @@ def plume_velocity_map(particles, weights, stardata):
     plane_radii = jnp.linalg.norm(particles[:2, :], axis=0)
     # plane_radii /= max(plane_radii)
     
-    particle_speeds = stardata['windspeed1'] * plane_radii / radii
+    _, anisotropy_speeds = ring_velocities(stardata, n_orb, n_t)
+    anisotropy_speeds = np.repeat(anisotropy_speeds, n_points)
+    
+    particle_speeds = anisotropy_speeds * stardata['windspeed1'] * plane_radii / radii
     
     fig, ax = plt.subplots()
     n = 10
@@ -1224,19 +1264,22 @@ def plume_velocity_map(particles, weights, stardata):
     return particle_speeds
     
 
-system = wrb.apep.copy()
-# system = wrb.WR112.copy()
-# system['lum_power'] = 1
-system = wrb.WR140.copy()
-# # apep['comp_reduction'] = 0
-# # # # for i in range(10):
-# # t1 = time.time()
-particles, weights = dust_plume(system)
+# print(ring_velocities(wrb.apep_aniso.copy(), 1, 400))
+
+# # system = wrb.apep.copy()
+# # # system = wrb.WR112.copy()
+# # # system['lum_power'] = 1
+# # system = wrb.WR140.copy()
+# system = wrb.apep_aniso.copy()
+# # # apep['comp_reduction'] = 0
+# # # # # for i in range(10):
+# # # t1 = time.time()
+# # particles, weights = dust_plume(system)
 # particles, weights = gui_funcs[2](system)
-X, Y, H = smooth_histogram2d(particles, weights, system)
-# print(time.time() - t1)
-# H = add_stars(X[0, :], Y[:, 0], H, system)
-plot_spiral(X, Y, H)
+# X, Y, H = smooth_histogram2d(particles, weights, system)
+# # print(time.time() - t1)
+# # H = add_stars(X[0, :], Y[:, 0], H, system)
+# plot_spiral(X, Y, H)
 
 # velocities = plume_velocity_map(particles, weights, system)
 
@@ -1308,6 +1351,8 @@ plot_spiral(X, Y, H)
 # shift = 0
 # fig, ax = plt.subplots()
 # ax.scatter((phases+shift)%1, np.log(fluxes))
+
+
 
 
 

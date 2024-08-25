@@ -37,10 +37,12 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.apep.copy()
+starcopy = wrb.apep_aniso.copy()
 starcopy['n_orbits'] = 1
 
-n = 600
+# n = 256     # standard
+# n = 600     # VISIR
+n = 898     # JWST
 @jit
 def smooth_histogram2d(particles, weights, stardata):
     im_size = n
@@ -91,9 +93,47 @@ def Apep_VISIR_reference():
     
     
     return xs, ys, data
+
+def Apep_JWST_reference():
+    
+    directory = "Data\\JWST\\MAST_2024-07-29T2157\\JWST"
+    fname = glob(directory+"\\jw05842-o001_t001_miri_f2550w\\*_i2d.fits")[0]
+    
+    jwst_center_x = 565
+    jwst_center_y = 755
+    
+    jwst_data = fits.open(fname)    # for the 2024 epoch
+    
+    data = jwst_data[1].data.T[:, ::-1]
+    pscale = np.sqrt(jwst_data[1].header['PIXAR_A2']) * 1000
+    im_size = data.shape[0] - jwst_center_y
+    data = data[(jwst_center_y - im_size):, (jwst_center_x - im_size):(jwst_center_x + im_size)]
+    length = data.shape[0]
+    
+    X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+    Y = X.copy()
+    
+    xs, ys = jnp.meshgrid(X, Y)
+    
+    data = jnp.array(data)
+    # data = data - jnp.median(data)
+    data = data - jnp.percentile(data, 60)
+    data = data/jnp.max(data)
+    data = jnp.maximum(data, 0)
+    data = jnp.abs(data)**0.5 
+    
+    return xs, ys, data
     
 
 # X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+# fig, ax = plt.subplots()
+# ax.plot(np.arange(H_ref.shape[0]), H_ref[:, 300])
+
+# fig, ax = plt.subplots()
+# ax.imshow(H_ref)
+# ax.invert_yaxis()
+
+# X_ref, Y_ref, H_ref = Apep_JWST_reference()
 # fig, ax = plt.subplots()
 # ax.plot(np.arange(H_ref.shape[0]), H_ref[:, 300])
 
@@ -109,7 +149,9 @@ titles = ['Model', 'Reference', 'Difference']
 w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
-X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+# X_ref, Y_ref, H_ref = standard_sim_reference()
+# X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+X_ref, Y_ref, H_ref = Apep_JWST_reference()
 reference_mesh = axes[1].pcolormesh(X_ref, Y_ref, H_ref, cmap='hot')
 maxside2 = np.max(np.abs(np.array([X_ref, Y_ref])))
 axes[1].set(xlim=(-maxside2, maxside2), ylim=(-maxside2, maxside2))
