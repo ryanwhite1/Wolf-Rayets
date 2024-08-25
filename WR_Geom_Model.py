@@ -310,8 +310,8 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     direction = plume_direction[:, i] / jnp.linalg.norm(plume_direction[:, i])  # normalize our plume direction vector
     
-    # oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
-    v_mult = oa_mult = 1.
+    oa_mult, v_mult = spin_orbit_mult(nu, direction, stardata)  # get the open angle and velocity multipliers for our current ring/true anomaly based on any wind anisotropy
+    # v_mult = oa_mult = 1.
     # for the circle construction, we only use the half open angle
     half_angle = jnp.deg2rad(stardata['open_angle'] * oa_mult) / 2.  # calculate the half open angle after multiplying by our open angle factor
     half_angle = jnp.min(jnp.array([half_angle, jnp.pi / 2.]))
