@@ -242,7 +242,8 @@ def spin_orbit_mult(true_anom, direction, stardata):
     
     inclination = jnp.rad2deg(inclination)
     
-    dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
+    # dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
+    dist = jnp.min(jnp.abs(jnp.array([180 - inclination, inclination])))
     # dist = inclination - 90
     
     
