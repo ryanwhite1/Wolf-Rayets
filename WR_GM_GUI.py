@@ -37,7 +37,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.apep_aniso.copy()
+starcopy = wrb.apep_aniso2.copy()
 starcopy['n_orbits'] = 1
 
 # n = 256     # standard
@@ -161,7 +161,8 @@ X, Y, H_original = standard_sim_reference()
 mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
 axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=titles[0])
 
-
+# if n == 898:    # i.e. if we're using the jwst image
+    
 
 H_ref_ravel = H_ref.ravel()
 norm = colors.Normalize(vmin=-1., vmax=1.)
@@ -339,7 +340,7 @@ spin_oa_mult.set(starcopy['spin_oa_mult'])
 spin_oa_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('spin_oa_sd', v), label="Spin OA SD", resolution=0.01)
 spin_oa_sd.set(starcopy['spin_oa_sd'])
-spin_vel_mult = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
+spin_vel_mult = tkinter.Scale(root, from_=-1., to=6., orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('spin_vel_mult', v), label="Spin Vel Mult", resolution=0.01)
 spin_vel_mult.set(starcopy['spin_vel_mult'])
 spin_vel_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
@@ -384,6 +385,14 @@ comp_plume_max = tkinter.Scale(root, from_=0., to=540., orient=tkinter.HORIZONTA
 comp_plume_max.set(starcopy['comp_plume_max'])
 
 
+accel_rate = tkinter.Scale(root, from_=-5, to=1, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('accel_rate', v), label="Log10(Accel Rate)", resolution=0.01)
+accel_rate.set(starcopy['accel_rate'])
+term_windspeed = tkinter.Scale(root, from_=0., to=5e3, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('term_windspeed', v), label="Terminal Windspeed", resolution=5.)
+term_windspeed.set(starcopy['term_windspeed'])
+
+
 
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
@@ -392,7 +401,7 @@ sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,
             compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
             lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
             star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn, 
-            comp_plume_sd, comp_plume_max]
+            comp_plume_sd, comp_plume_max, accel_rate, term_windspeed]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)

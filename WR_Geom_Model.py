@@ -225,11 +225,27 @@ def true_from_eccentric_anomaly(E, ecc):
 
 
 
-def nonlinear_accel(x, t, rt, amax):
-    xuse = x[0]
-    sqrtx = jnp.sqrt(1 - rt/xuse) * jnp.heaviside(xuse - rt, 0)
-    t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-    return jnp.abs(t_est - t)
+# def nonlinear_accel(x, t, rt, amax):
+#     xuse = x[0]
+#     sqrtx = jnp.sqrt(1 - rt/xuse) * jnp.heaviside(xuse - rt, 0)
+#     t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
+#     return jnp.abs(t_est - t)
+
+def nonlinear_accel(t, stardata):
+    '''Non-linear acceleration parameterised by the age of the ring using an exponential decay function approaching terminal velocity.
+    This is applied *before* any wind anisotropy effects -- the output from this can be multiplied by a constant factor safely.
+    
+    Parameters
+    ----------
+    'accel_rate' : float
+        A quantity logged in base 10 that represents the acceleration rate in the exponential
+    'term_windspeed' : float
+        The final windspeed of the plume at t->inf
+    t : float
+        The age of the current ring in seconds
+    '''
+    
+    return stardata['term_windspeed'] + (stardata['windspeed1'] - stardata['term_windspeed']) * jnp.exp(-10**stardata['accel_rate'] * t / yr2s)
 
 def spin_orbit_mult(true_anom, direction, stardata):
     # derotate = rotate_x(jnp.deg2rad(stardata['spin_inc'])) @ (rotate_z(jnp.deg2rad(stardata['spin_Omega'])) @ direction)
@@ -340,25 +356,34 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # circle *= widths[i]           # this is the width the circle should have assuming no velocity affecting effects
     spiral_time = widths[i] / stardata['windspeed1']    # our widths are calculated by w=v*t, so we can get the 'time' of the current ring by rearranging
-    
     circle *= widths[i] * v_mult    # our circle should have the original width multiplied by our anisotropy multiplier
     
+    # ### --- Below handles non-linear acceleration from radiation pressure --- ###
     
-    # ------------------------------------------------------------------
-    ### --- More work needed for dust circle acceleration --- ###
-    ### Below few lines handle acceleration of dust from radiation pressure -- only super relevant when phase is tiny
-    # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
-    # will need to change the t_linear calculation when modelling anisotropic wind!
-    acceleration_range = (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km     # get the distance for which acceleration occurs
-    acc_kms = stardata['acc_max']/yr2s                                                  # convert acceleration from km/s/yr to km/s/s
-    valid_dists = jnp.heaviside(acceleration_range, 1)    # only want to apply acceleration if our optically thin dist is larger than the nucleation distance
-    t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']                   # assume no acceleration prior to the nucleation distance, so get the time that the wind was travelling up to nuc_dist
-    # now solve for the time that the wind is in the acceleration zone, assuming 'd = vt + 0.5at^2' and using the quadratic formula for strictly positive time
-    t_linear = (-stardata['windspeed1'] + jnp.sqrt(stardata['windspeed1']**2 + 2 * acc_kms * acceleration_range)) / acc_kms
-    accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)   # we can only have acceleration if the current spiral time is greater than the time of no acceleration (i.e. if we're passed the nucleation distance)
-    # now calculate our extra contribution of velocity from the time spent in the acceleration zone
-    dist_accel_lin = accel_lin * 0.5 * acc_kms * jnp.min(jnp.array([spiral_time - t_noaccel, t_linear]))**2
-    circle *= 1 + (valid_dists * dist_accel_lin) / (widths[i] * v_mult)  # expand our circle by the extra contribution of acceleration
+    # accel = nonlinear_accel(spiral_time, stardata)
+    
+    
+    
+    
+    
+    
+    
+    
+    # # ------------------------------------------------------------------
+    # ### --- More work needed for dust circle acceleration --- ###
+    # ### Below few lines handle acceleration of dust from radiation pressure with linear acceleration -- only super relevant when phase is tiny
+    # # https://physics.stackexchange.com/questions/15587/how-to-get-distance-when-acceleration-is-not-constant
+    # # will need to change the t_linear calculation when modelling anisotropic wind!
+    # acceleration_range = (stardata['opt_thin_dist'] - stardata['nuc_dist']) * AU2km     # get the distance for which acceleration occurs
+    # acc_kms = stardata['acc_max']/yr2s                                                  # convert acceleration from km/s/yr to km/s/s
+    # valid_dists = jnp.heaviside(acceleration_range, 1)    # only want to apply acceleration if our optically thin dist is larger than the nucleation distance
+    # t_noaccel = stardata['nuc_dist'] * AU2km / stardata['windspeed1']                   # assume no acceleration prior to the nucleation distance, so get the time that the wind was travelling up to nuc_dist
+    # # now solve for the time that the wind is in the acceleration zone, assuming 'd = vt + 0.5at^2' and using the quadratic formula for strictly positive time
+    # t_linear = (-stardata['windspeed1'] + jnp.sqrt(stardata['windspeed1']**2 + 2 * acc_kms * acceleration_range)) / acc_kms
+    # accel_lin = jnp.heaviside(spiral_time - t_noaccel, 0)   # we can only have acceleration if the current spiral time is greater than the time of no acceleration (i.e. if we're passed the nucleation distance)
+    # # now calculate our extra contribution of velocity from the time spent in the acceleration zone
+    # dist_accel_lin = accel_lin * 0.5 * acc_kms * jnp.min(jnp.array([spiral_time - t_noaccel, t_linear]))**2
+    # circle *= 1 + (valid_dists * dist_accel_lin) / (widths[i] * v_mult)  # expand our circle by the extra contribution of acceleration
     
     # ------------------------------------------------------------------
     
@@ -633,7 +658,11 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     
 
-    widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
+    # widths = stardata['windspeed1'] * period_s * (n_orbits - non_dimensional_times)
+    
+    
+    widths = nonlinear_accel(period_s * (n_orbits - non_dimensional_times), stardata)
+    widths = widths * period_s * (n_orbits - non_dimensional_times)
     # print(widths / 1e11)
     
     plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
@@ -1267,11 +1296,11 @@ def plume_velocity_map(particles, weights, stardata):
 
 # print(ring_velocities(wrb.apep_aniso.copy(), 1, 400))
 
-# # system = wrb.apep.copy()
+# system = wrb.apep.copy()
 # # # system = wrb.WR112.copy()
 # # # system['lum_power'] = 1
 # # system = wrb.WR140.copy()
-# system = wrb.apep_aniso.copy()
+# # system = wrb.apep_aniso.copy()
 # # # apep['comp_reduction'] = 0
 # # # # # for i in range(10):
 # # # t1 = time.time()
