@@ -27,14 +27,17 @@ import blackjax
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-run_num = "3"
+run_num = "5"
 path = f'HPC/run_{run_num}/'
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
 chains = []
 num_samples = 0
+# model_parameters = ['eccentricity']
+# display_params = [r'$e$']
 model_parameters = ['eccentricity', 'inclination']
 display_params = [r'$e$', r'$i$']
+
 # model_parameters = ['eccentricity', 'inclination', 'open_angle', 'phase', 'turn_on', 'turn_off']
 # display_params = [r'$e$', r'$i$', r'$\theta_{OA}$', r'$\phi$', r'$\nu_{on}$', r'$\nu_{off}$']
 
@@ -50,6 +53,7 @@ all_positions = np.zeros((num_samples, len(model_parameters)))
 
 run_total = 0
 fig, axes = plt.subplots(nrows=len(model_parameters), sharex=True, gridspec_kw={'hspace':0})
+# axes = [axes]
 
 for i in range(len(files)):
     for j, parameter in enumerate(model_parameters):

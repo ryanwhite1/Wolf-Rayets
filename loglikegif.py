@@ -30,8 +30,10 @@ apep['phase'] = 0.4
 particles, weights = gm.dust_plume(apep)
     
 X, Y, H = gm.smooth_histogram2d(particles, weights, apep)
-xbins = X[0, :]
-ybins = Y[:, 0]
+xbins = X[0, :] * 1.3
+ybins = Y[:, 0] * 1.3
+
+X, Y, H = gm.smooth_histogram2d_w_bins(particles, weights, apep, xbins, ybins)
 H = gm.add_stars(xbins, ybins, H, apep)
 # X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
 obs_err = 0.01 * np.max(H)
@@ -54,7 +56,7 @@ params_list = list(params.keys())
 
 i = 0
 param = 'eccentricity'
-n = 500
+n = 100
 
 # for i, param in enumerate(params):
     

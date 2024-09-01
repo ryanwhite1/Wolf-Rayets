@@ -1,0 +1,19 @@
+digraph {
+	eccentricity [label=eccentricity fillcolor=white shape=ellipse style=filled]
+	inclination [label=inclination fillcolor=white shape=ellipse style=filled]
+	subgraph cluster_plate {
+		label=plate labeljust=r labelloc=b
+		obs_2016 [label=obs_2016 fillcolor=grey shape=ellipse style=filled]
+		obs_2017 [label=obs_2017 fillcolor=grey shape=ellipse style=filled]
+		obs_2018 [label=obs_2018 fillcolor=grey shape=ellipse style=filled]
+		obs_2024 [label=obs_2024 fillcolor=grey shape=ellipse style=filled]
+	}
+	eccentricity -> obs_2016
+	inclination -> obs_2016
+	eccentricity -> obs_2017
+	inclination -> obs_2017
+	eccentricity -> obs_2018
+	inclination -> obs_2018
+	eccentricity -> obs_2024
+	inclination -> obs_2024
+}
