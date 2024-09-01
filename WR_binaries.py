@@ -64,7 +64,7 @@ apep_aniso_decel = {"m1":15.,                # solar masses
         "inclination":23.8,      # degrees
         "asc_node":164.1,        # degrees
         "arg_peri":10.6,         # degrees
-        "open_angle":108.5,       # degrees (full opening angle)
+        "open_angle":125,       # degrees (full opening angle)
         "period":242.6,           # years
         "distance":2400.,        # pc
         "windspeed1":1176.,       # km/s
@@ -83,7 +83,8 @@ apep_aniso_decel = {"m1":15.,                # solar masses
         "phase":0.27, 
         "sigma":2.,              # sigma for gaussian blur
         "histmax":1., "lum_power":1, 
-        "spin_inc":22.5, "spin_Omega":317.65, "spin_oa_mult":-0.62, "spin_vel_mult":-0.28, "spin_oa_sd":71.47, "spin_vel_sd":48.97,
+        "spin_inc":22.5, "spin_Omega":196, "spin_oa_mult":-0.62, "spin_vel_mult":-0.28, "spin_oa_sd":71.47, "spin_vel_sd":48.97,
+        "windspeed_polar":2400, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53, 
         'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
 apep_aniso_decel2 = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses

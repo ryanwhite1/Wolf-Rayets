@@ -254,21 +254,23 @@ def spin_orbit_mult(true_anom, direction, stardata):
     # vel_mult = 1 + stardata['spin_vel_mult'] * jnp.sin(inclination)**2
     # return jnp.max(jnp.array([open_angle_mult, 0])), vel_mult
     
-    inclination = jnp.pi / 2 + jnp.deg2rad(stardata['spin_inc']) * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega']))
+    # inclination = jnp.pi / 2 + jnp.deg2rad(stardata['spin_inc']) * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega']))
     
-    inclination = jnp.rad2deg(inclination)
+    # inclination = jnp.rad2deg(inclination)
     
-    # dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
-    dist = jnp.min(jnp.abs(jnp.array([180 - inclination, inclination])))
+    # # dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
+    # dist = jnp.min(jnp.abs(jnp.array([180 - inclination, inclination])))
+    
+    dist = jnp.abs(stardata['spin_inc'] * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega'])))
     # dist = inclination - 90
     
     
-    # gaussians for the open-angle/velocity-latitude curve
-    spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
-    spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
-    open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
-    open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
-    vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
+    # # gaussians for the open-angle/velocity-latitude curve
+    # spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
+    # spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
+    # open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
+    # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
+    # vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
     
     
     # # test with a power law
@@ -278,6 +280,10 @@ def spin_orbit_mult(true_anom, direction, stardata):
     # open_angle_mult = 1 - stardata['spin_oa_mult'] * x**(1 / spin_oa_sd)
     # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     # vel_mult = 1 + stardata['spin_vel_mult'] * x**(1 / spin_vel_sd)
+    
+    vel_mult = 1 + (stardata['windspeed_polar'] / stardata['windspeed1'] - 1.) * jnp.tanh(10**stardata['aniso_vel_mult'] * dist**stardata['aniso_vel_power'])
+    open_angle_mult = 1 + (stardata['open_angle_polar'] / stardata['open_angle'] - 1.) * jnp.tanh(10**stardata['aniso_OA_mult'] * dist**stardata['aniso_OA_power'])
+    
 
     
     # open_angle_mult = 1 
@@ -1382,6 +1388,12 @@ def plume_velocity_map(particles, weights, stardata):
 # fig, ax = plt.subplots()
 # ax.scatter((phases+shift)%1, np.log(fluxes))
 
+
+# system = wrb.apep_aniso_decel.copy()
+# system['histmax'] = 0.15
+# particles, weights = gui_funcs[2](system)
+# X, Y, H = smooth_histogram2d(particles, weights, system)
+# plot_spiral(X, Y, H)
 
 
 

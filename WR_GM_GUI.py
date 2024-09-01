@@ -41,8 +41,8 @@ starcopy = wrb.apep_aniso_decel.copy()
 starcopy['n_orbits'] = 1
 
 # n = 256     # standard
-n = 600     # VISIR
-# n = 898     # JWST
+# n = 600     # VISIR
+n = 898     # JWST
 @jit
 def smooth_histogram2d(particles, weights, stardata):
     im_size = n
@@ -151,8 +151,8 @@ w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
 # X_ref, Y_ref, H_ref = standard_sim_reference()
-X_ref, Y_ref, H_ref = Apep_VISIR_reference()
-# X_ref, Y_ref, H_ref = Apep_JWST_reference()
+# X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+X_ref, Y_ref, H_ref = Apep_JWST_reference()
 reference_mesh = axes[1].pcolormesh(X_ref, Y_ref, H_ref, cmap='hot')
 maxside2 = np.max(np.abs(np.array([X_ref, Y_ref])))
 axes[1].set(xlim=(-maxside2, maxside2), ylim=(-maxside2, maxside2))
@@ -204,8 +204,8 @@ def update_frequency(param, new_val, X=X, Y=Y):
     new_H = H.ravel()
     mesh.update({'array':new_H})
     
-    _, _, H_diff = smooth_histogram2d_w_bins(particles, weights, starcopy, X_ref[0, :], Y_ref[:, 0])
-    H_diff = gm.add_stars(X_ref[0, :], Y_ref[:, 0], H_diff, starcopy)
+    X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins(particles, weights, starcopy, X_ref[0, :], Y_ref[:, 0])
+    # H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
     H_diff = H_diff.ravel()
     
     diff_mesh.update({'array':H_diff - H_ref_ravel})
@@ -217,7 +217,7 @@ def update_frequency(param, new_val, X=X, Y=Y):
     
     maxside1 = np.max(np.abs(np.array([X_new, Y_new])))
     axes[0].set(xlim=(-maxside1, maxside1), ylim=(-maxside1, maxside1))
-    diff_maxside = np.max([maxside1, np.max(np.abs(np.array([X, Y])))])
+    diff_maxside = np.max([maxside1, np.max(np.abs(np.array([X_ref, Y_ref])))])
     axes[2].set(xlim=(-diff_maxside, diff_maxside), ylim=(-diff_maxside, diff_maxside))
 
     # required to update canvas and attached toolbar!
@@ -394,6 +394,27 @@ term_windspeed.set(starcopy['term_windspeed'])
 
 
 
+windspeed_polar = tkinter.Scale(root, from_=0, to=3600, orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('windspeed_polar', v), label="Windspeed Polar", resolution=10)
+windspeed_polar.set(starcopy['windspeed_polar'])
+aniso_vel_mult = tkinter.Scale(root, from_=-10, to=0., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('aniso_vel_mult', v), label="Aniso Vel Mult", resolution=0.05)
+aniso_vel_mult.set(starcopy['aniso_vel_mult'])
+aniso_vel_power = tkinter.Scale(root, from_=0., to=5., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('aniso_vel_power', v), label="Aniso Vel Pow", resolution=0.01)
+aniso_vel_power.set(starcopy['aniso_vel_power'])
+open_angle_polar = tkinter.Scale(root, from_=0, to=180., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('open_angle_polar', v), label="OA Polar", resolution=1)
+open_angle_polar.set(starcopy['open_angle_polar'])
+aniso_OA_mult = tkinter.Scale(root, from_=-10., to=0., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('aniso_OA_mult', v), label="Aniso OA Mult", resolution=0.05)
+aniso_OA_mult.set(starcopy['aniso_OA_mult'])
+aniso_OA_power = tkinter.Scale(root, from_=0, to=5., orient=tkinter.HORIZONTAL,
+                      command=lambda v: update_frequency('aniso_OA_power', v), label="Aniso OA Pow", resolution=0.01)
+aniso_OA_power.set(starcopy['aniso_OA_power'])
+
+
+
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
             distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
@@ -401,7 +422,8 @@ sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,
             compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
             lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
             star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn, 
-            comp_plume_sd, comp_plume_max, accel_rate, term_windspeed]
+            comp_plume_sd, comp_plume_max, accel_rate, term_windspeed,
+            windspeed_polar, aniso_vel_mult, aniso_vel_power, open_angle_polar, aniso_OA_mult, aniso_OA_power]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)
