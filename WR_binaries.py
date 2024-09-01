@@ -58,28 +58,83 @@ apep_aniso = {"m1":15.,                # solar masses
         "histmax":1., "lum_power":1, 
         "spin_inc":22.5, "spin_Omega":317.65, "spin_oa_mult":-0.56, "spin_vel_mult":-0.28, "spin_oa_sd":56.9, "spin_vel_sd":38.38,
         'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
-apep_aniso2 = {"m1":15.,                # solar masses
+apep_aniso_decel = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
-        "eccentricity":0.83, 
+        "eccentricity":0.82, 
         "inclination":23.8,      # degrees
         "asc_node":164.1,        # degrees
         "arg_peri":10.6,         # degrees
         "open_angle":108.5,       # degrees (full opening angle)
-        "period":220.6,           # years
+        "period":242.6,           # years
         "distance":2400.,        # pc
-        "windspeed1":1103.,       # km/s
+        "windspeed1":1176.,       # km/s
         "windspeed2":2400.,      # km/s
-        "turn_on":-105.9,         # true anomaly (degrees)
+        "turn_on":-108.5,         # true anomaly (degrees)
         "turn_off":141.3,         # true anomaly (degrees)
         "gradual_turn":0.1,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
-        'term_windspeed':1105., 'accel_rate':-5.,
+        # 'term_windspeed':885., 'accel_rate':-2.25,
+        'term_windspeed':925., 'accel_rate':-2.15,
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
         "comp_incl":124.4, "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
         "comp_plume_sd":20., "comp_plume_max":373.,
-        "phase":0.29, 
+        "phase":0.27, 
+        "sigma":2.,              # sigma for gaussian blur
+        "histmax":1., "lum_power":1, 
+        "spin_inc":22.5, "spin_Omega":317.65, "spin_oa_mult":-0.62, "spin_vel_mult":-0.28, "spin_oa_sd":71.47, "spin_vel_sd":48.97,
+        'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
+apep_aniso_decel2 = {"m1":15.,                # solar masses
+        "m2":10.,                # solar masses
+        "eccentricity":0.82, 
+        "inclination":25.,      # degrees
+        "asc_node":169.,        # degrees
+        "arg_peri":0.,         # degrees
+        "open_angle":109.,       # degrees (full opening angle)
+        "period":242.6,           # years
+        "distance":2400.,        # pc
+        "windspeed1":1176.,       # km/s
+        "windspeed2":2400.,      # km/s
+        "turn_on":-114.,         # true anomaly (degrees)
+        "turn_off":137.6,         # true anomaly (degrees)
+        "gradual_turn":0.1,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
+        "oblate":0.,
+        "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
+        "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
+        # 'term_windspeed':885., 'accel_rate':-2.25,
+        'term_windspeed':925., 'accel_rate':-2.15,
+        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
+        "comp_incl":124.4, "comp_az":233., "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
+        "comp_plume_sd":20., "comp_plume_max":373.,
+        "phase":0.27, 
+        "sigma":2.,              # sigma for gaussian blur
+        "histmax":1., "lum_power":1, 
+        "spin_inc":22.5, "spin_Omega":286., "spin_oa_mult":-0.60, "spin_vel_mult":-0.28, "spin_oa_sd":68.8, "spin_vel_sd":62.2,
+        'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
+apep_aniso_accel = {"m1":15.,                # solar masses
+        "m2":10.,                # solar masses
+        "eccentricity":0.7, 
+        "inclination":23.8,      # degrees
+        "asc_node":164.1,        # degrees
+        "arg_peri":10.6,         # degrees
+        "open_angle":108.5,       # degrees (full opening angle)
+        "period":181.,           # years
+        "distance":2400.,        # pc
+        "windspeed1":1075.,       # km/s
+        "windspeed2":2400.,      # km/s
+        "turn_on":-108.5,         # true anomaly (degrees)
+        "turn_off":141.3,         # true anomaly (degrees)
+        "gradual_turn":0.1,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
+        "oblate":0.,
+        "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
+        "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
+        # 'term_windspeed':885., 'accel_rate':-2.25,
+        'term_windspeed':1190., 'accel_rate':-2.7,
+        "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
+        "comp_incl":124.4, "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
+        "comp_plume_sd":20., "comp_plume_max":373.,
+        "phase":0.41, 
         "sigma":2.,              # sigma for gaussian blur
         "histmax":1., "lum_power":1, 
         "spin_inc":22.5, "spin_Omega":317.65, "spin_oa_mult":-0.62, "spin_vel_mult":-0.28, "spin_oa_sd":71.47, "spin_vel_sd":48.97,
