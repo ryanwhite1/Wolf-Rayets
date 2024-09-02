@@ -162,7 +162,7 @@ root.wm_title("Embedding in Tk")
 
 titles = [['Model', '2016', '2017'], ['2018', '2024', 'JWST']]
 w = 1/3.08
-fig, axes = plt.subplots(figsize=(16, 8), ncols=3, nrows=2, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
+fig, axes = plt.subplots(figsize=(16, 6), ncols=3, nrows=2, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
 # X_ref, Y_ref, H_ref = standard_sim_reference()
 # X_ref, Y_ref, H_ref = Apep_VISIR_reference()

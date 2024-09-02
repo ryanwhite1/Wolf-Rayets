@@ -8,29 +8,30 @@ Created on Sun Mar 17 13:05:33 2024
 # below are rough params for Apep 
 apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
-        "eccentricity":0.7, 
+        "eccentricity":0.82, 
         "inclination":23.8,      # degrees
         "asc_node":164.1,        # degrees
         "arg_peri":10.6,         # degrees
-        "open_angle":125.,       # degrees (full opening angle)
-        "period":125.,           # years
+        "open_angle":127.,       # degrees (full opening angle)
+        "period":234.,           # years
         "distance":2400.,        # pc
-        "windspeed1":700.,       # km/s
+        "windspeed1":1165.,       # km/s
         "windspeed2":2400.,      # km/s
-        "turn_on":-114.,         # true anomaly (degrees)
-        "turn_off":145.,         # true anomaly (degrees)
-        "gradual_turn":1.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
+        "turn_on":-108.,         # true anomaly (degrees)
+        "turn_off":141.,         # true anomaly (degrees)
+        "gradual_turn":0.1,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
         "acc_max":0.1,                                 # maximum acceleration (km/s/yr)
-        'term_windspeed':874., 'accel_rate':-2.3,
+        'term_windspeed':880, 'accel_rate':-2.02,
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
-        "comp_incl":127.6, "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
+        "comp_incl":124., "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
         "comp_plume_sd":20., "comp_plume_max":373.,
-        "phase":0.6, 
+        "phase":0.29, 
         "sigma":2.,              # sigma for gaussian blur
         "histmax":1., "lum_power":1, 
         "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1,
+        "windspeed_polar":2400, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53,
         'star1amp':0.7, 'star1sd':-0.7, 'star2amp':0.7, 'star2sd':-0.7, 'star3amp':0.7, 'star3sd':-1.12, 'star3dist':1700}
 apep_aniso = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
