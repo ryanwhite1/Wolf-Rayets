@@ -32,7 +32,9 @@ import WR_binaries as wrb
 
 # apep = wrb.apep.copy()
 
-system = wrb.apep_aniso2.copy()
+numpyro.enable_x64()
+
+system = wrb.apep.copy()
 
 ### --- INFERENCE --- ###  
 # n = 256     # standard
@@ -73,7 +75,9 @@ for i, fname in enumerate(fnames):
     
     xs, ys = jnp.meshgrid(X, Y)
     
+    data[280:320, 280:320] = 0.
     data = jnp.array(data)
+    
     # data = data - jnp.median(data)
     data = data - jnp.percentile(data, 84)
     data = data/jnp.max(data)
@@ -91,7 +95,11 @@ ax.imshow(H)
 ax.invert_yaxis()
 
 H = np.array(H)
-H[290:310, 290:310] = 0.
+# H[280:320, 280:320] = 0.
+
+fig, ax = plt.subplots()
+ax.imshow(H)
+ax.invert_yaxis()
 
 
 obs = H.flatten()
@@ -108,6 +116,7 @@ ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 # ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
 
 system_params = system.copy()
+system_params['histmax'] = 0.7
 
 particles, weights = gm.dust_plume(system_params)
     
@@ -126,13 +135,18 @@ H[280:320, 280:320] = 0.
 fig, ax = plt.subplots()
 ax.plot(jnp.arange(len(obs)), H.flatten() - obs, lw=0.5)
 
+fig, ax = plt.subplots()
+ax.imshow(H - vlt_data[2024])
+ax.invert_yaxis()
+
 
 def apep_model(Y, E):
     params = system_params.copy()
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-    params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(system['eccentricity'], 0.08))
-    params['inclination'] = numpyro.sample("inclination", dists.Normal(system['inclination'], 10.))
+    # params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(system_params['eccentricity'], 0.1))
+    params['eccentricity'] = numpyro.sample("eccentricity", dists.Uniform(0.6, 0.9))
+    # params['inclination'] = numpyro.sample("inclination", dists.Normal(system['inclination'], 5.))
     # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
     # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
     # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
@@ -158,55 +172,103 @@ def apep_model(Y, E):
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
         
-    samp_particles, samp_weights = gm.dust_plume(params)
-    _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, params, xbins, ybins)
-    # samp_H = gm.add_stars(xbins, ybins, samp_H, params)
-    samp_H = samp_H.flatten()
-    # samp_H = jnp.nan_to_num(samp_H, 1e4)
-    for i in vlt_years:
+    
+    for year in vlt_years:
+        year_params = params.copy()
+        year_params['phase'] -= (2024 - year) / params['period']
+        samp_particles, samp_weights = gm.dust_plume(year_params)
+        _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+        # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+        samp_H.at[280:320, 280:320].set(0.)
+        samp_H = samp_H.flatten()
+        # samp_H = jnp.nan_to_num(samp_H, 1e4)
         with numpyro.plate('plate', len(obs)):
-            numpyro.sample(f'obs_{i}', dists.Normal(samp_H, E), obs=Y[i].flatten())
+            numpyro.sample(f'obs_{year}', dists.Normal(samp_H, E), obs=Y[year].flatten())
 
-h = numpyro.render_model(apep_model, model_args=(vlt_data, obs_err))
-h.view()
-
-
-
-# rand_time = int(time.time() * 1e8)
-# rng_key = jax.random.key(rand_time)
-
-# rng_key, init_key = jax.random.split(rng_key)
-# init_params, potential_fn_gen, *_ = initialize_model(
-#     init_key,
-#     apep_model,
-#     model_args=(obs, obs_err),
-#     dynamic_args=True,
-#     init_strategy=numpyro.infer.initialization.init_to_value(values=system_params)
-# )
-
-# logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
-# initial_position = init_params.z
+# h = numpyro.render_model(apep_model, model_args=(vlt_data, obs_err))
+# h.view()
 
 
+
+rand_time = int(time.time() * 1e8)
+rng_key = jax.random.key(rand_time)
+
+rng_key, init_key = jax.random.split(rng_key)
+init_params, potential_fn_gen, *_ = initialize_model(
+    init_key,
+    apep_model,
+    model_args=(obs, obs_err),
+    dynamic_args=True,
+    init_strategy=numpyro.infer.initialization.init_to_value(values=system_params)
+)
+
+logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
+initial_position = init_params.z
+
+
+### below is numpyro sampling
+
+shifted = system_params.copy()
+# shifted['eccentricity'] = 0.7
+
+# sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
+#                                                 target_accept_prob=0.3,
+#                                                 # regularize_mass_matrix=False,
+#                                                 find_heuristic_step_size=True,
+#                                                 max_tree_depth=5,
+#                                                 forward_mode_differentiation=True,
+#                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=shifted)),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=100,
+#                               progress_bar=True)
+# sampler = numpyro.infer.MCMC(numpyro.infer.BarkerMH(apep_model,
+#                                                     target_accept_prob=0.6,
+#                                                     step_size=0.01,
+#                                                     init_strategy=numpyro.infer.initialization.init_to_value(values=shifted)),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=100,
+#                               progress_bar=True)
+sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model,
+                                              init_strategy=numpyro.infer.initialization.init_to_value(values=shifted)),
+                              num_chains=1,
+                              num_samples=300,
+                              num_warmup=100,
+                              progress_bar=True)
+sampler.run(jax.random.PRNGKey(1), obs, obs_err)
+results = sampler.get_samples()
+
+import chainconsumer
+C = chainconsumer.ChainConsumer()
+C.add_chain(results, name='MCMC Results')
+C.plotter.plot()
+C.plotter.plot_walks()
+
+fig, ax = plt.subplots()
+ax.plot(C.chains[0].chain)
+
+
+# ### below is blackjax sampling
 
 # num_warmup = 300
-# integration_steps = 10
-# adapt = blackjax.window_adaptation(
-#     blackjax.nuts, logdensity_fn, target_acceptance_rate=0.5, progress_bar=True,
-#     initial_step_size=1./integration_steps, max_num_doublings=5
-# )
+# integration_steps = 4
 # # adapt = blackjax.window_adaptation(
-# #     blackjax.hmc, logdensity_fn, target_acceptance_rate=0.6, progress_bar=True, 
-# #     num_integration_steps=integration_steps, initial_step_size=1./integration_steps
+# #     blackjax.nuts, logdensity_fn, target_acceptance_rate=0.5, progress_bar=True,
+# #     initial_step_size=1./integration_steps, max_num_doublings=3
 # # )
+# adapt = blackjax.window_adaptation(
+#     blackjax.hmc, logdensity_fn, target_acceptance_rate=0.6, progress_bar=True, 
+#     num_integration_steps=integration_steps, initial_step_size=1./integration_steps
+# )
 # rng_key, warmup_key = jax.random.split(rng_key)
 # print("warm up")
 # (last_state, parameters), _ = adapt.run(warmup_key, initial_position, num_warmup)
 # print("warm up done")
-# kernel = blackjax.nuts(logdensity_fn, **parameters).step
-# # parameters['step_size'] = 1 / integration_steps
+# # kernel = blackjax.nuts(logdensity_fn, **parameters).step
+# parameters['step_size'] = 1 / integration_steps
 # # parameters['step_size'] *= 6
-# # kernel = blackjax.hmc(logdensity_fn, **parameters).step
+# kernel = blackjax.hmc(logdensity_fn, **parameters).step
 
 # # print(a)
 
@@ -263,7 +325,7 @@ h.view()
 # print(f"Average acceptance rate: {acceptance_rate:.2f}")
 # print(f"There were {100*num_divergent:.2f}% divergent transitions")
 
-# run_num = 5
+# run_num = 6
 # pickle_samples = {"states":states, "infos":infos}
 # with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
 #     pickle.dump(pickle_samples, file)

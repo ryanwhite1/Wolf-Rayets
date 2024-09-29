@@ -27,7 +27,7 @@ import blackjax
 import WR_Geom_Model as gm
 import WR_binaries as wrb
 
-run_num = "5"
+run_num = "6"
 path = f'HPC/run_{run_num}/'
 files = [f for f in os.listdir(path) if os.path.isfile(os.path.join(path, f))]
 
