@@ -160,13 +160,15 @@ WR48a = {"m1":15.,                  # solar masses
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
         "acc_max":1e-9,                               # maximum acceleration (km/s/yr)
+        'term_windspeed':2000., 'accel_rate':-5.,
         "orb_sd":40., "orb_amp":0., "orb_min":180, "az_sd":45., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "comp_plume_sd":0., "comp_plume_max":0.,
-        "phase":0.7, 
+        "phase":0.78, 
         "sigma":2,                  # sigma for gaussian blur
         "histmax":0.3, "lum_power":1., 
         "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1,
+        "windspeed_polar":0, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53,
         'star1amp':0., 'star1sd':-1., 'star2amp':0., 'star2sd':-1., 'star3amp':0., 'star3sd':-1., 'star3dist':0.}
 
 
