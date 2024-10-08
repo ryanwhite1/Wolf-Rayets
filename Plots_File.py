@@ -287,6 +287,22 @@ def visir_gif():
     fps = len(frames) // length  # fps for the final animation
     
     fig, ax = plt.subplots(figsize=(6, 6))
+    # ax.set_facecolor('k')
+    ax.set_axis_off()
+    
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+    def animate(i):
+        print(i)
+        ax.cla()
+        xs, ys, data = year_data[years_list[i]]
+        ax.pcolormesh(xs, ys, data, cmap='hot')
+        ax.set(aspect='equal', xlim=(-8, 8), ylim=(-8, 8))
+        ax.text(5, 6.5, f"{years_list[i]}", c='w', fontsize=20)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save("Images/VISIR_gif.gif", writer='pillow', fps=fps)
     
 
 def variation_gaussian():
@@ -415,22 +431,6 @@ def effects_compare():
     fig.savefig('Images/Variation_Effects.pdf', dpi=400, bbox_inches='tight')
     
     
-    # ax.set_facecolor('k')
-    ax.set_axis_off()
-    
-    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-    
-    def animate(i):
-        print(i)
-        ax.cla()
-        xs, ys, data = year_data[years_list[i]]
-        ax.pcolormesh(xs, ys, data, cmap='hot')
-        ax.set(aspect='equal', xlim=(-8, 8), ylim=(-8, 8))
-        ax.text(5, 6.5, f"{years_list[i]}", c='w', fontsize=20)
-        return fig, 
-    
-    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    ani.save("Images/VISIR_gif.gif", writer='pillow', fps=fps)
     
     
 def main():
@@ -441,13 +441,9 @@ def main():
     # smooth_hist_demo()
     # smooth_hist_gif()
     
-<<<<<<< Updated upstream
     # variation_gaussian()
     
-    effects_compare()
-=======
     visir_gif()
->>>>>>> Stashed changes
     
 
 
