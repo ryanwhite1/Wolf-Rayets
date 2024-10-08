@@ -244,6 +244,49 @@ def smooth_hist_gif():
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"Images/Normal_Hist_Gif.gif", writer='pillow', fps=fps)
     
+def visir_gif():
+    from glob import glob
+    from astropy.io import fits
+    pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
+    
+    years = {2016:0, 2017:1, 2018:2, 2024:3}
+    directory = "Data\\VLT"
+    fnames = glob(directory + "\\*.fits")
+    
+    year_data = {}
+    
+    years_list = [2016, 2017, 2018, 2024]
+    
+    for year in years_list:
+        vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
+        
+        data = vlt_data[0].data
+        length = data.shape[0]
+        
+        X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+        Y = X.copy()
+        
+        xs, ys = jnp.meshgrid(X, Y)
+        
+        data = jnp.array(data)
+        # data = data - jnp.median(data)
+        data = data - jnp.percentile(data, 84)
+        data = data/jnp.max(data)
+        data = jnp.maximum(data, 0)
+        data = jnp.abs(data)**0.5
+        
+        year_data[year] = [xs, ys, data]
+        
+    every = 1
+    length = 2
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    nt = 4
+    # nt = 10
+    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
     
 
 def variation_gaussian():
@@ -372,6 +415,22 @@ def effects_compare():
     fig.savefig('Images/Variation_Effects.pdf', dpi=400, bbox_inches='tight')
     
     
+    # ax.set_facecolor('k')
+    ax.set_axis_off()
+    
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+    def animate(i):
+        print(i)
+        ax.cla()
+        xs, ys, data = year_data[years_list[i]]
+        ax.pcolormesh(xs, ys, data, cmap='hot')
+        ax.set(aspect='equal', xlim=(-8, 8), ylim=(-8, 8))
+        ax.text(5, 6.5, f"{years_list[i]}", c='w', fontsize=20)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save("Images/VISIR_gif.gif", writer='pillow', fps=fps)
     
     
 def main():
@@ -382,9 +441,13 @@ def main():
     # smooth_hist_demo()
     # smooth_hist_gif()
     
+<<<<<<< Updated upstream
     # variation_gaussian()
     
     effects_compare()
+=======
+    visir_gif()
+>>>>>>> Stashed changes
     
 
 
