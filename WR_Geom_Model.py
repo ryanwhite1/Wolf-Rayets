@@ -453,12 +453,12 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     # ## currently is commented out to save on computation
     
     # # below populates companion plume with points taken from a narrow region around the ring edge
-    # # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
-    # #                           jnp.ones(len(x)), jnp.zeros(len(x)))
+    # in_comp_plume = jnp.where((photodis_prop * comp_halftheta < angular_dist) & (angular_dist < comp_halftheta),
+    #                           jnp.ones(len(x)), jnp.zeros(len(x)))
     
     # # below populates companion plume with points from the entire photodissociation region (also means that we can't have a semi-photodissociated region!!)
     # in_comp_plume = jnp.where(angular_dist < comp_halftheta, jnp.ones(len(x)), jnp.zeros(len(x)))
-    # plume_weight = jnp.ones(len(x))
+    # # plume_weight = jnp.ones(len(x))
     
     # # now we need to generate angles around the plume edge that are inconsistent to the other rings so that it smooths out
     # # i.e. instead of doing linspace(0, 2*pi, len(x)), just do a large number multiplied by our ring number and convert that to [0, 2pi]

@@ -429,9 +429,107 @@ def effects_compare():
     
     fig.savefig('Images/Variation_Effects.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Variation_Effects.pdf', dpi=400, bbox_inches='tight')
+
+def anisotropy_compare():
+    
+    fig, axes = plt.subplots(figsize=(6, 3.5), ncols=2, gridspec_kw={'hspace':0, 'wspace':0})
+    
+    test = wrb.WR104.copy()
+    
+    particles, weights = gm.dust_plume(test)
+    X, Y, H = gm.smooth_histogram2d(particles, weights, test)
+    axes[0].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    
+    test['spin_inc'] = 24
+    test['spin_Omega'] = 16
+    test['aniso_vel_mult'] = -5.45
+    
+    particles, weights = gm.dust_plume(test)
+    X, Y, H = gm.smooth_histogram2d(particles, weights, test)
+    axes[1].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    
+    order = ['Original', 'Anisotropic']
+    
+    import matplotlib
+
+    cmap = matplotlib.cm.get_cmap('hot')
+    
+    rgba = cmap(0.)
+    
+    for i, AX in enumerate(axes):
+        AX.set(aspect='equal')
+        AX.set_facecolor(rgba)
+        AX.get_xaxis().set_visible(False)
+        AX.get_yaxis().set_visible(False)
+        
+        xlim = np.array(AX.get_xlim())
+        ylim = np.array(AX.get_ylim())
+        AX.set(xlim=1.1*xlim, ylim=1.1*ylim)
+        
+        yval = 0.8 * ylim[0] #if i < 2 else 0.8 * ylim[0]
+        AX.text(0, yval, order[i], c='w', fontsize='14')
     
     
+    fig.savefig('Images/Anisotropy_Effects.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Anisotropy_Effects.pdf', dpi=400, bbox_inches='tight')
+
+def smooth_hist_gradient():
+    im_size = 15
     
+    xbound = 10
+    ybound = 10
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    
+    stardata = wrb.test_system.copy()
+    stardata['sigma'] = 0.1
+    stardata['histmax'] = 2
+    
+    n = 1000
+    x = np.linspace(-5, 5, n)
+    y = np.ones(n) * 0 
+    
+    weights = jnp.array([1])
+    
+    def bin_value(X):
+        new_parts = jnp.array([[-5, X], [-5, 0.]])
+        X, Y, H = gm.smooth_histogram2d_base(new_parts, weights, stardata, xedges, yedges, im_size)
+        
+        return H[im_size//2, im_size//2].astype(float)
+    
+    gradient = vmap(grad(bin_value, allow_int=True))
+    val = vmap(bin_value)
+    
+    values = np.zeros(n, dtype=float)
+    grads = np.zeros(n, dtype=float)
+    L = xedges[1] - xedges[0]
+    xs = np.linspace(-1.5 * L, 1.5 * L, n)
+    
+    values = val(xs)
+    grads = gradient(xs)
+    
+    fig, ax = plt.subplots(figsize=(6, 3))
+    ax.plot(xs / L, values / max(values), label='Bin Value')
+    ax.plot(xs / L, grads / max(values), label='Bin Value Gradient')
+    ax.legend()
+    ax.set(xlabel='Particle Distance from Bin Center ($L$ distances)', ylabel='Bin/Gradient Value')
+    
+    fig.savefig('Images/Smooth_Hist_Gradient.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Smooth_Hist_Gradient.pdf', dpi=400, bbox_inches='tight')
+    
+    
+    XX = 0. 
+    new_parts = jnp.array([[-5, XX], [-5, 0.]])
+    X, Y, H = gm.smooth_histogram2d_base(new_parts, weights, stardata, xedges, yedges, im_size)
+    fig, ax = plt.subplots()
+    ax.set_facecolor('k')
+    ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    ax.scatter(XX, 0., rasterized=True)
+    for i in range(len(xedges)):
+        ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+        ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+    ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
     
 def main():
     # apep_plot('Apep_Plot')
@@ -443,7 +541,11 @@ def main():
     
     # variation_gaussian()
     
-    visir_gif()
+    # visir_gif()
+    
+    # anisotropy_compare()
+    
+    smooth_hist_gradient()
     
 
 

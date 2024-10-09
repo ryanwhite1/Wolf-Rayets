@@ -37,11 +37,11 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR48a.copy()
+starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
 
-n = 256     # standard
-# n = 600     # VISIR
+# n = 256     # standard
+n = 600     # VISIR
 # n = 898     # JWST
 @jit
 def smooth_histogram2d(particles, weights, stardata):
@@ -150,8 +150,8 @@ titles = ['Model', 'Reference', 'Difference']
 w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
-X_ref, Y_ref, H_ref = standard_sim_reference()
-# X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+# X_ref, Y_ref, H_ref = standard_sim_reference()
+X_ref, Y_ref, H_ref = Apep_VISIR_reference()
 # X_ref, Y_ref, H_ref = Apep_JWST_reference()
 reference_mesh = axes[1].pcolormesh(X_ref, Y_ref, H_ref, cmap='hot')
 maxside2 = np.max(np.abs(np.array([X_ref, Y_ref])))
@@ -228,46 +228,46 @@ ecc = tkinter.Scale(root, from_=0, to=0.99, orient=tkinter.HORIZONTAL,
                     command=lambda v: update_frequency('eccentricity', v), label="Eccentricity", resolution=0.01)
 ecc.set(starcopy['eccentricity'])
 inc = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL, 
-                    command=lambda v: update_frequency('inclination', v), label="Inclination", resolution=1.)
+                    command=lambda v: update_frequency('inclination', v), label="Inclination (deg)", resolution=1.)
 inc.set(starcopy['inclination'])
 asc_node = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
-                          command=lambda v: update_frequency('asc_node', v), label="Ascending Node", resolution=1.)
+                          command=lambda v: update_frequency('asc_node', v), label="Asc. Node (deg)", resolution=1.)
 asc_node.set(starcopy['asc_node'])
 arg_peri = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
-                          command=lambda v: update_frequency('arg_peri', v), label="Argument of Periastron", resolution=1.)
+                          command=lambda v: update_frequency('arg_peri', v), label="Arg. of Peri. (deg)", resolution=1.)
 arg_peri.set(starcopy['arg_peri'])
 opang = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('open_angle', v), label="Open Angle", resolution=1.)
+                      command=lambda v: update_frequency('open_angle', v), label="Open Angle (deg)", resolution=1.)
 opang.set(starcopy['open_angle'])
 m1 = tkinter.Scale(root, from_=5, to=50, orient=tkinter.HORIZONTAL,
-                    command=lambda v: update_frequency('m1', v), label="WR Mass", resolution=0.1)
+                    command=lambda v: update_frequency('m1', v), label="WR Mass ($M_\odot$)", resolution=0.1)
 m1.set(starcopy['m1'])
 m2 = tkinter.Scale(root, from_=5, to=50, orient=tkinter.HORIZONTAL, 
-                    command=lambda v: update_frequency('m2', v), label="Companion Mass", resolution=0.1)
+                    command=lambda v: update_frequency('m2', v), label="Secondary Mass ($M_\odot$)", resolution=0.1)
 m2.set(starcopy['m2'])
 phase = tkinter.Scale(root, from_=0.01, to=1.5, orient=tkinter.HORIZONTAL, 
                       command=lambda v: update_frequency('phase', v), label="Phase", resolution=0.01)
 phase.set(starcopy['phase'])
 n_orb = tkinter.Scale(root, from_=1, to=20, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('n_orbits', v), label="Shells")
+                      command=lambda v: update_frequency('n_orbits', v), label="Num. Shells")
 n_orb.set(starcopy['n_orbits'])
 turnon = tkinter.Scale(root, from_=-180, to=0, orient=tkinter.HORIZONTAL,
-                        command=lambda v: update_frequency('turn_on', v), label="Turn On Angle", resolution=1)
+                        command=lambda v: update_frequency('turn_on', v), label="Turn On (deg)", resolution=1)
 turnon.set(starcopy['turn_on'])
 turnoff = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
-                        command=lambda v: update_frequency('turn_off', v), label="Turn Off Angle", resolution=1)
+                        command=lambda v: update_frequency('turn_off', v), label="Turn Off (deg)", resolution=1)
 turnoff.set(starcopy['turn_off'])
 distance = tkinter.Scale(root, from_=1e3, to=1e4, orient=tkinter.HORIZONTAL,
                           command=lambda v: update_frequency('distance', v), label="Distance (pc)", resolution=10)
 distance.set(starcopy['distance'])
 ws1 = tkinter.Scale(root, from_=0, to=5e3, orient=tkinter.HORIZONTAL,
-                    command=lambda v: update_frequency('windspeed1', v), label="WR Windspeed (km/s)", resolution=5)
+                    command=lambda v: update_frequency('windspeed1', v), label="WR v_wind (km/s)", resolution=5)
 ws1.set(starcopy['windspeed1'])
 ws2 = tkinter.Scale(root, from_=0, to=5e3, orient=tkinter.HORIZONTAL,
-                    command=lambda v: update_frequency('windspeed2', v), label="Companion Windspeed (km/s)", resolution=5)
+                    command=lambda v: update_frequency('windspeed2', v), label="Secondary v_wind (km/s)", resolution=5)
 ws2.set(starcopy['windspeed2'])
 period = tkinter.Scale(root, from_=0, to=300, orient=tkinter.HORIZONTAL,
-                        command=lambda v: update_frequency('period', v), label="Period (yr)", resolution=2)
+                        command=lambda v: update_frequency('period', v), label="Orb. Period (yr)", resolution=2)
 period.set(starcopy['period'])
 osd = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                     command=lambda v: update_frequency('orb_sd', v), label="Orb. Var. SD (deg)", resolution=1)
@@ -276,7 +276,7 @@ oamp = tkinter.Scale(root, from_=-1, to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('orb_amp', v), label="Orb. Var. Amp", resolution=0.01)
 oamp.set(starcopy['orb_amp'])
 orbmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('orb_min', v), label="Orb. Minimum (deg)", resolution=0.1)
+                      command=lambda v: update_frequency('orb_min', v), label="Orb. Min. (deg)", resolution=0.1)
 orbmin.set(starcopy['orb_min'])
 azsd = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('az_sd', v), label="Az. Var. SD (deg)", resolution=0.1)
@@ -285,19 +285,19 @@ azamp = tkinter.Scale(root, from_=-1, to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('az_amp', v), label="Az. Var. Amp", resolution=0.01)
 azamp.set(starcopy['az_amp'])
 azmin = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('az_min', v), label="Az. Minimum (deg)", resolution=0.1)
+                      command=lambda v: update_frequency('az_min', v), label="Az. Min. (deg)", resolution=0.1)
 azmin.set(starcopy['az_min'])
 compincl = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('comp_incl', v), label="Companion Incl. (deg)", resolution=1.)
+                      command=lambda v: update_frequency('comp_incl', v), label="Tert. Incl. (deg)", resolution=1.)
 compincl.set(starcopy['comp_incl'])
 compaz = tkinter.Scale(root, from_=0, to=360, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('comp_az', v), label="Companion Azimuth. (deg)", resolution=1.)
+                      command=lambda v: update_frequency('comp_az', v), label="Tert. Azimuth. (deg)", resolution=1.)
 compaz.set(starcopy['comp_az'])
 compopen = tkinter.Scale(root, from_=0, to=180, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('comp_open', v), label="Companion Open Angle (deg)", resolution=0.1)
+                      command=lambda v: update_frequency('comp_open', v), label="Tert. Open Angle (deg)", resolution=0.1)
 compopen.set(starcopy['comp_open'])
 compreduc = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('comp_reduction', v), label="Companion Photodissociation", resolution=0.01)
+                      command=lambda v: update_frequency('comp_reduction', v), label="Tert. Photodissociation", resolution=0.01)
 compreduc.set(starcopy['comp_reduction'])
 compplume = tkinter.Scale(root, from_=0, to=2, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('comp_plume', v), label="Companion Plume", resolution=0.01)
@@ -306,20 +306,17 @@ histmax = tkinter.Scale(root, from_=1, to=0, orient=tkinter.HORIZONTAL,
                         command=lambda v: update_frequency('histmax', v), label="Max Brightness", resolution=0.01)
 histmax.set(starcopy['histmax'])
 sigma = tkinter.Scale(root, from_=0.01, to=10, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('sigma', v), label="Gaussian Blur", resolution=0.01)
+                      command=lambda v: update_frequency('sigma', v), label="Gaussian Blur (pix)", resolution=0.01)
 sigma.set(starcopy['sigma'])
 oblate = tkinter.Scale(root, from_=0., to=1, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('oblate', v), label="Plume Oblateness", resolution=0.01)
 oblate.set(starcopy['oblate'])
 nuc_dist = tkinter.Scale(root, from_=0.1, to=1e3, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('nuc_dist', v), label="Nuc. Dist", resolution=0.01)
+                      command=lambda v: update_frequency('nuc_dist', v), label="Nuc. Dist. (AU)", resolution=0.01)
 nuc_dist.set(starcopy['nuc_dist'])
 opt_thin_dist = tkinter.Scale(root, from_=0.2, to=1e3, orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('opt_thin_dist', v), label="Opt. Thin Dist.", resolution=0.01)
 opt_thin_dist.set(starcopy['opt_thin_dist'])
-acc_max = tkinter.Scale(root, from_=0.1, to=4e3, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('acc_max', v), label="Max Accel.", resolution=0.01)
-acc_max.set(starcopy['acc_max'])
 lum_power = tkinter.Scale(root, from_=0.001, to=2., orient=tkinter.HORIZONTAL,
                       command=lambda v: update_frequency('lum_power', v), label="Lum. Power", resolution=0.01)
 lum_power.set(starcopy['lum_power'])
@@ -329,46 +326,33 @@ lum_power.set(starcopy['lum_power'])
 
 
 spin_inc = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_inc', v), label="Spin Inc", resolution=0.5)
+                      command=lambda v: update_frequency('spin_inc', v), label="Spin Incl. (deg)", resolution=0.5)
 spin_inc.set(starcopy['spin_inc'])
 spin_Omega = tkinter.Scale(root, from_=0.001, to=360., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_Omega', v), label="Spin Omega", resolution=1)
+                      command=lambda v: update_frequency('spin_Omega', v), label="Spin Arg. (deg)", resolution=1)
 spin_Omega.set(starcopy['spin_Omega'])
-spin_oa_mult = tkinter.Scale(root, from_=-1., to=1., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_oa_mult', v), label="Spin OA Mult", resolution=0.01)
-spin_oa_mult.set(starcopy['spin_oa_mult'])
-spin_oa_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_oa_sd', v), label="Spin OA SD", resolution=1)
-spin_oa_sd.set(starcopy['spin_oa_sd'])
-spin_vel_mult = tkinter.Scale(root, from_=-1., to=6., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_vel_mult', v), label="Spin Vel Mult", resolution=0.01)
-spin_vel_mult.set(starcopy['spin_vel_mult'])
-spin_vel_sd = tkinter.Scale(root, from_=0.001, to=90., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('spin_vel_sd', v), label="Spin Vel SD", resolution=1)
-spin_vel_sd.set(starcopy['spin_vel_sd'])
-
 
 
 star1amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star1amp', v), label="Star1Amp", resolution=0.001)
+                      command=lambda v: update_frequency('star1amp', v), label="WR Star Amp.", resolution=0.001)
 star1amp.set(starcopy['star1amp'])
 star2amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star2amp', v), label="Star2Amp", resolution=0.001)
+                      command=lambda v: update_frequency('star2amp', v), label="Sec. Star Amp.", resolution=0.001)
 star2amp.set(starcopy['star2amp'])
 star3amp = tkinter.Scale(root, from_=0.001, to=10., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star3amp', v), label="Star3Amp", resolution=0.001)
+                      command=lambda v: update_frequency('star3amp', v), label="Tert. Star Amp.", resolution=0.001)
 star3amp.set(starcopy['star3amp'])
 star1sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star1sd', v), label="Star1SD", resolution=0.001)
+                      command=lambda v: update_frequency('star1sd', v), label="WR Star SD (log px)", resolution=0.001)
 star1sd.set(starcopy['star1sd'])
 star2sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star2sd', v), label="Star2SD", resolution=0.001)
+                      command=lambda v: update_frequency('star2sd', v), label="Sec. Star SD (log px)", resolution=0.001)
 star2sd.set(starcopy['star2sd'])
 star3sd = tkinter.Scale(root, from_=-3., to=1., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star3sd', v), label="Star3SD", resolution=0.001)
+                      command=lambda v: update_frequency('star3sd', v), label="Tert. Star SD (log px)", resolution=0.001)
 star3sd.set(starcopy['star3sd'])
 star3dist = tkinter.Scale(root, from_=1., to=20000., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('star3dist', v), label="Star3Dist (AU)", resolution=1.)
+                      command=lambda v: update_frequency('star3dist', v), label="Tert. Star Dist. (AU)", resolution=1.)
 star3dist.set(starcopy['star3dist'])
 
 
@@ -386,44 +370,43 @@ comp_plume_max.set(starcopy['comp_plume_max'])
 
 
 accel_rate = tkinter.Scale(root, from_=-5, to=1, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('accel_rate', v), label="Log10(Accel Rate)", resolution=0.01)
+                      command=lambda v: update_frequency('accel_rate', v), label="Log Accel. Rate", resolution=0.01)
 accel_rate.set(starcopy['accel_rate'])
 term_windspeed = tkinter.Scale(root, from_=0., to=5e3, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('term_windspeed', v), label="Terminal Windspeed", resolution=5.)
+                      command=lambda v: update_frequency('term_windspeed', v), label="Terminal v_wind", resolution=5.)
 term_windspeed.set(starcopy['term_windspeed'])
 
 
 
 windspeed_polar = tkinter.Scale(root, from_=0, to=3600, orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('windspeed_polar', v), label="Windspeed Polar", resolution=10)
+                      command=lambda v: update_frequency('windspeed_polar', v), label="Polar v_wind", resolution=10)
 windspeed_polar.set(starcopy['windspeed_polar'])
 aniso_vel_mult = tkinter.Scale(root, from_=-10, to=0., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('aniso_vel_mult', v), label="Aniso Vel Mult", resolution=0.05)
+                      command=lambda v: update_frequency('aniso_vel_mult', v), label="Aniso. Vel. Mult.", resolution=0.05)
 aniso_vel_mult.set(starcopy['aniso_vel_mult'])
 aniso_vel_power = tkinter.Scale(root, from_=0., to=5., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('aniso_vel_power', v), label="Aniso Vel Pow", resolution=0.01)
+                      command=lambda v: update_frequency('aniso_vel_power', v), label="Aniso. Vel. Pow.", resolution=0.01)
 aniso_vel_power.set(starcopy['aniso_vel_power'])
 open_angle_polar = tkinter.Scale(root, from_=0, to=180., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('open_angle_polar', v), label="OA Polar", resolution=1)
+                      command=lambda v: update_frequency('open_angle_polar', v), label="Polar OA", resolution=1)
 open_angle_polar.set(starcopy['open_angle_polar'])
 aniso_OA_mult = tkinter.Scale(root, from_=-10., to=0., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('aniso_OA_mult', v), label="Aniso OA Mult", resolution=0.05)
+                      command=lambda v: update_frequency('aniso_OA_mult', v), label="Aniso. OA Mult.", resolution=0.05)
 aniso_OA_mult.set(starcopy['aniso_OA_mult'])
 aniso_OA_power = tkinter.Scale(root, from_=0, to=5., orient=tkinter.HORIZONTAL,
-                      command=lambda v: update_frequency('aniso_OA_power', v), label="Aniso OA Pow", resolution=0.01)
+                      command=lambda v: update_frequency('aniso_OA_power', v), label="Aniso. OA Pow.", resolution=0.01)
 aniso_OA_power.set(starcopy['aniso_OA_power'])
 
 
 
 
 sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,  
-            distance, ws1, ws2, turnon, turnoff, opang, oblate, n_orb,
-            osd, orbmin, oamp, azsd, azmin, azamp, sigma, histmax,
-            compopen, compplume, compreduc, compincl, compaz, nuc_dist, opt_thin_dist, acc_max,
-            lum_power, spin_inc, spin_Omega, spin_oa_mult, spin_oa_sd, spin_vel_mult, spin_vel_sd,
-            star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist, gradual_turn, 
-            comp_plume_sd, comp_plume_max, accel_rate, term_windspeed,
-            windspeed_polar, aniso_vel_mult, aniso_vel_power, open_angle_polar, aniso_OA_mult, aniso_OA_power]
+            distance, ws1, turnon, turnoff, gradual_turn, opang, nuc_dist, n_orb,
+            osd, orbmin, oamp, azsd, azmin, azamp, accel_rate, term_windspeed,
+            compopen, compplume, compreduc, compincl, compaz, sigma, histmax, lum_power,
+            spin_inc, spin_Omega, windspeed_polar, aniso_vel_mult, aniso_vel_power, open_angle_polar, aniso_OA_mult,
+            aniso_OA_power, star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist
+            ]
 
 num_in_row = 8
 toolbar.grid(row=0, columnspan=num_in_row)
