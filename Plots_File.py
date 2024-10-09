@@ -531,6 +531,27 @@ def smooth_hist_gradient():
         ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
     ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
     
+def WR140_lightcurve():
+    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100)
+    
+    fig, ax = plt.subplots(figsize=(4, 6.75))
+    
+    fluxes /= max(fluxes)
+    
+    phases_orig = phases.copy()
+    
+    phases = np.concatenate((phases - 1, phases))
+    phases = np.concatenate((phases, 1 + phases_orig))
+    
+    fluxes = np.tile(fluxes, 3)
+    
+    ax.plot(phases, fluxes)
+    ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=(-0.1, 1.1))
+    
+    fig.savefig('Images/WR140_Light_Curve.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/WR140_Light_Curve.pdf', dpi=400, bbox_inches='tight')
+    
+    
 def main():
     # apep_plot('Apep_Plot')
     # apep_plot('Apep_Plot_No_Photodiss', custom_params={'comp_reduction':0})
@@ -545,7 +566,9 @@ def main():
     
     # anisotropy_compare()
     
-    smooth_hist_gradient()
+    # smooth_hist_gradient()
+    
+    WR140_lightcurve()
     
 
 
