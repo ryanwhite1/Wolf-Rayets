@@ -1215,8 +1215,14 @@ def generate_lightcurve(stardata, n=100, shells=1):
         x = particles[0, :]
         y = particles[1, :]
         
-        H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
-        X, Y = jnp.meshgrid(xedges, yedges)
+        # H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
+        # X, Y = jnp.meshgrid(xedges, yedges)
+        
+        xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+        bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+        
+        xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+        X, Y, H = smooth_histogram2d_base(particles, weights, starcopy, xedges, yedges, im_size)
         H = H.T
         
         H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'] * jnp.max(H))

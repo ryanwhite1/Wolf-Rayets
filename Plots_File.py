@@ -532,7 +532,7 @@ def smooth_hist_gradient():
     ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
     
 def WR140_lightcurve():
-    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100)
+    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100, shells=1)
     
     fig, ax = plt.subplots(figsize=(4, 6.75))
     
@@ -550,6 +550,29 @@ def WR140_lightcurve():
     
     fig.savefig('Images/WR140_Light_Curve.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/WR140_Light_Curve.pdf', dpi=400, bbox_inches='tight')
+    
+def WR48a_lightcurve():
+    phases, fluxes = gm.generate_lightcurve(wrb.WR48a, n=100, shells=4)
+    
+    fig, ax = plt.subplots(figsize=(8, 5))
+    
+    fluxes /= max(fluxes)
+    
+    phases_orig = phases.copy()
+    
+    phases = np.concatenate((phases - 1, phases))
+    phases = np.concatenate((phases, 1 + phases_orig))
+    
+    fluxes = np.tile(fluxes, 3)
+    
+    ax.plot(phases, fluxes)
+    ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=(-0.1, 1.2))
+    for x in [0.1, 1.1]:
+        ax.axvline(x, ls='--', c='tab:red')
+    ax.grid(True)
+    
+    fig.savefig('Images/WR48a_Light_Curve.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/WR48a_Light_Curve.pdf', dpi=400, bbox_inches='tight')
     
     
 def main():
@@ -569,6 +592,8 @@ def main():
     # smooth_hist_gradient()
     
     WR140_lightcurve()
+    
+    # WR48a_lightcurve()
     
 
 
