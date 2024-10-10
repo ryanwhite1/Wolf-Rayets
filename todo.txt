@@ -1,4 +1,0 @@
- - make it so that the same number of rings are generated in the visible plume regardless of eccentricity, turn on/off, etc
-
- - try scaling all HMC parameters to be the same scale, i.e. 0->1 for their allowed values
-
