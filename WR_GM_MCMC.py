@@ -338,8 +338,9 @@ param_names = list(results.keys())
 fig, axes = plt.subplots(nrows=nparams, sharex=True, gridspec_kw={'hspace':0})
 
 for i in range(nparams):
-    vals = results[]
-    axes[i].scatter()
+    vals = results[param_names[i]]
+    axes[i].scatter(np.arange(len(vals)), vals, s=0.1)
+    axes[i].set(ylabel=param_names[i])
 
 # maxlike = apep.copy()
 # for key in results.keys():
