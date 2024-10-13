@@ -600,7 +600,8 @@ def visir_gif():
         return fig, 
     
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    ani.save("Images/Apep_VISIR_gif.gif", writer='pillow', fps=fps)
+    writer = animation.FFMpegWriter(bitrate=1000)
+    ani.save("Images/Apep_VISIR_gif.gif", writer=writer, fps=fps)
     
 
 def variation_gaussian():
@@ -879,10 +880,10 @@ def main():
     # apep_cone_plot()
     
     # Apep_VISIR_mosaic()
-    # visir_gif()
+    visir_gif()
     
     # Apep_JWST_mosaic()
-    Apep_image_fit()
+    # Apep_image_fit()
     
     # smooth_hist_demo()
     # smooth_hist_gif()
