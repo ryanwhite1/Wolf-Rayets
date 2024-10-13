@@ -149,14 +149,14 @@ WR48a = {"m1":15.,                  # solar masses
         "open_angle":37.,           # degrees (full opening angle)
         "period":32.5,              # years
         "distance":4000.,            # pc
-        "windspeed1":2100.,           # km/s
+        "windspeed1":1700.,           # km/s
         "windspeed2":900.,          # km/s
         "turn_on":-121.,             # true anomaly (degrees)
         "turn_off":137.,             # true anomaly (degrees)
         "gradual_turn":19.,
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
-        'term_windspeed':2100., 'accel_rate':-5.,
+        'term_windspeed':1700., 'accel_rate':-5.,
         "orb_sd":40., "orb_amp":0., "orb_min":180, "az_sd":45., "az_amp":0., "az_min":90,
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "comp_plume_sd":0., "comp_plume_max":0.,

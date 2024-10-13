@@ -21,6 +21,7 @@ import WR_Geom_Model as gm
 import WR_binaries as wrb
 
 apep = wrb.apep.copy()
+system_params = apep.copy()
 # apep['sigma'] = 0.01
 
 ### --- INFERENCE --- ###  
@@ -216,107 +217,63 @@ ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
 # ### --- NUMPYRO --- ###
 import numpyro, chainconsumer, jax
-# import numpyro.distributions as dists
+import numpyro.distributions as dists
 
-# num_chains = 1
+num_chains = 1
 
-# def apep_model(Y, E):
-#     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
-#     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-#     eccentricity = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05))
-#     # inclination = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
-#     # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
-#     # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-#     # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
-#     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
-#     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-#     # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
-#     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-#     # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
-#     # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
-#     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
-#     # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
-#     # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
-#     # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
-#     # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
-#     # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
-#     # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
-#     # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
-#     # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
-#     # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
-#     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
-#     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
-#     # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
-#     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
-#     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
-#     m1 = apep['m1']
-#     m2 = apep['m2']
-#     # eccentricity = apep['eccentricity']
-#     inclination = apep['inclination']
-#     asc_node = apep['asc_node']
-#     arg_peri = apep['arg_peri']
-#     open_angle = apep['open_angle']
-#     period = apep['period']
-#     distance = apep['distance']
-#     windspeed1 = apep['windspeed1']
-#     windspeed2 = apep['windspeed2']
-#     turn_on = apep['turn_on']
-#     turn_off = apep['turn_off']
-#     oblate = apep['oblate']
-#     orb_sd = apep['orb_sd']
-#     orb_amp = apep['orb_amp']
-#     orb_min = apep['orb_min']
-#     az_sd = apep['az_sd']
-#     az_amp = apep['az_amp']
-#     az_min = apep['az_min']
-#     comp_incl = apep['comp_incl']
-#     comp_az = apep['comp_az']
-#     comp_open = apep['comp_open']
-#     comp_reduction = apep["comp_reduction"]
-#     comp_plume = apep["comp_plume"]
-#     phase = apep['phase']
-#     sigma = apep['sigma']
-#     histmax = apep['histmax']
-#     nuc_dist = apep['nuc_dist']
-#     opt_thin_dist = apep['opt_thin_dist']
-#     acc_max = apep['acc_max']
-#     lum_power = apep['lum_power']
-#     # constrain_fn
-#     # "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1
-    
-#     params = {"m1":m1, "m2":m2,                # solar masses
-#             "eccentricity":eccentricity, 
-#             "inclination":inclination, "asc_node":asc_node, "arg_peri":arg_peri,           # degrees
-#             "open_angle":open_angle,       # degrees (full opening angle)
-#             "period":period, "distance":distance,        # pc
-#             "windspeed1":windspeed1, "windspeed2":windspeed2,      # km/s
-#             "turn_on":turn_on, "turn_off":turn_off,     # true anomaly (degrees)
-#             "oblate":oblate,
-#             "nuc_dist":nuc_dist, "opt_thin_dist":opt_thin_dist,           # nucleation and optically thin distance (AU)
-#             "acc_max":acc_max,
-#             "orb_sd":orb_sd, "orb_amp":orb_amp, "orb_min":orb_min, 
-#             "az_sd":az_sd, "az_amp":az_amp, "az_min":az_min,
-#             "comp_incl":comp_incl, "comp_az":comp_az, "comp_open":comp_open, "comp_reduction":comp_reduction, "comp_plume":comp_plume,
-#             "phase":phase, "sigma":sigma, "histmax":histmax, "lum_power":lum_power,
-#             "spin_inc":0., "spin_Omega":0., "spin_oa_mult":0., "spin_vel_mult":0., "spin_oa_sd":0.1, "spin_vel_sd":0.1}
-    
-#     # with numpyro.plate('data', len(params.keys())):
+def apep_model(Y, E):
+    params = system_params.copy()
+    # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
+    # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
+    # bounded_norm = dists.Normal(apep['eccentricity'], 0.05)
+    # bounded_norm.support = dists.constraints.interval(0., 0.95)
+    # params['eccentricity'] = numpyro.sample("eccentricity", bounded_norm)
+    params['eccentricity'] = numpyro.sample("eccentricity", dists.Uniform(0.4, 0.95))
+    # params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05, support=dists.constraints.interval(0., 0.95)))
+    # params['inclination'] = numpyro.sample("inclination", dists.Normal(apep['inclination'], 20.))
+    # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
+    # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
+    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
+    # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
+    # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
+    # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
+    # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
+    # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
+    # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
+    # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
+    # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
+    # orb_min = numpyro.sample("orb_min", dists.Uniform(0., 360.))
+    # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
+    # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
+    # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
+    # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
+    # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
+    # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
+    # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
+    # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
+    # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
+    params['phase'] = numpyro.sample("phase", dists.Uniform(0., 0.99))
+    # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
+    # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
         
-#     samp_particles, samp_weights = gm.dust_plume(params)
-#     _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, params, xbins, ybins)
-#     samp_H = samp_H.flatten()
-#     # samp_H = jnp.nan_to_num(samp_H, 1e4)
-#     numpyro.sample('y', dists.Normal(samp_H, E), obs=Y)
+    samp_particles, samp_weights = gm.dust_plume(params)
+    _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, params, xbins, ybins)
+    samp_H = samp_H.flatten()
+    # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    with numpyro.plate('plate', len(obs)):
+        numpyro.sample('obs', dists.Normal(samp_H, E), obs=Y)
 
 
 
-# init_params = apep.copy()
+init_params = apep.copy()
 # # init_params_arr = init_params.copy()
 # # for key in init_params.keys():
 # #     init_params_arr[key] = jnp.ones(num_chains) * init_params_arr[key]
 
 
-# # init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
+init_params = numpyro.infer.util.constrain_fn(apep_model, (obs, obs_err), {}, init_params)
 # # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
 # #                                                 target_accept_prob=0.2,
 # #                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
@@ -349,20 +306,40 @@ import numpyro, chainconsumer, jax
 # #                               num_samples=300,
 # #                               num_warmup=20,
 # #                               progress_bar=True)
-# # # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
-# # #                               num_chains=1,
-# # #                               num_samples=300,
-# # #                               num_warmup=20)
-# # # # sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
-# # # #                               num_chains=num_chains,
-# # # #                               num_samples=2000,
-# # # #                               num_warmup=1000)
-# sampler.run(jax.random.PRNGKey(1), obs, obs_err)
+sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model),
+                              num_chains=1,
+                              num_samples=1000,
+                              num_warmup=300)
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model, init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)),
+#                               num_chains=num_chains,
+#                               num_samples=300,
+#                               num_warmup=100)
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model,
+#                                               init_strategy=numpyro.infer.initialization.init_to_value(values={'eccentricity':0.5})),
+#                               num_chains=num_chains,
+#                               num_samples=1000,
+#                               num_warmup=300)
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model),
+#                               num_chains=num_chains,
+#                               num_samples=1000,
+#                               num_warmup=300)
+sampler.run(jax.random.PRNGKey(1), obs, obs_err)
 
-# results = sampler.get_samples()
-# C = chainconsumer.ChainConsumer()
-# C.add_chain(results, name='MCMC Results')
-# C.plotter.plot(truth=apep)
+results = sampler.get_samples()
+C = chainconsumer.ChainConsumer()
+C.add_chain(results, name='MCMC Results')
+C.plotter.plot(truth=apep)
+
+# C.plotter.plot_walks()
+
+nparams = len(results.keys())
+param_names = list(results.keys())
+
+fig, axes = plt.subplots(nrows=nparams, sharex=True, gridspec_kw={'hspace':0})
+
+for i in range(nparams):
+    vals = results[]
+    axes[i].scatter()
 
 # maxlike = apep.copy()
 # for key in results.keys():
@@ -392,49 +369,49 @@ import numpyro, chainconsumer, jax
     
 #     return -0.5 * jnp.sum(jnp.square((samp_H - obs) / obs_err))
 
-params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 179]}
-params_list = list(params.keys())
+# params = {'eccentricity':[0, 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 179]}
+# params_list = list(params.keys())
 
 
 
-n = 50
-fig, axes = plt.subplots(ncols=2, nrows=len(params), figsize=(12, 4*len(params_list)))
-for i, param in enumerate(params):
+# n = 50
+# fig, axes = plt.subplots(ncols=2, nrows=len(params), figsize=(12, 4*len(params_list)))
+# for i, param in enumerate(params):
     
-    def man_loglike(value):
-        starcopy = apep.copy()
-        starcopy[param] = value
-        samp_particles, samp_weights = gm.dust_plume(starcopy)
-        _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
-        # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
-        samp_H = samp_H.flatten()
+#     def man_loglike(value):
+#         starcopy = apep.copy()
+#         starcopy[param] = value
+#         samp_particles, samp_weights = gm.dust_plume(starcopy)
+#         _, _, samp_H = gm.smooth_histogram2d_w_bins(samp_particles, samp_weights, starcopy, X[0, :], Y[:, 0])
+#         # _, _, samp_H = gm.spiral_grid(samp_particles, samp_weights, starcopy)
+#         samp_H = samp_H.flatten()
         
-        return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
+#         return -0.5 * jnp.sum(((samp_H - obs) / obs_err)**2)
 
-    like = jit(vmap(jax.value_and_grad(man_loglike)))
+#     like = jit(vmap(jax.value_and_grad(man_loglike)))
     
-    numpyro_logLike = np.zeros(n)
-    manual_logLike = np.zeros(n)
-    param_vals = np.linspace(params[param][0], params[param][1], n)
-    dx = param_vals[1] - param_vals[0]
+#     numpyro_logLike = np.zeros(n)
+#     manual_logLike = np.zeros(n)
+#     param_vals = np.linspace(params[param][0], params[param][1], n)
+#     dx = param_vals[1] - param_vals[0]
 
-    vals, grads = like(param_vals)
+#     vals, grads = like(param_vals)
     
-    # normalize = lambda x: (x-x.min())/(x.max()-x.min())
+#     # normalize = lambda x: (x-x.min())/(x.max()-x.min())
     
-    ax1, ax2 = axes[i, :]
+#     ax1, ax2 = axes[i, :]
     
-    ax1.plot(param_vals, vals)
-    ax1.axvline(apep[param])
-    ax2.plot(param_vals, grads, label='JAX Grad')
-    ax2.plot(param_vals, np.gradient(vals, dx), label='Finite Diff Grad')
-    ax2.axvline(apep[param], c='tab:purple', ls='--', label='True Value')
-    ax2.axhline(0, c='k')
-    if i == 0:
-        ax2.legend()
-        ax1.set_title('Log Likelihood')
-        ax2.set_title('Log Likelihood Gradient')
-    for ax in [ax1, ax2]:
-        ax.set(xlabel=param)
+#     ax1.plot(param_vals, vals)
+#     ax1.axvline(apep[param])
+#     ax2.plot(param_vals, grads, label='JAX Grad')
+#     ax2.plot(param_vals, np.gradient(vals, dx), label='Finite Diff Grad')
+#     ax2.axvline(apep[param], c='tab:purple', ls='--', label='True Value')
+#     ax2.axhline(0, c='k')
+#     if i == 0:
+#         ax2.legend()
+#         ax1.set_title('Log Likelihood')
+#         ax2.set_title('Log Likelihood Gradient')
+#     for ax in [ax1, ax2]:
+#         ax.set(xlabel=param)
     
 

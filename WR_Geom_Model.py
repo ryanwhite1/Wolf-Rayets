@@ -361,7 +361,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     
     # circle *= widths[i]           # this is the width the circle should have assuming no velocity affecting effects
-    spiral_time = widths[i] / stardata['windspeed1']    # our widths are calculated by w=v*t, so we can get the 'time' of the current ring by rearranging
+    # spiral_time = widths[i] / stardata['windspeed1']    # our widths are calculated by w=v*t, so we can get the 'time' of the current ring by rearranging
     circle *= widths[i] * v_mult    # our circle should have the original width multiplied by our anisotropy multiplier
     
     # ### --- Below handles non-linear acceleration from radiation pressure --- ###
@@ -402,13 +402,14 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # ------------------------------------------------------------------
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
-    # weights = jnp.ones(len(theta))
+    weights = jnp.ones(len(theta))
     sigma = jnp.deg2rad(stardata['gradual_turn'])
     sigma = jnp.max(jnp.array([sigma, 0.001]))
     
     residual_on = (1. - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
     residual_off = (1. - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
-    residual = jnp.min(jnp.array([residual_on + residual_off, 1.]))
+    residual = 1. - jnp.heaviside(sigma - 1., 1.)
+    residual = residual * jnp.min(jnp.array([residual_on + residual_off, 1.]))
     weights = weights + residual * nucleated
     
     
@@ -513,6 +514,7 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     prop_orb = jnp.min(jnp.array([prop_orb, 1.]))
     prop_orb = jnp.max(jnp.array([prop_orb, 0.]))
     # and the same for our azimuthal proportion
+    prop_az = prop_az.at[:].add(1 - jnp.heaviside(val_az_sd - 1., 1.))
     prop_az = jnp.minimum(jnp.maximum(prop_az, jnp.zeros(len(prop_az))), jnp.ones(len(prop_az)))
     weights *= prop_orb * prop_az       # now scale the particle weights by our orbital/azimuthal variations
     
@@ -575,7 +577,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     ecc_factor = jnp.sqrt((1. - ecc) / (1. + ecc))
     
-    max_anom = 180. - 1e-4  # we get errors when our turn on/off are at +/- 180 degrees exactly
+    max_anom = 180. - 1e-1  # we get errors when our turn on/off are at +/- 180 degrees exactly
     
     ## set our 'lower' true anomaly bound to be (-180, nu_on - 2 * sigma], where the sigma is our gradual turn on (i.e. we go up to 2 sigma gradual turn on)
     turn_on_true_anom = jnp.max(jnp.array([-max_anom, stardata['turn_on'] - 2. * stardata['gradual_turn']]))
@@ -608,7 +610,7 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     
     phase_radians = 2. * jnp.pi * stardata['phase']
     # mean_anomalies = (jnp.linspace(0, delta_M, len(times)) + turn_on_mean_anom)%(2. * jnp.pi)
-    mean_anomalies = (jnp.linspace(0, delta_M, n_t) + turn_on_mean_anom)%(2. * jnp.pi)
+    mean_anomalies = (jnp.linspace(0., delta_M, n_t) + turn_on_mean_anom)%(2. * jnp.pi)
     mean_anomalies = jnp.tile(mean_anomalies, n_orbits)
     # mean_anomalies = jnp.where((phase_radians < turn_off_mean_anom) or (phase_radians > (turn_on_mean_anom%(2*jnp.pi))), 
     #                            mean_anomalies - phase_radians)
@@ -620,8 +622,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     true_anomaly = true_from_eccentric_anomaly(E, ecc)
     
     a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
-    r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
+    r1 = a1 * (1. - ecc * jnp.cos(E)) * 1e-3     # radius in km 
+    r2 = a2 * (1. - ecc * jnp.cos(E)) * 1e-3
     # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
     
     positions1 = jnp.array([jnp.cos(true_anomaly), 
@@ -651,8 +653,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     shell_times = jnp.repeat(shell_times, n_t)
     
     non_dimensional_times = jnp.linspace(turn_on_mean_anom, turn_off_mean_anom, n_t)
-    non_dimensional_times = (non_dimensional_times%(2*jnp.pi) - phase_radians) / (2. * jnp.pi)
-    non_dimensional_times = non_dimensional_times%1
+    non_dimensional_times = (non_dimensional_times%(2.*jnp.pi) - phase_radians) / (2. * jnp.pi)
+    non_dimensional_times = non_dimensional_times%1.
     non_dimensional_times = jnp.tile(non_dimensional_times, n_orbits)
     
     non_dimensional_times = shell_times + non_dimensional_times
@@ -1301,7 +1303,8 @@ def plume_velocity_map(particles, weights, stardata):
 
 # print(ring_velocities(wrb.apep_aniso.copy(), 1, 400))
 
-# system = wrb.apep.copy()
+system = wrb.apep.copy()
+# system['eccentricity'] = 0.767234
 # # # system = wrb.WR112.copy()
 # # # system['lum_power'] = 1
 # # system = wrb.WR140.copy()
@@ -1309,8 +1312,8 @@ def plume_velocity_map(particles, weights, stardata):
 # # # apep['comp_reduction'] = 0
 # # # # # for i in range(10):
 # # # t1 = time.time()
-# # particles, weights = dust_plume(system)
-# particles, weights = gui_funcs[2](system)
+# particles, weights = dust_plume(system)
+# # particles, weights = gui_funcs[2](system)
 # X, Y, H = smooth_histogram2d(particles, weights, system)
 # # print(time.time() - t1)
 # # H = add_stars(X[0, :], Y[:, 0], H, system)
