@@ -600,8 +600,8 @@ def visir_gif():
         return fig, 
     
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    writer = animation.FFMpegWriter(bitrate=1000)
-    ani.save("Images/Apep_VISIR_gif.gif", writer=writer, fps=fps)
+    # writer = animation.FFMpegWriter(fps=fps)
+    ani.save("Images/Apep_VISIR_gif.gif", writer='ffmpeg', fps=fps)
     
 
 def variation_gaussian():
