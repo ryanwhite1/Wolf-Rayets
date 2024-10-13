@@ -22,7 +22,7 @@ apep = {"m1":15.,                # solar masses
         "gradual_turn":0.1,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":1., "opt_thin_dist":2.,           # nucleation and optically thin distance (AU)
-        'term_windspeed':880, 'accel_rate':-2.02,
+        'term_windspeed':860, 'accel_rate':-5.,
         "orb_sd":0., "orb_amp":0., "orb_min":180., "az_sd":30., "az_amp":0.5, "az_min":90.,
         "comp_incl":124., "comp_az":238.8, "comp_open":90., "comp_reduction":1.75, "comp_plume":1.,
         "comp_plume_sd":20., "comp_plume_max":373.,

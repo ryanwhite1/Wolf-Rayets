@@ -26,6 +26,26 @@ plt.rcParams.update({"text.usetex": True})
 plt.rcParams['font.family'] = 'serif'
 plt.rcParams['mathtext.fontset'] = 'cm'
 
+# n = 256     # standard
+n = 600     # VISIR
+# n = 898     # JWST
+@jit
+def smooth_histogram2d(particles, weights, stardata):
+    im_size = n
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+@jit
+def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
+    im_size = n
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
+
 def apep_plot(filename, custom_params={}):
     star = wrb.apep.copy()
     
@@ -33,7 +53,7 @@ def apep_plot(filename, custom_params={}):
         star[param] = custom_params[param]
     
     particles, weights = gm.dust_plume(star)
-    X, Y, H = gm.smooth_histogram2d(particles, weights, star)
+    X, Y, H = smooth_histogram2d(particles, weights, star)
     H = gm.add_stars(X[0, :], Y[:, 0], H, star)
     fig, ax = plt.subplots(figsize=(6, 6))
     ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
@@ -57,9 +77,10 @@ def apep_cone_plot():
         return indices.astype(int)
             
     star = wrb.apep.copy()
+    star['histmax'] = 0.5
     
     particles, weights = gm.dust_plume(star)
-    X, Y, H = gm.smooth_histogram2d(particles, weights, star)
+    X, Y, H = smooth_histogram2d(particles, weights, star)
     H = gm.add_stars(X[0, :], Y[:, 0], H, star)
 
     # now display a circle around the cavity from the ternary star
@@ -106,6 +127,283 @@ def apep_cone_plot():
     
     fig.savefig('Images/Apep_Cone.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Cone.pdf', dpi=400, bbox_inches='tight')
+    
+    
+    fig, axes = plt.subplots(figsize=(9, 3), ncols=3, sharey=True, gridspec_kw={'wspace':0})
+    
+        
+    axes[1].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    axes[1].plot(cone_circ[0, :], cone_circ[1, :], c='w', rasterized=True)
+    axes[1].plot([0, np.mean(cone_circ[0, :])], [0, np.mean(cone_circ[1, :])], ls='--', c='w', rasterized=True)
+    axes[1].plot([0, point_1[0]], [0, point_1[1]], c='w', rasterized=True)
+    axes[1].plot([0, point_2[0]], [0, point_2[1]], c='w', rasterized=True)
+    
+    axes[2].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    
+    star['comp_reduction'] = 0
+    
+    particles, weights = gm.dust_plume(star)
+    X, Y, H = smooth_histogram2d(particles, weights, star)
+    H = gm.add_stars(X[0, :], Y[:, 0], H, star)
+    
+    axes[0].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    
+    import matplotlib
+
+    cmap = matplotlib.cm.get_cmap('hot')
+    
+    rgba = cmap(0.)
+    for ax in axes:
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        ax.set_facecolor(rgba)
+        for direction in ['top', 'right', 'bottom', 'left']:
+            ax.spines[direction].set_visible(False)
+        xlim = np.array(ax.get_xlim())
+        ylim = np.array(ax.get_ylim())
+        # ax.set(xlim=1.1*xlim, ylim=1.1*ylim)
+        for x in xlim:
+            ax.axvline(x, c='w')
+        for y in ylim:
+            ax.axhline(y, c='w')
+        
+        # yval = 0.8 * ylim[1] #if i < 2 else 0.8 * ylim[0]
+        # AX.text(0.9 * xlim[0], yval, order[i], c='w', fontsize='14')
+    
+    fig.savefig('Images/Apep_Cone_horiz.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_Cone_horiz.pdf', dpi=400, bbox_inches='tight')
+
+def Apep_VISIR_reference(year):
+    from glob import glob
+    from astropy.io import fits
+    pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
+    
+    years = {2016:0, 2017:1, 2018:2, 2024:3}
+    directory = "Data\\VLT"
+    fnames = glob(directory + "\\*.fits")
+    
+    vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
+    
+    data = vlt_data[0].data
+    length = data.shape[0]
+    
+    X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+    Y = X.copy()
+    
+    xs, ys = jnp.meshgrid(X, Y)
+    
+    data = jnp.array(data)
+    # data = data - jnp.median(data)
+    data = data - jnp.percentile(data, 84)
+    data = data/jnp.max(data)
+    data = jnp.maximum(data, 0)
+    data = jnp.abs(data)**0.5
+    
+    return xs, ys, data
+
+def Apep_JWST_reference(wavelength):
+    from glob import glob
+    from astropy.io import fits
+    directory = "Data\\JWST\\MAST_2024-07-29T2157\\JWST"
+    fname = glob(directory+f"\\jw05842-o001_t001_miri_f{wavelength}w\\*_i2d.fits")[0]
+    
+    jwst_center_x = 565
+    jwst_center_y = 755
+    
+    jwst_data = fits.open(fname)    # for the 2024 epoch
+    
+    data = jwst_data[1].data.T[:, ::-1]
+    pscale = np.sqrt(jwst_data[1].header['PIXAR_A2']) * 1000
+    im_size = data.shape[0] - jwst_center_y
+    data = data[(jwst_center_y - im_size):, (jwst_center_x - im_size):(jwst_center_x + im_size)]
+    length = data.shape[0]
+    
+    X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+    Y = X.copy()
+    
+    xs, ys = jnp.meshgrid(X, Y)
+    
+    data = jnp.array(data)
+    # data = data - jnp.median(data)
+    data = data - jnp.percentile(data, 60)
+    data = data/jnp.max(data)
+    data = jnp.maximum(data, 0)
+    data = jnp.abs(data)**0.5 
+    
+    return xs, ys, data
+
+def Apep_VISIR_mosaic():
+    years = [2016, 2017, 2018, 2024]
+    year_pos = {2016:[0, 0], 2017:[0, 1], 2018:[1, 0], 2024:[1, 1]}
+    
+    fig, axes = plt.subplots(figsize=(8, 8), nrows=2, ncols=2, sharex=True, sharey=True, gridspec_kw={'hspace':0.04, 'wspace':0.04})
+    
+    for i, year in enumerate(years):
+        x, y, H = Apep_VISIR_reference(year)
+        
+        row, col = year_pos[year]
+        axes[row, col].pcolormesh(x, y, H, cmap='hot', rasterized=True)
+        axes[row, col].text(-6, 6, f'{year}', c='w', fontsize=14)
+        
+    for i, row in enumerate(axes):
+        for j, ax in enumerate(row):
+            ax.set(xlim=(-8, 8), ylim=(-8, 8))
+            if i == 1:
+                ax.set(xlabel='Relative RA (")')
+            if j == 0:
+                ax.set(ylabel='Relative Dec (")')
+    
+    fig.savefig('Images/Apep_VISIR_Mosaic.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_VISIR_Mosaic.pdf', dpi=400, bbox_inches='tight')    
+    
+def Apep_JWST_mosaic():
+    wavelengths = [770, 1500, 2550]
+    # year_pos = {2016:[0, 0], 2017:[0, 1], 2018:[1, 0], 2024:[1, 1]}
+    
+    fig, axes = plt.subplots(figsize=(9, 3), ncols=3, sharex=True, sharey=True, gridspec_kw={'wspace':0.0})
+    
+    
+    # from matplotlib import gridspec
+    # fig = plt.figure(figsize=(9, 6.66))
+    
+    # gs = gridspec.GridSpec(nrows=12, ncols=12, wspace=0)
+    
+    # axtm = fig.add_subplot(gs[0:6, 3:9])
+    # axbl = fig.add_subplot(gs[6:, 0:7])
+    # axbr = fig.add_subplot(gs[6:, 6:])
+    
+    # axes = [axtm, axbl, axbr]
+    
+    for i, wavelength in enumerate(wavelengths):
+        x, y, H = Apep_JWST_reference(wavelength)
+        
+        # row, col = year_pos[year]
+        axes[i].pcolormesh(x, y, H, cmap='hot', rasterized=True)
+        axes[i].text(-40, 40, f'F{wavelength}W', c='w', fontsize=14)
+        axes[i].set(aspect='equal', xlabel='Relative RA (")')
+        
+        if i == 0:
+            axes[i].set(ylabel='Relative Dec (")')
+        
+        
+    # for i, row in enumerate(axes):
+    #     for j, ax in enumerate(row):
+    #         ax.set(xlim=(-8, 8), ylim=(-8, 8))
+    #         if i == 1:
+    #             ax.set(xlabel='Relative RA (")')
+    #         if j == 0:
+    #             ax.set(ylabel='Relative Dec (")')
+    
+    # fig.tight_layout()
+    
+    fig.savefig('Images/Apep_JWST_Mosaic.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_JWST_Mosaic.pdf', dpi=400, bbox_inches='tight')  
+    
+
+def Apep_image_fit():
+    from matplotlib.figure import Figure
+    import matplotlib.colors as colors
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    @jit
+    def smooth_histogram2d_898(particles, weights, stardata):
+        im_size = 898
+        
+        x = particles[0, :]
+        y = particles[1, :]
+        
+        xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+        bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+        
+        xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+        return gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+    @jit
+    def smooth_histogram2d_w_bins_898(particles, weights, stardata, xbins, ybins):
+        im_size = 898
+        return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
+    
+    from matplotlib import gridspec
+    
+    # fig, axes = plt.subplots(figsize=(16, 6), ncols=3, nrows=2, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
+    # fig, axes = plt.subplots(figsize=(9, 6), ncols=4, nrows=2)
+    
+    fig = plt.figure(figsize=(10, 6))
+    gs = gridspec.GridSpec(nrows=2, ncols=4, width_ratios=[1, 1, 1, 0.05], wspace=0.1, hspace=0.15)
+    
+    axes = []
+    for i in range(2):
+        subaxes = []
+        for j in range(3):
+            subaxes.append(fig.add_subplot(gs[i, j]))
+        axes.append(subaxes)
+    cbar_ax = fig.add_subplot(gs[:, -1])
+    axes = np.array(axes)
+            
+    
+    
+    # titles = [['Model', '2016', '2017'], ['2018', '2024', 'JWST']]
+    # w = 1/3.08
+    
+
+    X_jwst, Y_jwst, H_jwst = Apep_JWST_reference(2550)
+    axes[1, 2].pcolormesh(X_jwst, Y_jwst, H_jwst, cmap='hot', rasterized=True)
+    maxside_jwst = np.max(np.abs(np.array([X_jwst, Y_jwst])))
+    axes[1, 2].set(xlim=(-maxside_jwst, maxside_jwst), ylim=(-maxside_jwst, maxside_jwst))
+
+    
+    starcopy = wrb.apep.copy()
+    starcopy['histmax'] = 0.5
+    particles, weights = gm.dust_plume(starcopy)
+    X, Y, H_original = smooth_histogram2d(particles, weights, starcopy)
+    axes[0, 0].pcolormesh(X, Y, H_original, cmap='hot', rasterized=True)
+    axes[0, 0].set(aspect='equal', ylabel='Relative Dec (")', xlim=(-8, 8), ylim=(-8, 8))
+    axes[0, 0].set_facecolor('k')
+    axes[0, 0].text(-7, 6, 'Model', c='w')
+    
+    starcopy['histmax'] = 1.
+
+    starcopy_3shell = starcopy.copy()
+    starcopy_3shell['histmax'] = 0.15
+    particles, weights = gm.gui_funcs[2](starcopy_3shell)
+    X_3shell, Y_3shell, H_3shell = smooth_histogram2d_w_bins_898(particles, weights, starcopy_3shell, X_jwst[0, :], Y_jwst[:, 0])
+    # H_3shell = gm.add_stars(X_3shell[0, :], Y_3shell[:, 0], H_3shell, starcopy_3shell)
+    # jwst_mesh = jwst_mesh.ravel()
+    norm = colors.Normalize(vmin=-1., vmax=1.)
+    jwst_diff_mesh = axes[1, 2].pcolormesh(X_jwst, Y_jwst, H_3shell - H_jwst, cmap='seismic', norm=norm, rasterized=True)
+    axes[1, 2].text(-45, 40, 'JWST', c='k')
+    # the_divider = make_axes_locatable(axes[1, 2])
+    # color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
+    fig.colorbar(jwst_diff_mesh, cax=cbar_ax, label='Difference')
+
+
+    for j in [0, 1]:
+        for i in range(0, 3):
+            if j != 0:
+                axes[j, i].set(aspect='equal', xlabel='Relative RA (")')
+                if i == 0:
+                    axes[j, i].set(ylabel='Relative Dec (")')
+            else:
+                axes[j, i].set(aspect='equal')
+                
+    year_inds = {2016:[0, 1], 2017:[0, 2], 2018:[1, 0], 2024:[1, 1], 'jwst':[1, 2]}
+
+    for i, year in enumerate([2016, 2017, 2018, 2024]):
+        a, b = year_inds[year]
+        
+        X_ref, Y_ref, H_ref = Apep_VISIR_reference(year)
+        
+        year_starcopy = starcopy.copy()
+        year_starcopy['phase'] += (year - 2024) / year_starcopy['period']
+        particles, weights = gm.dust_plume(year_starcopy)
+        X_year, Y_year, H_year = smooth_histogram2d_w_bins(particles, weights, year_starcopy, X_ref[0, :], Y_ref[:, 0])
+        # H_year = gm.add_stars(X_ref[0, :], Y_ref[:, 0], H_year, starcopy)
+        
+        axes[a, b].pcolormesh(X_ref, Y_ref, H_year - H_ref, cmap='seismic', norm=norm, rasterized=True)
+        axes[a, b].set(xlim=(-8, 8), ylim=(-8, 8))
+        axes[a, b].text(-7, 6, f'{year}', c='k')
+        
+    fig.savefig('Images/Apep_Fit.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_Fit.pdf', dpi=400, bbox_inches='tight')
+    
     
 
 def smooth_hist_demo():
@@ -302,7 +600,7 @@ def visir_gif():
         return fig, 
     
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    ani.save("Images/VISIR_gif.gif", writer='pillow', fps=fps)
+    ani.save("Images/Apep_VISIR_gif.gif", writer='pillow', fps=fps)
     
 
 def variation_gaussian():
@@ -580,18 +878,22 @@ def main():
     # apep_plot('Apep_Plot_No_Photodiss', custom_params={'comp_reduction':0})
     # apep_cone_plot()
     
+    # Apep_VISIR_mosaic()
+    # visir_gif()
+    
+    # Apep_JWST_mosaic()
+    Apep_image_fit()
+    
     # smooth_hist_demo()
     # smooth_hist_gif()
     
     # variation_gaussian()
     
-    # visir_gif()
-    
     # anisotropy_compare()
     
     # smooth_hist_gradient()
     
-    WR140_lightcurve()
+    # WR140_lightcurve()
     
     # WR48a_lightcurve()
     
