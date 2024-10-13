@@ -167,6 +167,32 @@ WR48a = {"m1":15.,                  # solar masses
         "windspeed_polar":2400, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53,
         'star1amp':0., 'star1sd':-1., 'star2amp':0., 'star2sd':-1., 'star3amp':0., 'star3sd':-1., 'star3dist':0.}
 
+WR48a2 = {"m1":15.,                  # solar masses
+        "m2":10.,                   # solar masses
+        "eccentricity":0.7, 
+        "inclination":81.,           # degrees
+        "asc_node":308.,               # degrees
+        "arg_peri":307.,              # degrees
+        "open_angle":27.,           # degrees (full opening angle)
+        "period":32.5,              # years
+        "distance":4000.,            # pc
+        "windspeed1":1700.,           # km/s
+        "windspeed2":900.,          # km/s
+        "turn_on":-104.,             # true anomaly (degrees)
+        "turn_off":130.,             # true anomaly (degrees)
+        "gradual_turn":23.8,
+        "oblate":0.,
+        "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
+        'term_windspeed':2100., 'accel_rate':-5.,
+        "orb_sd":40., "orb_amp":0., "orb_min":180, "az_sd":45., "az_amp":0.3, "az_min":90,
+        "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
+        "comp_plume_sd":0., "comp_plume_max":0.,
+        "phase":0.78, 
+        "sigma":2,                  # sigma for gaussian blur
+        "histmax":0.3, "lum_power":1., 
+        "spin_inc":0., "spin_Omega":0., 
+        "windspeed_polar":2400, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53,
+        'star1amp':0., 'star1sd':-1., 'star2amp':0., 'star2sd':-1., 'star3amp':0., 'star3sd':-1., 'star3dist':0.}
 
 # below are rough params for WR 104
 WR104 = {"m1":10,                # solar masses

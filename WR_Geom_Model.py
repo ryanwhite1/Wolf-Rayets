@@ -1209,7 +1209,7 @@ def generate_lightcurve(stardata, n=100, shells=1):
         starcopy = stardata.copy()
         starcopy['phase'] = phases[i]
         
-        particles, weights = gui_funcs[shells](starcopy)
+        particles, weights = gui_funcs[shells - 1](starcopy)
         
         
         im_size = 256

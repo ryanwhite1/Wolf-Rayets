@@ -404,6 +404,18 @@ def Apep_image_fit():
     fig.savefig('Images/Apep_Fit.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Fit.pdf', dpi=400, bbox_inches='tight')
     
+def WR48a_plot():
+    star = wrb.WR48a.copy()
+    
+    particles, weights = gm.gui_funcs[1](star)
+    X, Y, H = gm.smooth_histogram2d(particles, weights, star)
+    H = gm.add_stars(X[0, :], Y[:, 0], H, star)
+    fig, ax = plt.subplots(figsize=(6, 5))
+    ax.pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', ylim=(-4, 4))
+    
+    fig.savefig(f'Images/WR48a_geometry.png', dpi=400, bbox_inches='tight')
+    fig.savefig(f'Images/WR48a_geometry.pdf', dpi=400, bbox_inches='tight')
     
 
 def smooth_hist_demo():
@@ -897,6 +909,7 @@ def main():
     # WR140_lightcurve()
     
     # WR48a_lightcurve()
+    WR48a_plot()
     
 
 
