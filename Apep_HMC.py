@@ -61,6 +61,7 @@ def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
 pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
 vlt_years = [2016, 2017, 2018, 2024]
 vlt_data = {}
+flattened_vlt_data = {}
 directory = "Data\\VLT"
 fnames = glob(directory + "\\*.fits")
 
@@ -75,20 +76,24 @@ for i, fname in enumerate(fnames):
     
     xs, ys = jnp.meshgrid(X, Y)
     
-    data[280:320, 280:320] = 0.
+    # data[280:320, 280:320] = 0.
     data = jnp.array(data)
     
     # data = data - jnp.median(data)
     data = data - jnp.percentile(data, 84)
     data = data/jnp.max(data)
     data = jnp.maximum(data, 0)
-    vlt_data[vlt_years[i]] = jnp.abs(data)**0.5
+    data = jnp.abs(data)**0.5
+    data = data.at[280:320, 280:320].set(0.)
+    vlt_data[vlt_years[i]] = data
+    flattened_vlt_data[vlt_years[i]] = data.flatten()
 
+big_flattened_data = jnp.concatenate([flattened_vlt_data[year] for year in vlt_years])
 xbins = X
 ybins = Y
 
 H = vlt_data[2018]
-obs_err = 0.01
+obs_err = 0.05
 
 fig, ax = plt.subplots()
 ax.imshow(H)
@@ -103,7 +108,7 @@ ax.invert_yaxis()
 
 
 obs = H.flatten()
-obs_err = obs_err * jnp.ones(len(obs))
+# obs_err = obs_err * jnp.ones(len(obs))
 
 
 fig, ax = plt.subplots()
@@ -116,7 +121,7 @@ ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 # ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
 
 system_params = system.copy()
-system_params['histmax'] = 0.7
+# system_params['histmax'] = 0.9
 
 particles, weights = gm.dust_plume(system_params)
     
@@ -171,8 +176,22 @@ def apep_model(Y, E):
     # phase = numpyro.sample("phase", dists.Normal(apep['phase'], 0.1))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
-        
     
+    
+    
+    # for year in vlt_years:
+    #     year_params = params.copy()
+    #     year_params['phase'] -= (2024 - year) / params['period']
+    #     samp_particles, samp_weights = gm.dust_plume(year_params)
+    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    #     # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    #     samp_H.at[280:320, 280:320].set(0.)
+    #     samp_H = samp_H.flatten()
+    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    #     with numpyro.plate('plate', len(obs)):
+    #         numpyro.sample(f'obs_{year}', dists.Normal(samp_H, E), obs=Y[year])
+    
+    year_model = {}
     for year in vlt_years:
         year_params = params.copy()
         year_params['phase'] -= (2024 - year) / params['period']
@@ -182,8 +201,11 @@ def apep_model(Y, E):
         samp_H.at[280:320, 280:320].set(0.)
         samp_H = samp_H.flatten()
         # samp_H = jnp.nan_to_num(samp_H, 1e4)
-        with numpyro.plate('plate', len(obs)):
-            numpyro.sample(f'obs_{year}', dists.Normal(samp_H, E), obs=Y[year].flatten())
+        year_model[year] = samp_H
+    big_flattened_model = jnp.concatenate([year_model[year] for year in vlt_years])
+        
+    with numpyro.plate('plate', len(Y)):
+        numpyro.sample('obs', dists.Normal(big_flattened_model, E), obs=Y)
 
 # h = numpyro.render_model(apep_model, model_args=(vlt_data, obs_err))
 # h.view()
@@ -193,22 +215,22 @@ def apep_model(Y, E):
 rand_time = int(time.time() * 1e8)
 rng_key = jax.random.key(rand_time)
 
-rng_key, init_key = jax.random.split(rng_key)
-init_params, potential_fn_gen, *_ = initialize_model(
-    init_key,
-    apep_model,
-    model_args=(obs, obs_err),
-    dynamic_args=True,
-    init_strategy=numpyro.infer.initialization.init_to_value(values=system_params)
-)
+# rng_key, init_key = jax.random.split(rng_key)
+# init_params, potential_fn_gen, *_ = initialize_model(
+#     init_key,
+#     apep_model,
+#     model_args=(obs, obs_err),
+#     dynamic_args=True,
+#     init_strategy=numpyro.infer.initialization.init_to_value(values=system_params)
+# )
 
-logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
-initial_position = init_params.z
+# logdensity_fn = lambda position: -potential_fn_gen(obs, obs_err)(position)
+# initial_position = init_params.z
 
 
-### below is numpyro sampling
+# ### below is numpyro sampling
 
-shifted = system_params.copy()
+# shifted = system_params.copy()
 # shifted['eccentricity'] = 0.7
 
 # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
@@ -230,23 +252,39 @@ shifted = system_params.copy()
 #                               num_samples=300,
 #                               num_warmup=100,
 #                               progress_bar=True)
-sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model,
-                                              init_strategy=numpyro.infer.initialization.init_to_value(values=shifted)),
+# sampler = numpyro.infer.MCMC(numpyro.infer.SA(apep_model,
+#                                               init_strategy=numpyro.infer.initialization.init_to_value(values=shifted)),
+#                               num_chains=1,
+#                               num_samples=300,
+#                               num_warmup=100,
+#                               progress_bar=True)
+sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
+                                                max_tree_depth=3),
                               num_chains=1,
-                              num_samples=300,
+                              num_samples=200,
                               num_warmup=100,
                               progress_bar=True)
-sampler.run(jax.random.PRNGKey(1), obs, obs_err)
+sampler.run(jax.random.PRNGKey(1), big_flattened_data, obs_err)
 results = sampler.get_samples()
 
 import chainconsumer
 C = chainconsumer.ChainConsumer()
 C.add_chain(results, name='MCMC Results')
 C.plotter.plot()
-C.plotter.plot_walks()
+# C.plotter.plot_walks()
 
-fig, ax = plt.subplots()
-ax.plot(C.chains[0].chain)
+# fig, ax = plt.subplots()
+# ax.plot(C.chains[0].chain)
+
+nparams = len(results.keys())
+param_names = list(results.keys())
+
+fig, axes = plt.subplots(nrows=nparams, sharex=True, gridspec_kw={'hspace':0})
+axes = [axes]
+for i in range(nparams):
+    vals = results[param_names[i]]
+    axes[i].scatter(np.arange(len(vals)), vals, s=0.1)
+    axes[i].set(ylabel=param_names[i])
 
 
 # ### below is blackjax sampling
@@ -329,3 +367,80 @@ ax.plot(C.chains[0].chain)
 # pickle_samples = {"states":states, "infos":infos}
 # with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
 #     pickle.dump(pickle_samples, file)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# params = {'eccentricity':[0., 0.95], 'inclination':[0, 180], 'open_angle':[0.1, 179]}
+# params_list = list(params.keys())
+
+# i = 0
+# param = 'eccentricity'
+# n = 50
+
+# flattened_years = {year:vlt_data[year].flatten() for year in vlt_years}
+
+# # for i, param in enumerate(params):
+    
+# def man_loglike(value):
+#     starcopy = wrb.apep.copy()
+#     starcopy[param] = value
+    
+#     chisq = 0
+    
+#     for year in vlt_years:
+#         year_params = starcopy.copy()
+#         year_params['phase'] -= (2024 - year) / starcopy['period']
+#         samp_particles, samp_weights = gm.dust_plume(year_params)
+#         _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+#         # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+#         samp_H.at[280:320, 280:320].set(0.)
+#         samp_H = samp_H.flatten()
+        
+#         chisq += jnp.sum(((samp_H - flattened_years[year]) / 0.05)**2)
+    
+#     return -0.5 * chisq
+
+# like = jit(jax.value_and_grad(man_loglike))
+# numpyro_logLike = np.zeros(n)
+# manual_logLike = np.zeros(n)
+# param_vals = np.linspace(params[param][0], params[param][1], n)
+# dx = param_vals[1] - param_vals[0]
+
+# vals, grads = jnp.zeros(n), jnp.zeros(n)
+
+# from tqdm import tqdm 
+
+# for j in tqdm(range(n)):
+#     a, b = like(param_vals[j])
+#     vals = vals.at[j].set(a)
+#     grads = grads.at[j].set(b)
+
+
+
+# fig, axes = plt.subplots(ncols=2)
+
+# axes[0].plot(param_vals, vals)
+# axes[1].plot(param_vals, grads)
+
+# axes[1].axhline(0, c='k')
+# axes[1].axvline(wrb.apep['eccentricity'], c='tab:red')
+
+
+
