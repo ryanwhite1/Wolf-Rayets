@@ -31,7 +31,7 @@ X, Y, H = gm.smooth_histogram2d(particles, weights, wrb.apep)
 xbins = X[0, :]
 ybins = Y[:, 0]
 # X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
-obs_err = 0.01 * np.max(H)
+obs_err = 0.05 * np.max(H)
 H += np.random.normal(0, obs_err, H.shape)
 gm.plot_spiral(X, Y, H)
 

@@ -256,6 +256,39 @@ def Apep_VISIR_mosaic():
     fig.savefig('Images/Apep_VISIR_Mosaic.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_VISIR_Mosaic.pdf', dpi=400, bbox_inches='tight')    
     
+def Apep_VISIR_expansion():
+    from glob import glob
+    from astropy.io import fits
+    pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
+    
+    years = {2016:0, 2017:1, 2018:2, 2024:3}
+    directory = "Data\\VLT"
+    fnames = glob(directory + "\\*.fits")
+    
+    fig, ax = plt.subplots(figsize=(7, 5))
+    
+    for year in list(years.keys()):
+        vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
+        
+        data = vlt_data[0].data
+        length = data.shape[0]
+        
+        X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+        Y = X.copy()
+        
+        lower = 140
+        upper = 240
+        
+        data = data[600//2, lower:upper]
+        data /= max(data)
+        
+        ax.plot(X[lower:upper], data, label=f'{year}')
+    ax.legend()
+    ax.set(ylabel='Relative Flux', xlabel='Relative RA (")')
+    
+    fig.savefig('Images/Apep_VISIR_Expansion.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_VISIR_Expansion.pdf', dpi=400, bbox_inches='tight')
+    
 def Apep_JWST_mosaic():
     wavelengths = [770, 1500, 2550]
     # year_pos = {2016:[0, 0], 2017:[0, 1], 2018:[1, 0], 2024:[1, 1]}
@@ -892,7 +925,8 @@ def main():
     # apep_cone_plot()
     
     # Apep_VISIR_mosaic()
-    visir_gif()
+    Apep_VISIR_expansion()
+    # visir_gif()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
@@ -909,7 +943,7 @@ def main():
     # WR140_lightcurve()
     
     # WR48a_lightcurve()
-    WR48a_plot()
+    # WR48a_plot()
     
 
 
