@@ -437,6 +437,72 @@ def Apep_image_fit():
     fig.savefig('Images/Apep_Fit.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Fit.pdf', dpi=400, bbox_inches='tight')
     
+def apep_tertiary_movement():
+    from matplotlib.figure import Figure
+    import matplotlib.colors as colors
+    from mpl_toolkits.axes_grid1 import make_axes_locatable
+    @jit
+    def smooth_histogram2d_898(particles, weights, stardata):
+        im_size = 898
+        
+        x = particles[0, :]
+        y = particles[1, :]
+        
+        xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+        bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+        
+        xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+        return gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+    @jit
+    def smooth_histogram2d_w_bins_898(particles, weights, stardata, xbins, ybins):
+        im_size = 898
+        return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
+    
+    
+    fig, axes = plt.subplots(figsize=(9, 4), ncols=3)
+            
+    incls = [0, 5, 10]
+    
+
+    X_jwst, Y_jwst, H_jwst = Apep_JWST_reference(2550)
+
+    norm = colors.Normalize(vmin=-1., vmax=1.)
+    starcopy = wrb.apep.copy()
+    starcopy['histmax'] = 1.
+    particles, weights = gm.dust_plume(starcopy)
+    year = 2024
+    
+    X_ref, Y_ref, H_ref = Apep_VISIR_reference(year)
+    
+    year_starcopy = starcopy.copy()
+    year_starcopy['phase'] += (year - 2024) / year_starcopy['period']
+    particles, weights = gm.dust_plume(year_starcopy)
+    X_year, Y_year, H_year = smooth_histogram2d_w_bins(particles, weights, year_starcopy, X_ref[0, :], Y_ref[:, 0])
+    
+    axes[0].pcolormesh(X_ref, Y_ref, H_year - H_ref, cmap='seismic', norm=norm, rasterized=True)
+    axes[0].set(xlim=(-4.5, 1.5), ylim=(0.5, 6.5), ylabel='Relative Dec (")')
+    axes[0].text(-4, 5.85, fr'$\beta_{{\rm tert}} = {starcopy["comp_incl"]:.0f}$')
+    
+    for i, delta_inc in enumerate(incls[1:]):
+        starcopy_3shell = starcopy.copy()
+        starcopy_3shell['histmax'] = 0.25
+        starcopy_3shell['comp_incl'] += delta_inc
+        particles, weights = gm.gui_funcs[2](starcopy_3shell)
+        X_3shell, Y_3shell, H_3shell = smooth_histogram2d_w_bins_898(particles, weights, starcopy_3shell, X_jwst[0, :], Y_jwst[:, 0])
+        
+        axes[i + 1].pcolormesh(X_jwst, Y_jwst, H_3shell - H_jwst, cmap='seismic', norm=norm, rasterized=True)
+    
+    axes[1].set(xlim=(-14, -4), ylim=(10, 20))
+    axes[1].text(-13, 19, fr'$\beta_{{\rm tert}} = {starcopy["comp_incl"] + incls[1]:.0f}$')
+    axes[2].set(xlim=(-31, -5), ylim=(11.5, 37.5))
+    axes[2].text(-29, 35, fr'$\beta_{{\rm tert}} = {starcopy["comp_incl"] + incls[2]:.0f}$')
+    
+    for ax in axes:
+        ax.set(aspect='equal', xlabel='Relative RA (")')
+        
+    fig.savefig('Images/Apep_Tertiary_Movement.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_Tertiary_Movement.pdf', dpi=400, bbox_inches='tight')
+    
 def WR48a_plot():
     star = wrb.WR48a.copy()
     
@@ -1008,10 +1074,11 @@ def main():
     # Apep_VISIR_mosaic()
     # Apep_VISIR_expansion()
     # visir_gif()
-    apep_orbit()
+    # apep_orbit()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
+    apep_tertiary_movement()
     
     # smooth_hist_demo()
     # smooth_hist_gif()
