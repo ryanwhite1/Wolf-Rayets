@@ -919,14 +919,96 @@ def WR48a_lightcurve():
     fig.savefig('Images/WR48a_Light_Curve.pdf', dpi=400, bbox_inches='tight')
     
     
+def apep_orbit():
+    apep = wrb.apep.copy()
+    pc_to_AU = 206265
+    km_to_AU = 6.68459e-9
+    
+    n = 10000
+    
+    angular_sep = 47 # mas
+    angular_sep_unc = 6
+    
+    inclinations = np.random.normal(24, 3, size=n)
+    
+    angular_sep_ests = np.random.normal(angular_sep, angular_sep_unc, size=n)
+    angular_sep_ests /= np.sin(np.pi/2 - np.deg2rad(inclinations))
+    
+    distance = 2400 # pc
+    distance_unc = 200
+    
+    dist_ests = np.random.normal(distance, distance_unc, size=n)
+    
+    abs_dists = np.tan(np.deg2rad(angular_sep_ests / (1e3 * 60 * 60))) * dist_ests * pc_to_AU
+    
+    abs_dist = np.mean(abs_dists)
+    abs_dist_unc = np.std(abs_dists)
+    
+    print(abs_dist, abs_dist_unc)
+    
+    phase2016 = apep['phase'] - (2024 - 2016) / apep['period']
+    phase_unc = 0.02
+    
+    # phase2016 = 0.5
+    
+    phases = np.random.normal(phase2016, phase_unc, size=n)
+    
+    eccentricities = np.random.normal(apep['eccentricity'], 0.04, size=n)
+    eccentricities = np.minimum(eccentricities, 0.98)
+    
+    eccentric_anoms = gm.kepler(phases * 2 * np.pi, eccentricities)
+    
+    eccentric_anom = np.mean(eccentric_anoms)
+    eccentric_anom_err = np.std(eccentric_anoms)
+    
+    true_anoms = gm.true_from_eccentric_anomaly(eccentric_anoms, eccentricities)
+    
+    true_anom = np.mean(true_anoms)
+    true_anom_unc = np.std(true_anoms)
+    
+    periods = np.random.normal(apep['period'], 10, size=n)
+    periods_s = periods * 365 * 24 * 60 * 60
+    
+    
+    
+    M = 20
+    m1 = M / 4
+    m2 = 3 * M / 4
+    
+    a1, a2 = gm.calculate_semi_major(periods_s, m1, m2)
+    r1 = a1 * (1. - eccentricities * jnp.cos(eccentric_anoms)) * 1e-3     # radius in km 
+    r2 = a2 * (1. - eccentricities * jnp.cos(eccentric_anoms)) * 1e-3
+    
+    print(np.mean(r1), np.mean(r2))
+    
+    separation = (r1 + r2) * km_to_AU
+    separation = np.mean(separation)
+    
+    print(separation)
+    
+    
+    a = (abs_dists / (1 - eccentricities**2)) * (1 + eccentricities * np.cos(true_anoms))
+    
+    print(np.mean(a))
+    
+    mass = ((a * gm.AU2km * 1e3)**3 / (gm.G * (periods_s / (2 * np.pi))**2 )) / gm.M_odot
+    
+    print(np.mean(mass))
+    
+    
+
+    
+
+    
 def main():
     # apep_plot('Apep_Plot')
     # apep_plot('Apep_Plot_No_Photodiss', custom_params={'comp_reduction':0})
     # apep_cone_plot()
     
     # Apep_VISIR_mosaic()
-    Apep_VISIR_expansion()
+    # Apep_VISIR_expansion()
     # visir_gif()
+    apep_orbit()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()

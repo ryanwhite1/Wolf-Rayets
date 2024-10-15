@@ -535,7 +535,7 @@ def calculate_semi_major(period_s, m1, m2):
     M_kg = m1_kg + m2_kg                                # total mass in kg
     # M = m1 + m2                                         # total mass in solar masses
     mu = G * M_kg
-    a = jnp.cbrt((period_s / (2 * jnp.pi))**2 * mu)/1000    # semi-major axis of the system (total separation)
+    a = jnp.cbrt((period_s / (2 * jnp.pi))**2 * mu)    # semi-major axis of the system (total separation)
     a1 = m2_kg / M_kg * a                                   # semi-major axis of first body (meters)
     a2 = a - a1                                             # semi-major axis of second body
     return a1, a2
@@ -595,6 +595,8 @@ def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
     # turn_off_ecc_anom = 2. * jnp.arctan(ecc_factor * jnp.tan(turn_off_true_anom / 2.))
     turn_off_ecc_anom = 2. * zero_safe_arctan2(jnp.tan(turn_off_true_anom / 2.), 1./ecc_factor)
     turn_off_mean_anom = turn_off_ecc_anom - ecc * jnp.sin(turn_off_ecc_anom)
+    
+    # print(turn_on_mean_anom, turn_off_mean_anom)
     
     # turn_off_mean_anom = zero_safe_arctan2(-jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom), -ecc - jnp.cos(turn_off_true_anom)) + jnp.pi - ecc * (jnp.sqrt(1 - ecc**2) * jnp.sin(turn_off_true_anom)) / (1 + ecc * jnp.cos(turn_off_true_anom))
     
@@ -1312,7 +1314,7 @@ system = wrb.apep.copy()
 # # # apep['comp_reduction'] = 0
 # # # # # for i in range(10):
 # # # t1 = time.time()
-# particles, weights = dust_plume(system)
+particles, weights = dust_plume(system)
 # # particles, weights = gui_funcs[2](system)
 # X, Y, H = smooth_histogram2d(particles, weights, system)
 # # print(time.time() - t1)

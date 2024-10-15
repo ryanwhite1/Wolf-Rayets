@@ -15,7 +15,7 @@ apep = {"m1":15.,                # solar masses
         "open_angle":127.,       # degrees (full opening angle)
         "period":234.,           # years
         "distance":2400.,        # pc
-        "windspeed1":880.,       # km/s
+        "windspeed1":860.,       # km/s
         "windspeed2":2400.,      # km/s
         "turn_on":-108.,         # true anomaly (degrees)
         "turn_off":141.,         # true anomaly (degrees)
