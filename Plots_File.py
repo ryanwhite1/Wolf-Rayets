@@ -503,6 +503,37 @@ def apep_tertiary_movement():
     fig.savefig('Images/Apep_Tertiary_Movement.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Tertiary_Movement.pdf', dpi=400, bbox_inches='tight')
     
+def Apep_flipbook(pages=86):
+    import matplotlib.colors as colors
+    norm = colors.Normalize(vmin=0., vmax=1.)
+    apep = wrb.apep.copy()
+    
+    apep['histmax'] = 0.5
+    
+    particles, weights = gm.gui_funcs[1](apep)
+    X, Y, H = smooth_histogram2d(particles, weights, apep)
+    
+    xbins = 1.1 * X[0, :]
+    ybins = 1.1 * Y[:, 0]
+    
+    phases = np.linspace(0, 1, pages//2)
+    
+    for i in range(pages//2):
+        apep['phase'] = phases[i]
+        particles, weights = gm.gui_funcs[1](apep)
+        
+        X, Y, H = smooth_histogram2d_w_bins(particles, weights, apep, xbins, ybins)
+        
+        fig, ax = plt.subplots(figsize=(2, 2))
+        ax.pcolormesh(X, Y, H, cmap='binary', norm=norm, rasterized=True)
+        ax.set(aspect='equal')
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+        
+        fig.savefig(f'Images/flipbook/image_{i}.png', dpi=400, bbox_inches='tight')
+        
+        plt.close('all')
+    
 def WR48a_plot():
     star = wrb.WR48a.copy()
     
@@ -1078,7 +1109,9 @@ def main():
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
-    apep_tertiary_movement()
+    # apep_tertiary_movement()
+    
+    Apep_flipbook(pages=86)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
