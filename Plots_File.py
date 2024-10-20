@@ -529,6 +529,10 @@ def Apep_flipbook(pages=86):
         ax.set(aspect='equal')
         ax.get_xaxis().set_visible(False)
         ax.get_yaxis().set_visible(False)
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['bottom'].set_visible(False)
+        ax.spines['left'].set_visible(False)
         
         fig.savefig(f'Images/flipbook/image_{i}.png', dpi=400, bbox_inches='tight')
         
@@ -876,17 +880,31 @@ def anisotropy_compare():
     fig, axes = plt.subplots(figsize=(6, 3.5), ncols=2, gridspec_kw={'hspace':0, 'wspace':0})
     
     test = wrb.WR104.copy()
+    test_aniso = test.copy()
+    test_aniso['spin_inc'] = 24
+    test_aniso['spin_Omega'] = 16
+    test_aniso['aniso_vel_mult'] = -5.45
+    
     
     particles, weights = gm.dust_plume(test)
-    X, Y, H = gm.smooth_histogram2d(particles, weights, test)
+    X, Y, H = smooth_histogram2d(particles, weights, test)
+    xbins = 1.1 * X[0, :]
+    ybins = 1.1 * Y[:, 0]
+    
+    particles_aniso, weights_aniso = gm.dust_plume(test_aniso)
+    X_aniso, Y_aniso, H_aniso = smooth_histogram2d(particles_aniso, weights_aniso, test_aniso)
+    xbins_aniso = 1.1 * X_aniso[0, :]
+    ybins_aniso = 1.1 * Y_aniso[:, 0]
+    
+    
+    
+    X, Y, H = smooth_histogram2d_w_bins(particles, weights, test, xbins_aniso, ybins_aniso)
     axes[0].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
     
-    test['spin_inc'] = 24
-    test['spin_Omega'] = 16
-    test['aniso_vel_mult'] = -5.45
+    
     
     particles, weights = gm.dust_plume(test)
-    X, Y, H = gm.smooth_histogram2d(particles, weights, test)
+    X, Y, H = smooth_histogram2d_w_bins(particles_aniso, weights_aniso, test_aniso, xbins_aniso, ybins_aniso)
     axes[1].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
     
     order = ['Original', 'Anisotropic']
@@ -1111,14 +1129,14 @@ def main():
     # Apep_image_fit()
     # apep_tertiary_movement()
     
-    Apep_flipbook(pages=86)
+    # Apep_flipbook(pages=88)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
     
     # variation_gaussian()
     
-    # anisotropy_compare()
+    anisotropy_compare()
     
     # smooth_hist_gradient()
     
