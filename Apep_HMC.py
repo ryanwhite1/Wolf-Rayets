@@ -150,11 +150,11 @@ def apep_model(Y, E):
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
     # params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(system_params['eccentricity'], 0.1))
-    params['eccentricity'] = numpyro.sample("eccentricity", dists.Uniform(0.6, 0.9))
+    params['eccentricity'] = numpyro.sample("eccentricity", dists.Uniform(0.4, 0.95))
     # params['inclination'] = numpyro.sample("inclination", dists.Normal(system['inclination'], 5.))
     # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
     # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(40., 170.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
     # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
@@ -173,7 +173,7 @@ def apep_model(Y, E):
     # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
-    # phase = numpyro.sample("phase", dists.Normal(apep['phase'], 0.1))
+    params['phase'] = numpyro.sample("phase", dists.Uniform(0., 0.99))
     # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
     # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
     
@@ -191,21 +191,34 @@ def apep_model(Y, E):
     #     with numpyro.plate('plate', len(obs)):
     #         numpyro.sample(f'obs_{year}', dists.Normal(samp_H, E), obs=Y[year])
     
-    year_model = {}
-    for year in vlt_years:
-        year_params = params.copy()
-        year_params['phase'] -= (2024 - year) / params['period']
-        samp_particles, samp_weights = gm.dust_plume(year_params)
-        _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-        # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-        samp_H.at[280:320, 280:320].set(0.)
-        samp_H = samp_H.flatten()
-        # samp_H = jnp.nan_to_num(samp_H, 1e4)
-        year_model[year] = samp_H
-    big_flattened_model = jnp.concatenate([year_model[year] for year in vlt_years])
+    # year_model = {}
+    # for year in vlt_years:
+    #     year_params = params.copy()
+    #     year_params['phase'] -= (2024 - year) / params['period']
+    #     samp_particles, samp_weights = gm.dust_plume(year_params)
+    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    #     # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    #     samp_H.at[280:320, 280:320].set(0.)
+    #     samp_H = samp_H.flatten()
+    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    #     year_model[year] = samp_H
+    # big_flattened_model = jnp.concatenate([year_model[year] for year in vlt_years])
+        
+    # with numpyro.plate('plate', len(Y)):
+    #     numpyro.sample('obs', dists.Normal(big_flattened_model, 0.08), obs=Y)
+        
+    
+    year_params = params.copy()
+    year = 2024
+    year_params['phase'] -= (2024 - year) / params['period']
+    samp_particles, samp_weights = gm.dust_plume(year_params)
+    _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    samp_H.at[280:320, 280:320].set(0.)
+    samp_H = samp_H.flatten()
         
     with numpyro.plate('plate', len(Y)):
-        numpyro.sample('obs', dists.Normal(big_flattened_model, E), obs=Y)
+        numpyro.sample('obs', dists.Normal(samp_H, 0.08), obs=Y)
 
 # h = numpyro.render_model(apep_model, model_args=(vlt_data, obs_err))
 # h.view()
@@ -232,6 +245,7 @@ rng_key = jax.random.key(rand_time)
 
 # shifted = system_params.copy()
 # shifted['eccentricity'] = 0.7
+init_val = wrb.apep.copy()
 
 # sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model, 
 #                                                 target_accept_prob=0.3,
@@ -259,18 +273,23 @@ rng_key = jax.random.key(rand_time)
 #                               num_warmup=100,
 #                               progress_bar=True)
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
-                                                max_tree_depth=3),
+                                                max_tree_depth=5,
+                                                target_accept_prob=0.5,
+                                                init_strategy=numpyro.infer.initialization.init_to_value(values=init_val)
+                                                ),
                               num_chains=1,
-                              num_samples=200,
-                              num_warmup=100,
+                              num_samples=1000,
+                              num_warmup=300,
                               progress_bar=True)
-sampler.run(jax.random.PRNGKey(1), big_flattened_data, obs_err)
+# sampler.run(jax.random.PRNGKey(1), big_flattened_data, obs_err)
+sampler.run(jax.random.PRNGKey(1), flattened_vlt_data[2024], obs_err)
 results = sampler.get_samples()
 
 import chainconsumer
 C = chainconsumer.ChainConsumer()
 C.add_chain(results, name='MCMC Results')
 C.plotter.plot()
+# C.plotter.plot(truth=wrb.apep)
 # C.plotter.plot_walks()
 
 # fig, ax = plt.subplots()
@@ -280,7 +299,7 @@ nparams = len(results.keys())
 param_names = list(results.keys())
 
 fig, axes = plt.subplots(nrows=nparams, sharex=True, gridspec_kw={'hspace':0})
-axes = [axes]
+# axes = [axes]
 for i in range(nparams):
     vals = results[param_names[i]]
     axes[i].scatter(np.arange(len(vals)), vals, s=0.1)
