@@ -1249,7 +1249,7 @@ def generate_lightcurve(stardata, n=100, shells=1):
         
         flat_fluxes = H.flatten()
         # # fluxes[i] = np.sum(np.sort(flat_fluxes)[-len(flat_fluxes)//100:])
-        fluxes[i] = np.mean(np.sort(flat_fluxes)[-20:])
+        fluxes[i] = np.mean(np.sort(flat_fluxes)[-50:])
     
     return phases, fluxes
 
