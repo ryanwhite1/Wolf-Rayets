@@ -637,20 +637,20 @@ def smooth_hist_gif():
     xs = np.linspace(x[0], 1, nt)
     ys = xs**2
     
-    Hs = []
+    Hs_smooth = []
     for i in range(nt):
         current_xs = np.array([xs[i], 0])
         current_ys = np.array([ys[i], 0])
         particles = np.array([current_xs, current_ys])
         weights = np.array([1, 0])
         X, Y, H = gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
-        Hs.append(H)
+        Hs_smooth.append(H)
     
     def animate(i):
         if i%(nt // 10) == 0:
             print(i/nt * 100, "%", sep='')
         
-        mesh.set_array(Hs[i])
+        mesh.set_array(Hs_smooth[i])
         scatter.set_offsets(np.c_[xs[i], ys[i]])
         return fig, 
 
@@ -670,23 +670,60 @@ def smooth_hist_gif():
     for i in range(len(xedges)):
         ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
         ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
-    Hs = []
+    Hs_normal = []
     for i in range(nt):
         current_xs = np.array([xs[i], 0])
         current_ys = np.array([ys[i], 0])
         H, _, _ = np.histogram2d(current_xs, current_ys, bins=X, weights=weights)
-        Hs.append(H.T)
+        Hs_normal.append(H.T)
     
     def animate(i):
         if i%(nt // 10) == 0:
             print(i/nt * 100, "%", sep='')
         
-        mesh.set_array(Hs[i])
+        mesh.set_array(Hs_normal[i])
         scatter.set_offsets(np.c_[xs[i], ys[i]])
         return fig, 
 
     ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
     ani.save(f"Images/Normal_Hist_Gif.gif", writer='pillow', fps=fps)
+    
+    # now for both simultaneously
+    
+    fig, axes = plt.subplots(figsize=(14, 7), ncols=2, gridspec_kw={'wspace':0})
+    for ax in axes:
+        ax.set_facecolor('k')
+        ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
+        for i in range(len(xedges)):
+            ax.axhline(xedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+            ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
+    axes[0].axvline(xedges[-1], c='w', lw=2, rasterized=True)
+    axes[1].axvline(xedges[0], c='w', lw=2, rasterized=True)
+    axes[0].set(title='Normal Histogram')
+    axes[1].set(ylabel=None, yticklabels=[], title='Smooth Method')
+    axes[1].tick_params(left=False)
+        
+    mesh_hist = axes[0].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    scatter_hist = axes[0].scatter(x, y, rasterized=True)
+    
+    mesh_smooth = axes[1].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    scatter_smooth = axes[1].scatter(x, y, rasterized=True)
+    
+    
+    def animate(i):
+        if i%(nt // 10) == 0:
+            print(i/nt * 100, "%", sep='')
+        
+        mesh_hist.set_array(Hs_normal[i])
+        scatter_hist.set_offsets(np.c_[xs[i], ys[i]])
+        mesh_smooth.set_array(Hs_smooth[i])
+        scatter_smooth.set_offsets(np.c_[xs[i], ys[i]])
+        
+        return fig, 
+
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save(f"Images/Hist_Comparison_Gif.gif", writer='pillow', fps=fps)
+    
     
 def visir_gif():
     from glob import glob
@@ -1164,17 +1201,16 @@ def main():
     # Apep_flipbook(pages=88)
     
     # smooth_hist_demo()
-    # smooth_hist_gif()
+    smooth_hist_gif()
+    # smooth_hist_gradient()
     
     # variation_gaussian()
     
     # anisotropy_compare()
     
-    # smooth_hist_gradient()
-    
     # WR140_lightcurve()
     
-    WR48a_lightcurve()
+    # WR48a_lightcurve()
     # WR48a_plot()
     
 
