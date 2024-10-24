@@ -268,7 +268,7 @@ def update_frequency(param, new_val, X=X, Y=Y):
         
         X_ref, Y_ref = references[year][:2]
         X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins_600(particles, weights, starcopy_year, X_ref[0, :], Y_ref[:, 0])
-        # H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
+        H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
         H_diff = H_diff.ravel()
         
         references[year][3].update({'array':H_diff - references[year][2].ravel()})
@@ -285,7 +285,7 @@ def update_frequency(param, new_val, X=X, Y=Y):
     
     X_ref, Y_ref = references['jwst'][:2]
     X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins_898(particles, weights, starcopy_jwst, X_ref[0, :], Y_ref[:, 0])
-    # H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
+    H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
     H_diff = H_diff.ravel()
     
     references['jwst'][3].update({'array':H_diff - references['jwst'][2].ravel()})

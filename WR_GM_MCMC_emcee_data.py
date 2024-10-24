@@ -73,7 +73,7 @@ for i, fname in enumerate(fnames):
     data = data / np.max(data)
     data = np.maximum(data, 0)
     data = np.abs(data)**0.5
-    data[280:320, 280:320] = 0.
+    # data[280:320, 280:320] = 0.
     vlt_data[vlt_years[i]] = data
     flattened_vlt_data[vlt_years[i]] = data.flatten()
     max_vals[vlt_years[i]] = np.max(data)
@@ -109,7 +109,7 @@ obs_err = 0.05
 
 
 def log_prior(theta):
-    [e, phase, open_ang] = theta
+    [e, phase, open_angle] = theta
     
     lp = 0.
     
@@ -120,21 +120,22 @@ def log_prior(theta):
     if phase > 1. or phase < 0.:
         return -np.inf
     # open angle check
-    if open_ang > 170. or open_ang < 10.:
+    if open_angle > 170. or open_angle < 10.:
         return -np.inf
-    open_ang_unc = 15
-    lp += np.log(1.0 / (np.sqrt(2 * np.pi) * open_ang_unc)) - 0.5 * (open_ang - apep['open_angle'])**2 / (open_ang_unc**2)
+    # open_angle_unc = 15
+    # lp += np.log(1.0 / (np.sqrt(2 * np.pi) * open_angle_unc)) - 0.5 * (open_angle - apep['open_angle'])**2 / (open_angle_unc**2)
     
     return lp
     
 def log_likelihood(theta):
-    [e, phase, open_ang] = theta
+    [e, phase, open_angle] = theta
+    # print(theta)
     
     data_dict = apep.copy()
     
     data_dict['eccentricity'] = e
     data_dict['phase'] = phase
-    data_dict['open_ang'] = open_ang
+    data_dict['open_angle'] = open_angle
     
     # particles, weights = gm.dust_plume(data_dict)
     # _, _, model = gm.smooth_histogram2d_w_bins(particles, weights, data_dict, xbins, ybins)
@@ -144,13 +145,29 @@ def log_likelihood(theta):
     chisq = 0. 
     
     # year_model = {}
-    for year in [2024]:
+    # for year in [2024]:
+    #     year_params = data_dict.copy()
+    #     year_params['phase'] -= (2024 - year) / data_dict['period']
+    #     samp_particles, samp_weights = gm.dust_plume(year_params)
+    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    #     samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    #     # samp_H.at[280:320, 280:320].set(0.)
+    #     samp_H = samp_H.flatten()
+    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    #     # year_model[year] = samp_H
+        
+    #     chisq += np.sum(((flattened_vlt_data[year] - samp_H) / obs_err)**2)
+    
+    # return -0.5 * chisq
+    
+    # year_model = {}
+    for year in vlt_years:
         year_params = data_dict.copy()
         year_params['phase'] -= (2024 - year) / data_dict['period']
         samp_particles, samp_weights = gm.dust_plume(year_params)
         _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-        # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-        samp_H.at[280:320, 280:320].set(0.)
+        samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+        # samp_H.at[280:320, 280:320].set(0.)
         samp_H = samp_H.flatten()
         # samp_H = jnp.nan_to_num(samp_H, 1e4)
         # year_model[year] = samp_H
@@ -158,22 +175,6 @@ def log_likelihood(theta):
         chisq += np.sum((flattened_vlt_data[year] - samp_H)**2 / obs_err**2) / max_vals[year]
     
     return -0.5 * chisq
-    
-    # # year_model = {}
-    # for year in vlt_years:
-    #     year_params = data_dict.copy()
-    #     year_params['phase'] -= (2024 - year) / data_dict['period']
-    #     samp_particles, samp_weights = gm.dust_plume(year_params)
-    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-    #     # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-    #     samp_H.at[280:320, 280:320].set(0.)
-    #     samp_H = samp_H.flatten()
-    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
-    #     # year_model[year] = samp_H
-        
-    #     chisq += np.sum((flattened_vlt_data[year] - samp_H)**2 / obs_err**2) / max_vals[year]
-    
-    # return -0.5 * chisq
     
     
 
@@ -189,18 +190,23 @@ nwalkers = 10
 
 params = ['eccentricity', 'phase', 'open_angle']
 
+
+params_jitter = {'eccentricity':0.01, 'phase':0.01, 'open_angle':3.}
+
 pos = np.array([apep[param] for param in params])
 ndim = len(pos)
 pos = pos * np.ones((nwalkers, ndim))
-pos += 1e-4 * np.random.normal(0, 1, pos.shape)
+# pos += 1e-4 * np.random.normal(0, 1, pos.shape)
+pos += np.random.normal(np.zeros(ndim), [params_jitter[param] for param in params], pos.shape)
 
 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_prob)
 sampler.run_mcmc(pos, 500, progress=True);
 
+param_labels = {"eccentricity":r"$e$", 'phase':r'$\phi$', 'open_angle':r"$\theta_{\rm OA}$"}
+labels = [param_labels[param] for param in params]
 
 fig, axes = plt.subplots(ndim, figsize=(10, 7), sharex=True)
 samples = sampler.get_chain()
-labels = params
 for i in range(ndim):
     ax = axes[i]
     ax.plot(samples[:, :, i], "k", alpha=0.3)
@@ -209,14 +215,13 @@ for i in range(ndim):
     ax.yaxis.set_label_coords(-0.1, 0.5)
     
     
-flat_samples = sampler.get_chain(discard=300, flat=True)
+flat_samples = sampler.get_chain(discard=400, flat=True)
 import corner
 import jax
 # labels = ['ecc', 'incl', 'asc_node', 'op_ang']
 truths = np.array([apep[param] for param in params])
 fig = corner.corner(flat_samples, 
-                    labels=labels, 
-                    truths=truths,
+                    labels=labels,
                     show_titles=True)
 
 

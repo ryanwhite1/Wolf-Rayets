@@ -1049,8 +1049,10 @@ def add_stars(xedges, yedges, H, stardata):
     '''
     # start by recreating the spatial grid of the H array
     bound = jnp.max(xedges)                                 # get max value in the grid
-    bins = jnp.linspace(-bound, bound, len(xedges) - 1)     # set up our bin locations -- they'll be the same for both x and y if the smooth_histogram2d function was used to create the x/yedges arrays
+    bins = jnp.linspace(-bound, bound, H.shape[0])     # set up our bin locations -- they'll be the same for both x and y if the smooth_histogram2d function was used to create the x/yedges arrays
     binx, biny = jnp.meshgrid(bins, bins)                   # set up the meshgrid for us to calculate the gaussians with
+    
+    # binx, biny = jnp.meshgrid(xedges, yedges)
     
     pos1, pos2 = orbital_position(stardata)                 # now get the orbital positions of the two stars (in km from the inner binary barycenter)
     

@@ -84,7 +84,7 @@ for i, fname in enumerate(fnames):
     data = data/jnp.max(data)
     data = jnp.maximum(data, 0)
     data = jnp.abs(data)**0.5
-    data = data.at[280:320, 280:320].set(0.)
+    # data = data.at[280:320, 280:320].set(0.)
     vlt_data[vlt_years[i]] = data
     flattened_vlt_data[vlt_years[i]] = data.flatten()
 
@@ -92,60 +92,60 @@ big_flattened_data = jnp.concatenate([flattened_vlt_data[year] for year in vlt_y
 xbins = X
 ybins = Y
 
-H = vlt_data[2018]
-obs_err = 0.05
+# H = vlt_data[2018]
+# obs_err = 0.05
 
-fig, ax = plt.subplots()
-ax.imshow(H)
-ax.invert_yaxis()
+# fig, ax = plt.subplots()
+# ax.imshow(H)
+# ax.invert_yaxis()
 
-H = np.array(H)
-# H[280:320, 280:320] = 0.
+# H = np.array(H)
+# # H[280:320, 280:320] = 0.
 
-fig, ax = plt.subplots()
-ax.imshow(H)
-ax.invert_yaxis()
-
-
-obs = H.flatten()
-# obs_err = obs_err * jnp.ones(len(obs))
+# fig, ax = plt.subplots()
+# ax.imshow(H)
+# ax.invert_yaxis()
 
 
-fig, ax = plt.subplots()
-
-ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
+# obs = H.flatten()
+# # obs_err = obs_err * jnp.ones(len(obs))
 
 
 # fig, ax = plt.subplots()
 
-# ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
+# ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
+
+
+# # fig, ax = plt.subplots()
+
+# # ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
 
 system_params = system.copy()
-# system_params['histmax'] = 0.9
+# # system_params['histmax'] = 0.9
 
-particles, weights = gm.dust_plume(system_params)
+# particles, weights = gm.dust_plume(system_params)
     
-X, Y, H = smooth_histogram2d(particles, weights, system_params)
-# xbins = X[0, :] * 1.5
-# ybins = Y[:, 0] * 1.5
-X, Y, H = smooth_histogram2d_w_bins(particles, weights, system_params, xbins, ybins)
-# H = gm.add_stars(xbins, ybins, H, system_params)
-# X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
-# obs_err = 0.01 * np.max(H)
-# H += np.random.normal(0, obs_err, H.shape)
+# X, Y, H = smooth_histogram2d(particles, weights, system_params)
+# # xbins = X[0, :] * 1.5
+# # ybins = Y[:, 0] * 1.5
+# X, Y, H = smooth_histogram2d_w_bins(particles, weights, system_params, xbins, ybins)
+# # H = gm.add_stars(xbins, ybins, H, system_params)
+# # X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
+# # obs_err = 0.01 * np.max(H)
+# # H += np.random.normal(0, obs_err, H.shape)
 
-H = np.array(H)
-H[280:320, 280:320] = 0.
+# H = np.array(H)
+# H[280:320, 280:320] = 0.
 
-fig, ax = plt.subplots()
-ax.plot(jnp.arange(len(obs)), H.flatten() - obs, lw=0.5)
+# fig, ax = plt.subplots()
+# ax.plot(jnp.arange(len(obs)), H.flatten() - obs, lw=0.5)
 
-fig, ax = plt.subplots()
-ax.imshow(H - vlt_data[2024])
-ax.invert_yaxis()
+# fig, ax = plt.subplots()
+# ax.imshow(H - vlt_data[2024])
+# ax.invert_yaxis()
 
 
-def apep_model(Y, E):
+def apep_model():
     params = system_params.copy()
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
@@ -179,17 +179,18 @@ def apep_model(Y, E):
     
     
     
-    # for year in vlt_years:
-    #     year_params = params.copy()
-    #     year_params['phase'] -= (2024 - year) / params['period']
-    #     samp_particles, samp_weights = gm.dust_plume(year_params)
-    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-    #     # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-    #     samp_H.at[280:320, 280:320].set(0.)
-    #     samp_H = samp_H.flatten()
-    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
-    #     with numpyro.plate('plate', len(obs)):
-    #         numpyro.sample(f'obs_{year}', dists.Normal(samp_H, E), obs=Y[year])
+    for year in vlt_years:
+        year_params = params.copy()
+        year_params['phase'] -= (2024 - year) / params['period']
+        samp_particles, samp_weights = gm.dust_plume(year_params)
+        _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+        samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+        # samp_H.at[280:320, 280:320].set(0.)
+        samp_H = samp_H.flatten()
+        # samp_H = jnp.nan_to_num(samp_H, 1e4)
+        data = flattened_vlt_data[year]
+        with numpyro.plate('plate', len(data)):
+            numpyro.sample(f'obs_{year}', dists.Normal(samp_H, 0.08), obs=data)
     
     # year_model = {}
     # for year in vlt_years:
@@ -208,17 +209,17 @@ def apep_model(Y, E):
     #     numpyro.sample('obs', dists.Normal(big_flattened_model, 0.08), obs=Y)
         
     
-    year_params = params.copy()
-    year = 2024
-    year_params['phase'] -= (2024 - year) / params['period']
-    samp_particles, samp_weights = gm.dust_plume(year_params)
-    _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    # year_params = params.copy()
+    # year = 2024
+    # year_params['phase'] -= (2024 - year) / params['period']
+    # samp_particles, samp_weights = gm.dust_plume(year_params)
+    # _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
     # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-    samp_H.at[280:320, 280:320].set(0.)
-    samp_H = samp_H.flatten()
+    # # samp_H.at[280:320, 280:320].set(0.)
+    # samp_H = samp_H.flatten()
         
-    with numpyro.plate('plate', len(Y)):
-        numpyro.sample('obs', dists.Normal(samp_H, 0.08), obs=Y)
+    # with numpyro.plate('plate', len(Y)):
+    #     numpyro.sample('obs', dists.Normal(samp_H, 0.08), obs=Y)
 
 # h = numpyro.render_model(apep_model, model_args=(vlt_data, obs_err))
 # h.view()
@@ -274,7 +275,6 @@ init_val = wrb.apep.copy()
 #                               progress_bar=True)
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 max_tree_depth=5,
-                                                target_accept_prob=0.5,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_val)
                                                 ),
                               num_chains=1,
@@ -282,7 +282,7 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                               num_warmup=300,
                               progress_bar=True)
 # sampler.run(jax.random.PRNGKey(1), big_flattened_data, obs_err)
-sampler.run(jax.random.PRNGKey(1), flattened_vlt_data[2024], obs_err)
+sampler.run(jax.random.PRNGKey(1))
 results = sampler.get_samples()
 
 import chainconsumer
@@ -304,6 +304,31 @@ for i in range(nparams):
     vals = results[param_names[i]]
     axes[i].scatter(np.arange(len(vals)), vals, s=0.1)
     axes[i].set(ylabel=param_names[i])
+    
+
+params = ['eccentricity', 'phase', 'open_angle']
+param_labels = {"eccentricity":r"$e$", 'phase':r'$\phi$', 'open_angle':r"$\theta_{\rm OA}$"}
+labels = [param_labels[param] for param in params]
+ndim = len(params)
+
+fig, axes = plt.subplots(ndim, figsize=(10, 7), sharex=True)
+# samples = sampler.get_chain()
+for i in range(ndim):
+    ax = axes[i]
+    ax.plot(results[params[i]], "k", alpha=0.3)
+    ax.set_xlim(0, len(results[params[i]]))
+    ax.set_ylabel(labels[i])
+    ax.yaxis.set_label_coords(-0.1, 0.5)
+    
+    
+# flat_samples = sampler.get_chain(discard=400, flat=True)
+import corner
+import jax
+# labels = ['ecc', 'incl', 'asc_node', 'op_ang']
+# truths = np.array([apep[param] for param in params])
+fig = corner.corner(results, 
+                    labels=labels,
+                    show_titles=True)
 
 
 # ### below is blackjax sampling
