@@ -991,7 +991,7 @@ def smooth_hist_gradient():
     ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
     
 def WR140_lightcurve():
-    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100, shells=1)
+    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100, shells=2)
     
     fig, ax = plt.subplots(figsize=(4, 6.75))
     
@@ -1011,7 +1011,10 @@ def WR140_lightcurve():
     fig.savefig('Images/WR140_Light_Curve.pdf', dpi=400, bbox_inches='tight')
     
 def WR48a_lightcurve():
-    phases, fluxes = gm.generate_lightcurve(wrb.WR48a, n=100, shells=4)
+    ''' Thanks to https://stackoverflow.com/questions/21920233/matplotlib-log-scale-tick-label-number-formatting for the y axis tick labels
+    '''
+    from matplotlib.ticker import FuncFormatter
+    phases, fluxes = gm.generate_lightcurve(wrb.WR48a, n=100, shells=5)
     
     fig, ax = plt.subplots(figsize=(8, 5))
     
@@ -1024,11 +1027,40 @@ def WR48a_lightcurve():
     
     fluxes = np.tile(fluxes, 3)
     
+    # ax.scatter(phases, fluxes)
+    # ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=(-0.1, 1.2))
+    # for x in [0.1, 1.1]:
+    #     ax.axvline(x, ls='--', c='tab:red')
+    # ax.grid(True)
+    
+    # peri_year = 1970
+    peri_year = 2004 - wrb.WR48a['phase'] * wrb.WR48a['period']
+    
+    left_p = -0.05
+    right_p = 1.05
+    
+    
+    scattersize = 8
     ax.plot(phases, fluxes)
-    ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=(-0.1, 1.2))
-    for x in [0.1, 1.1]:
-        ax.axvline(x, ls='--', c='tab:red')
+    # ax.scatter(phases, fluxes, s=scattersize)
+    ax.set(xlabel='Phase', ylabel='Flux', yscale='log')
+    # for x in [0.1, 1.1]:
+    #     ax.axvline(x, ls='--', c='tab:red')
     ax.grid(True)
+    ax.set(xlim=(left_p, right_p))
+    ax.minorticks_on()
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+    ax.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+    
+    
+    ax2 = ax.twiny()
+    ax2.minorticks_on()
+    
+    # ax2.scatter(phases * wrb.WR48a['period'] + peri_year, fluxes, s=scattersize)
+    ax2.plot(phases * wrb.WR48a['period'] + peri_year, fluxes)
+    ax2.set(yscale='log', xlim=(left_p * wrb.WR48a['period'] + peri_year, right_p * wrb.WR48a['period'] + peri_year))
+    ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+    ax2.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
     
     fig.savefig('Images/WR48a_Light_Curve.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/WR48a_Light_Curve.pdf', dpi=400, bbox_inches='tight')
@@ -1136,13 +1168,13 @@ def main():
     
     # variation_gaussian()
     
-    anisotropy_compare()
+    # anisotropy_compare()
     
     # smooth_hist_gradient()
     
     # WR140_lightcurve()
     
-    # WR48a_lightcurve()
+    WR48a_lightcurve()
     # WR48a_plot()
     
 

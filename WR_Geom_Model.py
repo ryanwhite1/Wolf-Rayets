@@ -402,12 +402,13 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     
     # ------------------------------------------------------------------
     ## below accounts for the dust production not turning on/off instantaneously (probably negligible effect for most systems)
-    weights = jnp.ones(len(theta))
+    # weights = jnp.ones(len(theta))
     sigma = jnp.deg2rad(stardata['gradual_turn'])
     sigma = jnp.max(jnp.array([sigma, 0.001]))
     
     residual_on = (1. - turned_on) * jnp.exp(-0.5 * ((transf_nu - turn_on) / sigma)**2)
     residual_off = (1. - turned_off) * jnp.exp(-0.5 * ((transf_nu - turn_off) / sigma)**2)
+    # residual = jnp.min(jnp.array([residual_on + residual_off, 1.]))
     residual = 1. - jnp.heaviside(sigma - 1., 1.)
     residual = residual * jnp.min(jnp.array([residual_on + residual_off, 1.]))
     weights = weights + residual * nucleated
@@ -1209,20 +1210,28 @@ def generate_lightcurve(stardata, n=100, shells=1):
     phases = jnp.linspace(0, 1, n)
     fluxes = np.zeros(n)
     
+    im_size = 256
+    
     for i in range(n):
         starcopy = stardata.copy()
         starcopy['phase'] = phases[i]
         
         particles, weights = gui_funcs[shells - 1](starcopy)
         
-        
-        im_size = 256
-        
         x = particles[0, :]
         y = particles[1, :]
         
         H, xedges, yedges = jnp.histogram2d(x, y, bins=im_size, weights=weights)
         X, Y = jnp.meshgrid(xedges, yedges)
+        
+        # xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+        # bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+        
+        # xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+        # X, Y, H = smooth_histogram2d_base(particles, weights, starcopy, xedges, yedges, im_size)
+        # H = H.T
+        
+        
         
         H = jnp.minimum(H, jnp.ones((im_size, im_size)) * stardata['histmax'] * jnp.max(H))
         
@@ -1235,8 +1244,12 @@ def generate_lightcurve(stardata, n=100, shells=1):
         
         # H = add_stars(X[0, :], Y[:, 0], H, starcopy)
         
-        fluxes[i] = jnp.max(H)
-        # fluxes[i] = np.percentile(H, 75)
+        # fluxes[i] = jnp.max(H)
+        # fluxes[i] = np.percentile(H, 50)
+        
+        flat_fluxes = H.flatten()
+        # # fluxes[i] = np.sum(np.sort(flat_fluxes)[-len(flat_fluxes)//100:])
+        fluxes[i] = np.mean(np.sort(flat_fluxes)[-20:])
     
     return phases, fluxes
 
