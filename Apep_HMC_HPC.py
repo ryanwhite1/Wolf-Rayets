@@ -61,8 +61,8 @@ pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think th
 vlt_years = [2016, 2017, 2018, 2024]
 vlt_data = {}
 flattened_vlt_data = {}
-directory = "Data\\VLT"
-fnames = glob(directory + "\\*.fits")
+directory = "Data/VLT"
+fnames = glob(directory + "/*.fits")
 
 for i, fname in enumerate(fnames):
     
@@ -89,24 +89,27 @@ big_flattened_data = jnp.concatenate([flattened_vlt_data[year] for year in vlt_y
 xbins = X
 ybins = Y
 
+print("Data loaded in well.")
+
 system_params = system.copy()
 
 def apep_model():
     params = system_params.copy()
     # m1 = numpyro.sample("m1", dists.Normal(apep['m1'], 5.))
     # m2 = numpyro.sample("m2", dists.Normal(apep['m2'], 5.))
-    # params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(system_params['eccentricity'], 0.1))
     params['eccentricity'] = numpyro.sample("eccentricity", dists.Uniform(0.4, 0.95))
-    # params['inclination'] = numpyro.sample("inclination", dists.Normal(system['inclination'], 5.))
-    # asc_node = numpyro.sample("asc_node", dists.Normal(apep['asc_node'], 20.))
-    # arg_peri = numpyro.sample("arg_peri", dists.Normal(apep['arg_peri'], 20.))
-    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(40., 170.))
+    # params['eccentricity'] = numpyro.sample("eccentricity", dists.Normal(apep['eccentricity'], 0.05, support=dists.constraints.interval(0., 0.95)))
+    params['inclination'] = numpyro.sample("inclination", dists.Uniform(0., 50.))
+    params["asc_node"] = numpyro.sample("asc_node", dists.Uniform(100., 210.))
+    params["arg_peri"] = numpyro.sample("arg_peri", dists.Uniform(-30., 50.))
+    # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
+    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    # windspeed1 = numpyro.sample("windspeed1", dists.Normal(apep['windspeed1'], 200.))
+    params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(500., 1200.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-    # turn_on = numpyro.sample("turn_on", dists.Normal(apep['turn_on'], 10.))
-    # turn_off = numpyro.sample("turn_off", dists.Normal(apep['turn_off'], 10.))
+    params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-150., -60.))
+    params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(50., 179.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
     # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
@@ -119,9 +122,9 @@ def apep_model():
     # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
+    # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
     params['phase'] = numpyro.sample("phase", dists.Uniform(0., 0.99))
-    # sigma = numpyro.sample("sigma", dists.Uniform(0.01, 10.))
-    # histmax = numpyro.sample("histmax", dists.Uniform(0., 1.))
+    params['sigma'] = numpyro.sample("sigma", dists.Uniform(1., 10.))
     
     
     
@@ -141,23 +144,31 @@ def apep_model():
 
 
 rand_time = int(time.time() * 1e8)
-rng_key = jax.random.key(rand_time)
+# rng_key = jax.random.key(rand_time)
+rng_key = jax.random.PRNGKey(rand_time)
 
 init_val = wrb.apep.copy()
+
+num_chains = min(10, len(jax.devices()))
+print("Num Chains = ", num_chains)
 
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 max_tree_depth=5,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_val)
                                                 ),
-                              num_chains=1,
-                              num_samples=10,
-                              num_warmup=10,
-                              progress_bar=True)
-# sampler.run(jax.random.PRNGKey(1), big_flattened_data, obs_err)
+                              num_chains=num_chains,
+                              num_samples=1500,
+                              num_warmup=400,
+                              progress_bar=False)
+print("Running HMC Now.")
 sampler.run(rng_key)
-results = sampler.get_samples()
+print("HMC Finished successfully.")
 
+results = sampler.get_samples(group_by_chain=True)
+results_flat = sampler.get_samples()
 
 run_num = 1
 with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(results, file)
+with open(f'HPC/run_{run_num}/{rand_time}_flat', 'wb') as file:
+    pickle.dump(results_flat, file)
