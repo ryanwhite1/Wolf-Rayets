@@ -15,13 +15,12 @@ from jax.interpreters import ad
 from jax.scipy.optimize import minimize
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from scipy.ndimage import gaussian_filter
 import jax.scipy.signal as signal
 from matplotlib import animation
 import time
-import emcee
+# import emcee
 # import jaxoplanet
-import jaxopt
+# import jaxopt
 
 import WR_binaries as wrb
 

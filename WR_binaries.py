@@ -8,11 +8,11 @@ Created on Sun Mar 17 13:05:33 2024
 # below are rough params for Apep 
 apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses
-        "eccentricity":0.82, 
+        "eccentricity":0.79, 
         "inclination":23.8,      # degrees
         "asc_node":164.1,        # degrees
         "arg_peri":10.6,         # degrees
-        "open_angle":127.,       # degrees (full opening angle)
+        "open_angle":126.,       # degrees (full opening angle)
         "period":234.,           # years
         "distance":2400.,        # pc
         "windspeed1":860.,       # km/s

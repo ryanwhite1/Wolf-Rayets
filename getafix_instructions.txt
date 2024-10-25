@@ -1,0 +1,16 @@
+on first-time login:
+
+module load anaconda3
+conda create -n WRModelHMC python=3.10
+source activate
+conda activate WRModelHMC
+conda install numpy matplotlib scipy astropy
+pip install jax numpyro jax_tqdm
+
+
+
+
+subsequent logins:
+module load anaconda3
+source activate
+conda activate WRModelHMC

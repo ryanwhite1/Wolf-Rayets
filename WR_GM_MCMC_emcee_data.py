@@ -102,7 +102,8 @@ ybins = Y
 
 # ax.plot(jnp.arange(len(obs)), obs, lw=0.5)
 
-obs_err = 0.05
+# obs_err = 0.05
+obs_err = {year:jnp.sqrt(1e-3 * flattened_vlt_data[year] + 1e-4) for year in vlt_years}
 # fig, ax = plt.subplots()
 
 # ax.plot(jnp.arange(len(obs)), obs**3, lw=0.5)
@@ -172,7 +173,7 @@ def log_likelihood(theta):
         # samp_H = jnp.nan_to_num(samp_H, 1e4)
         # year_model[year] = samp_H
         
-        chisq += np.sum((flattened_vlt_data[year] - samp_H)**2 / obs_err**2) / max_vals[year]
+        chisq += np.sum((flattened_vlt_data[year] - samp_H)**2 / obs_err[year]**2) / max_vals[year]
     
     return -0.5 * chisq
     
