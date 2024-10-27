@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/data/uqrwhi13/Wolf-Rayets/Wolf-Rayets/Apep_HMC_Simulated_HPC.py", line 132, in <module>
+    with open(f'HPC/sim_run_{run_num}/{rand_time}_flat', 'wb') as file:
+NameError: name 'results' is not defined

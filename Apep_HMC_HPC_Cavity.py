@@ -106,7 +106,7 @@ def apep_model():
     params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    # params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(500., 1200.))
+    params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(300., 1500.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
     params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-150., -60.))
     params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(50., 179.))
@@ -170,7 +170,7 @@ print("Time taken = ", t2 - t1)
 results = sampler.get_samples(group_by_chain=True)
 results_flat = sampler.get_samples()
 
-run_num = 1
+run_num = 2
 with open(f'HPC/cavity_run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(results, file)
 with open(f'HPC/cavity_run_{run_num}/{rand_time}_flat', 'wb') as file:
