@@ -106,7 +106,7 @@ def apep_model():
     params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(500., 1200.))
+    # params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(500., 1200.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
     params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-150., -60.))
     params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(50., 179.))
@@ -157,12 +157,15 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_val)
                                                 ),
                               num_chains=num_chains,
-                              num_samples=1500,
+                              num_samples=1000,
                               num_warmup=400,
                               progress_bar=False)
+t1 = time.time()
 print("Running HMC Now.")
 sampler.run(rng_key)
 print("HMC Finished successfully.")
+t2 = time.time()
+print("Time taken = ", t2 - t1)
 
 results = sampler.get_samples(group_by_chain=True)
 results_flat = sampler.get_samples()

@@ -6,12 +6,12 @@
 #SBATCH --job-name=WR_HMC_Real
 #SBATCH --time=72:00:00
 #SBATCH --nodelist=smp-7-4
-#SBATCH -o HPC/run_1/output
-#SBATCH -e HPC/run_1/errors
+#SBATCH -o HPC/cavity_run_1/output
+#SBATCH -e HPC/cavity_run_1/errors
 
 module load anaconda3
 
 source activate
 conda activate WRModelHMC
 
-python Apep_HMC_HPC.py
+python Apep_HMC_HPC_Cavity.py

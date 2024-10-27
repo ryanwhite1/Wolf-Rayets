@@ -82,9 +82,9 @@ def apep_model(Y, E):
     # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
     # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
     # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
-    # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
-    # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
-    # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
+    params['comp_incl'] = numpyro.sample('comp_incl', dists.Uniform(0., 360.))
+    params['comp_az'] = numpyro.sample('comp_az', dists.Uniform(0., 360.))
+    params['comp_open'] = numpyro.sample("comp_open", dists.Uniform(30., 150.))
     # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
     # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
@@ -127,9 +127,9 @@ results = sampler.get_samples(group_by_chain=True)
 results_flat = sampler.get_samples()
 
 run_num = 1
-with open(f'HPC/sim_run_{run_num}/{rand_time}', 'wb') as file:
+with open(f'HPC/cavity_sim_run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(results, file)
-with open(f'HPC/sim_run_{run_num}/{rand_time}_flat', 'wb') as file:
+with open(f'HPC/cavity_sim_run_{run_num}/{rand_time}_flat', 'wb') as file:
     pickle.dump(results_flat, file)
 
 # print(jax.devices())
