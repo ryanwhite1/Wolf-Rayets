@@ -106,7 +106,7 @@ def apep_model():
     params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
-    # params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(300., 1500.))
+    params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(300., 1500.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
     params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-150., -60.))
     params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(50., 179.))
@@ -117,10 +117,10 @@ def apep_model():
     # az_sd = numpyro.sample("az_sd", dists.Exponential(1./10.))
     # az_amp = numpyro.sample("az_amp", dists.Exponential(1./0.1))
     # az_min = numpyro.sample("az_min", dists.Uniform(0., 360.))
-    # comp_incl = numpyro.sample('comp_incl', dists.Normal(apep['comp_incl'], 10))
-    # comp_az = numpyro.sample('comp_az', dists.Normal(apep['comp_az'], 10))
-    # comp_open = numpyro.sample("comp_open", dists.Normal(apep['comp_open'], 10.))
-    # comp_reduction = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
+    params['comp_incl'] = numpyro.sample('comp_incl', dists.Uniform(0., 360.))
+    params['comp_az'] = numpyro.sample('comp_az', dists.Uniform(0., 360.))
+    params['comp_open'] = numpyro.sample("comp_open", dists.Uniform(30., 150.))
+    # params['comp_reduction'] = numpyro.sample("comp_reduction", dists.Uniform(0., 2.))
     # comp_plume = numpyro.sample("comp_plume", dists.Uniform(0., 2.))
     # phase = numpyro.sample("phase", dists.Uniform(0., 1.))
     params['phase'] = numpyro.sample("phase", dists.Uniform(0., 0.99))
@@ -170,8 +170,8 @@ print("Time taken = ", t2 - t1)
 results = sampler.get_samples(group_by_chain=True)
 results_flat = sampler.get_samples()
 
-run_num = 1
-with open(f'HPC/run_{run_num}/{rand_time}', 'wb') as file:
+run_num = 2
+with open(f'HPC/cavity_run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(results, file)
-with open(f'HPC/run_{run_num}/{rand_time}_flat', 'wb') as file:
+with open(f'HPC/cavity_run_{run_num}/{rand_time}_flat', 'wb') as file:
     pickle.dump(results_flat, file)
