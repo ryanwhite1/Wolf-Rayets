@@ -28,7 +28,8 @@ import WR_binaries as wrb
 
 apep = wrb.apep.copy()
 system_params = apep.copy()
-# apep['sigma'] = 0.01
+
+np.random.seed(5842)
 
 ### --- INFERENCE --- ###  
 particles, weights = gm.dust_plume(wrb.apep)
