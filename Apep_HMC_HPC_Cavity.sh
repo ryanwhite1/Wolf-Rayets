@@ -5,7 +5,6 @@
 #SBATCH --mem-per-cpu=12G
 #SBATCH --job-name=WR_HMC_Real
 #SBATCH --time=72:00:00
-#SBATCH --nodelist=smp-7-4
 #SBATCH -o HPC/cavity_run_2/output
 #SBATCH -e HPC/cavity_run_2/errors
 

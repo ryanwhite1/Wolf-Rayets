@@ -1,11 +1,10 @@
 #!/bin/bash --login
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=12G
 #SBATCH --job-name=WR_HMC_Simulated
 #SBATCH --time=72:00:00
-#SBATCH --nodelist=smp-7-4
 #SBATCH -o HPC/sim_run_1/output
 #SBATCH -e HPC/sim_run_1/errors
 

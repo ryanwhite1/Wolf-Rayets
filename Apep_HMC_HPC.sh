@@ -1,13 +1,12 @@
 #!/bin/bash --login
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=12G
 #SBATCH --job-name=WR_HMC_Real
 #SBATCH --time=72:00:00
-#SBATCH --nodelist=smp-7-4
-#SBATCH -o HPC/run_1/output
-#SBATCH -e HPC/run_1/errors
+#SBATCH -o HPC/run_2/output
+#SBATCH -e HPC/run_2/errors
 
 module load anaconda3
 

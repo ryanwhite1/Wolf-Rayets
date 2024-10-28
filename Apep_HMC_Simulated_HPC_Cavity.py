@@ -106,6 +106,7 @@ rng_key = jax.random.PRNGKey(rand_time)
 init_params = apep.copy()
 
 num_chains = min(10, len(jax.devices()))
+# num_chains = 1
 print("Num Chains = ", num_chains)
 
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
