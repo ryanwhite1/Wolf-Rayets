@@ -47,7 +47,8 @@ corner_fig = corner.corner(data,
               levels=[0.393, 0.864],
               fill_contours=False,
               truths=truths,
-              truth_color='tab:purple')
+              truth_color='tab:purple',
+              labelpad=0.15)
               # quantiles=[0.16, 0.5, 0.84])
 
 corner_fig.savefig(f'{use_run}_corner.png', dpi=400)

@@ -85,7 +85,7 @@ for i, fname in enumerate(fnames):
     vlt_data[vlt_years[i]] = data
     flattened_vlt_data[vlt_years[i]] = data.flatten()
 
-big_flattened_data = jnp.concatenate([flattened_vlt_data[year] for year in vlt_years])
+# big_flattened_data = jnp.concatenate([flattened_vlt_data[year] for year in vlt_years])
 xbins = X
 ybins = Y
 
