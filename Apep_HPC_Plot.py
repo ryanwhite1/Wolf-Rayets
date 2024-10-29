@@ -13,15 +13,22 @@ import WR_binaries as wrb
 # import pairplots
 
 sim_run_2 = 'HPC/sim_run_2/173006276018319360_chains'
+sim_run_1 = 'HPC/sim_run_1/173001196050679744'
 
-use_run = sim_run_2
+use_run = sim_run_1
 
 with open(use_run, 'rb') as file:
     data = pickle.load(file)
     
 param_labels = {"eccentricity":r"$e$",
           "open_angle":r"$\theta_{\rm OA}$",
-          "phase":r"$\phi$"}
+          "phase":r"$\phi$",
+          "arg_peri":r"$\omega$",
+          "inclination":r"$i$",
+          "asc_node":r"$\Omega$",
+          "turn_on":r"$\nu_{\rm t\_on}$",
+          "turn_off":r"$\nu_{\rm t\_off}$",
+          "sigma":"Blur"}
 
 labels = [param_labels[label] for label in data.keys()]
 

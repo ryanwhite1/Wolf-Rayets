@@ -106,8 +106,8 @@ rng_key = jax.random.PRNGKey(rand_time)
 
 init_params = apep.copy()
 
-num_chains = min(10, len(jax.devices()))
-# num_chains = 1
+# num_chains = min(10, len(jax.devices()))
+num_chains = 1
 print("Num Chains = ", num_chains)
 
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
@@ -115,9 +115,9 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)
                                                 ),
                               num_chains=num_chains,
-                              num_samples=1000,
+                              num_samples=2000,
                               num_warmup=400,
-                              progress_bar=False)
+                              progress_bar=True)
 t1 = time.time()
 print("Running HMC Now.")
 sampler.run(rng_key, obs, obs_err)

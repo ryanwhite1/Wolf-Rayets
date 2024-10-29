@@ -69,13 +69,13 @@ def apep_model(Y, E):
     params["asc_node"] = numpyro.sample("asc_node", dists.Uniform(100., 210.))
     params["arg_peri"] = numpyro.sample("arg_peri", dists.Uniform(-30., 50.))
     # open_angle = numpyro.sample("open_angle", dists.Normal(apep['open_angle'], 10.))
-    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(70, 140.))
+    params['open_angle'] = numpyro.sample("open_angle", dists.Uniform(30, 150.))
     # period = numpyro.sample("period", dists.Normal(apep['period'], 40.))
     # distance = numpyro.sample("distance", dists.Normal(apep['distance'], 500.))
     # params["windspeed1"] = numpyro.sample("windspeed1", dists.Uniform(500., 1200.))
     # windspeed2 = numpyro.sample("windspeed2", dists.Normal(apep['windspeed2'], 200.))
-    params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-150., -60.))
-    params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(50., 179.))
+    params['turn_on'] = numpyro.sample("turn_on", dists.Uniform(-170., -10.))
+    params['turn_off'] = numpyro.sample("turn_off", dists.Uniform(10., 179.))
     # oblate = numpyro.sample("oblate", dists.Uniform(0., 1.))
     # orb_sd = numpyro.sample("orb_sd", dists.Exponential(1./10.))
     # orb_amp = numpyro.sample("orb_amp", dists.Exponential(1./0.1))
@@ -106,8 +106,8 @@ rng_key = jax.random.PRNGKey(rand_time)
 
 init_params = apep.copy()
 
-num_chains = min(10, len(jax.devices()))
-# num_chains = 1
+# num_chains = min(10, len(jax.devices()))
+num_chains = 1
 print("Num Chains = ", num_chains)
 
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
@@ -115,24 +115,29 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_params)
                                                 ),
                               num_chains=num_chains,
-                              num_samples=1000,
-                              num_warmup=300,
-                              progress_bar=False)
+                              num_samples=3000,
+                              num_warmup=400,
+                              progress_bar=True)
 t1 = time.time()
 print("Running HMC Now.")
 sampler.run(rng_key, obs, obs_err)
-print("HMC Finished successfully.")
-t2 = time.time()
-print("Time taken = ", t2 - t1)
 
 results = sampler.get_samples(group_by_chain=True)
 results_flat = sampler.get_samples()
+
+print("HMC Finished successfully.")
+t2 = time.time()
+print("Time taken = ", t2 - t1)
 
 run_num = 1
 with open(f'HPC/sim_run_{run_num}/{rand_time}', 'wb') as file:
     pickle.dump(results, file)
 with open(f'HPC/sim_run_{run_num}/{rand_time}_flat', 'wb') as file:
     pickle.dump(results_flat, file)
+with open(f'HPC/sim_run_{run_num}/{rand_time}_last_state', 'wb') as file:
+    pickle.dump(sampler.last_state, file)
+with open(f'HPC/sim_run_{run_num}/{rand_time}_sampler', 'wb') as file:
+    pickle.dump(sampler, file)
 
 # print(jax.devices())
 
