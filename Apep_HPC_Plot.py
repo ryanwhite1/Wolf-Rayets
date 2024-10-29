@@ -12,6 +12,11 @@ import numpy as np
 import WR_binaries as wrb
 # import pairplots
 
+# set LaTeX font for our figures
+plt.rcParams.update({"text.usetex": True})
+plt.rcParams['font.family'] = 'serif'
+plt.rcParams['mathtext.fontset'] = 'cm'
+
 sim_run_2 = 'HPC/sim_run_2/173006276018319360_chains'
 sim_run_1 = 'HPC/sim_run_1/173001196050679744'
 cavity_sim_run_1 = 'HPC/cavity_sim_run_1/173001335740681824'
@@ -71,6 +76,7 @@ for i in range(ndim):
     else:
         axes[i].scatter(np.arange(len(param_vals)), param_vals, s=1, rasterized=True)
     axes[i].set(ylabel=param_labels[params[i]])
+axes[-1].set(xlabel='Walker Iteration')
     
 fig.savefig(f'{use_run}_chains.png', dpi=400, bbox_inches='tight')
 fig.savefig(f'{use_run}_chains.pdf', dpi=400, bbox_inches='tight')
