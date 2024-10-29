@@ -51,7 +51,8 @@ corner_fig = corner.corner(data,
               labelpad=0.15)
               # quantiles=[0.16, 0.5, 0.84])
 
-corner_fig.savefig(f'{use_run}_corner.png', dpi=400)
+corner_fig.savefig(f'{use_run}_corner.png', dpi=400, bbox_inches='tight')
+corner_fig.savefig(f'{use_run}_corner.pdf', dpi=400, bbox_inches='tight')
 
 ndim = len(data.keys())
 params = list(data.keys())
@@ -62,11 +63,12 @@ for i in range(ndim):
     param_vals = data[params[i]]
     if len(param_vals.shape) > 1:
         for j in range(param_vals.shape[0]):
-            axes[i].scatter(np.arange(len(param_vals[j, :])), param_vals[j, :], s=1)
+            axes[i].scatter(np.arange(len(param_vals[j, :])), param_vals[j, :], s=1, rasterized=True)
     else:
-        axes[i].scatter(np.arange(len(param_vals)), param_vals, s=1)
+        axes[i].scatter(np.arange(len(param_vals)), param_vals, s=1, rasterized=True)
     axes[i].set(ylabel=param_labels[params[i]])
     
-fig.savefig(f'{use_run}_chains.png', dpi=400)
+fig.savefig(f'{use_run}_chains.png', dpi=400, bbox_inches='tight')
+fig.savefig(f'{use_run}_chains.pdf', dpi=400, bbox_inches='tight')
 
 
