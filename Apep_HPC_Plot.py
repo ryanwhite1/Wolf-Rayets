@@ -14,8 +14,9 @@ import WR_binaries as wrb
 
 sim_run_2 = 'HPC/sim_run_2/173006276018319360_chains'
 sim_run_1 = 'HPC/sim_run_1/173001196050679744'
+cavity_sim_run_1 = 'HPC/cavity_sim_run_1/173001335740681824'
 
-use_run = sim_run_1
+use_run = cavity_sim_run_1
 
 with open(use_run, 'rb') as file:
     data = pickle.load(file)
@@ -28,7 +29,10 @@ param_labels = {"eccentricity":r"$e$",
           "asc_node":r"$\Omega$",
           "turn_on":r"$\nu_{\rm t\_on}$",
           "turn_off":r"$\nu_{\rm t\_off}$",
-          "sigma":"Blur"}
+          "sigma":"Blur",
+          "comp_az":r"$\alpha_{\rm tert}$",
+          "comp_incl":r"$\beta_{\rm tert}$",
+          "comp_open":r"$\theta_{\rm OA,tert}$"}
 
 labels = [param_labels[label] for label in data.keys()]
 
