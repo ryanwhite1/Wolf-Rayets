@@ -10,6 +10,7 @@ import corner
 import matplotlib.pyplot as plt
 import numpy as np
 import WR_binaries as wrb
+import WR_Geom_Model as gm 
 # import pairplots
 
 # set LaTeX font for our figures
@@ -80,5 +81,72 @@ axes[-1].set(xlabel='Walker Iteration')
     
 fig.savefig(f'{use_run}_chains.png', dpi=400, bbox_inches='tight')
 fig.savefig(f'{use_run}_chains.pdf', dpi=400, bbox_inches='tight')
+
+
+
+
+
+
+apep = wrb.apep.copy()
+
+
+np.random.seed(5842)
+
+particles, weights = gm.dust_plume(wrb.apep)
+    
+X, Y, H_true = gm.smooth_histogram2d(particles, weights, wrb.apep)
+xbins = X[0, :]
+ybins = Y[:, 0]
+# X, Y, H = gm.spiral_grid(particles, weights, wrb.apep)
+obs_err = 0.05 * np.max(H_true)
+H_true += np.random.normal(0, obs_err, H_true.shape)
+fig, axes = plt.subplots(figsize=(8, 4), ncols=2)
+for ax in axes:
+    ax.set_facecolor('k')
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+axes[0].pcolormesh(X, Y, H_true, cmap='hot', rasterized=True)
+
+system_params = apep.copy()
+for param in params:
+    system_params[param] = np.mean(data[param])
+particles, weights = gm.dust_plume(system_params)
+X, Y, H = gm.smooth_histogram2d(particles, weights, system_params)
+axes[1].pcolormesh(X, Y, H, cmap='hot', rasterized=True)
+    
+
+fig.savefig(f'{use_run}_model.png', dpi=400, bbox_inches='tight')
+fig.savefig(f'{use_run}_model.pdf', dpi=400, bbox_inches='tight')
+
+
+
+from numpy.random import default_rng
+
+
+N = 100
+rng = default_rng()
+chain_numbers = rng.choice(param_vals.shape[0], size=N)
+samp_numbers = rng.choice(len(data[params[0]].flatten()), size=N, replace=False)
+
+image_samples = np.zeros((N, H_true.shape[0], H_true.shape[1]))
+
+for i in range(N):
+    sample_params = apep.copy()
+    for param in params:
+        sample_params[param] = data[param][chain_numbers[i], samp_numbers[i]]
+    particles, weights = gm.dust_plume(sample_params)
+    _, _, H = gm.smooth_histogram2d(particles, weights, sample_params)
+    image_samples[i, :, :] = H
+
+difference_samples = image_samples - H_true
+stds = np.std(image_samples, axis=0)
+
+fig, ax = plt.subplots()
+ax.pcolormesh(X, Y, stds, cmap='Greys', rasterized=True)
+
+ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+
+fig.savefig(f'{use_run}_model_std.png', dpi=400, bbox_inches='tight')
+fig.savefig(f'{use_run}_model_std.pdf', dpi=400, bbox_inches='tight')
+
 
 
