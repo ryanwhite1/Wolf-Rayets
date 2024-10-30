@@ -122,7 +122,7 @@ fig.savefig(f'{use_run}_model.pdf', dpi=400, bbox_inches='tight')
 from numpy.random import default_rng
 
 
-N = 100
+N = 500
 rng = default_rng()
 chain_numbers = rng.choice(param_vals.shape[0], size=N)
 samp_numbers = rng.choice(len(data[params[0]].flatten()), size=N, replace=False)
@@ -138,15 +138,25 @@ for i in range(N):
     image_samples[i, :, :] = H
 
 difference_samples = image_samples - H_true
-stds = np.std(image_samples, axis=0)
+stds = np.std(difference_samples, axis=0)
+means = np.mean(difference_samples, axis=0)
 
-fig, ax = plt.subplots()
-ax.pcolormesh(X, Y, stds, cmap='Greys', rasterized=True)
+fig, ax = plt.subplots(figsize=(4, 4))
+plot = ax.pcolormesh(X, Y, stds, cmap='Greys', rasterized=True)
+fig.colorbar(mappable=plot, label='Diff. Standard Deviation', shrink=0.8)
 
 ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
 
 fig.savefig(f'{use_run}_model_std.png', dpi=400, bbox_inches='tight')
 fig.savefig(f'{use_run}_model_std.pdf', dpi=400, bbox_inches='tight')
 
+max_val = np.max(abs(means))
+
+fig, ax = plt.subplots(figsize=(4, 4))
+plot = ax.pcolormesh(X, Y, means, cmap='bwr', rasterized=True, vmin=-max_val, vmax=max_val)
+fig.colorbar(mappable=plot, label='Mean Difference', shrink=0.8)
+ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+fig.savefig(f'{use_run}_model_means.png', dpi=400, bbox_inches='tight')
+fig.savefig(f'{use_run}_model_means.pdf', dpi=400, bbox_inches='tight')
 
 
