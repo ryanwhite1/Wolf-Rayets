@@ -503,7 +503,7 @@ def apep_tertiary_movement():
     fig.savefig('Images/Apep_Tertiary_Movement.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Tertiary_Movement.pdf', dpi=400, bbox_inches='tight')
     
-def Apep_flipbook(pages=86):
+def Apep_flipbook(pages=93):
     import matplotlib.colors as colors
     norm = colors.Normalize(vmin=0., vmax=1.)
     apep = wrb.apep.copy()
@@ -534,7 +534,7 @@ def Apep_flipbook(pages=86):
         ax.spines['bottom'].set_visible(False)
         ax.spines['left'].set_visible(False)
         
-        fig.savefig(f'Images/flipbook/image_{i}.png', dpi=400, bbox_inches='tight')
+        fig.savefig(f'Images/flipbook/image_{i+1}.png', dpi=400, bbox_inches='tight')
         
         plt.close('all')
 
@@ -1257,13 +1257,13 @@ def main():
     # Apep_VISIR_expansion()
     # visir_gif()
     # apep_orbit()
-    Apep_gif()
+    # Apep_gif()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
     # apep_tertiary_movement()
     
-    # Apep_flipbook(pages=88)
+    Apep_flipbook(pages=93)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
