@@ -80,7 +80,7 @@ for i, fname in enumerate(fnames):
     data = data - jnp.percentile(data, 84)
     data = data/jnp.max(data)
     data = jnp.maximum(data, 0)
-    data = jnp.abs(data)**0. 
+    data = jnp.abs(data)**0.5 
     
     vlt_data[vlt_years[i]] = data
     flattened_vlt_data[vlt_years[i]] = data.flatten()

@@ -537,6 +537,129 @@ def Apep_flipbook(pages=86):
         fig.savefig(f'Images/flipbook/image_{i}.png', dpi=400, bbox_inches='tight')
         
         plt.close('all')
+
+def visir_gif():
+    from glob import glob
+    from astropy.io import fits
+    pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
+    
+    years = {2016:0, 2017:1, 2018:2, 2024:3}
+    directory = "Data\\VLT"
+    fnames = glob(directory + "\\*.fits")
+    
+    year_data = {}
+    
+    years_list = [2016, 2017, 2018, 2024]
+    
+    for year in years_list:
+        vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
+        
+        data = vlt_data[0].data
+        length = data.shape[0]
+        
+        X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
+        Y = X.copy()
+        
+        xs, ys = jnp.meshgrid(X, Y)
+        
+        data = jnp.array(data)
+        # data = data - jnp.median(data)
+        data = data - jnp.percentile(data, 84)
+        data = data/jnp.max(data)
+        data = jnp.maximum(data, 0)
+        data = jnp.abs(data)**0.5
+        
+        year_data[year] = [xs, ys, data]
+        
+    every = 1
+    length = 2
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    nt = 4
+    # nt = 10
+    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    # ax.set_facecolor('k')
+    ax.set_axis_off()
+    
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+    def animate(i):
+        print(i)
+        ax.cla()
+        xs, ys, data = year_data[years_list[i]]
+        ax.pcolormesh(xs, ys, data, cmap='hot')
+        ax.set(aspect='equal', xlim=(-8, 8), ylim=(-8, 8))
+        ax.text(5, 6.5, f"{years_list[i]}", c='w', fontsize=20)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    # writer = animation.FFMpegWriter(fps=fps)
+    ani.save("Images/Apep_VISIR_gif.gif", writer='ffmpeg', fps=fps)
+
+def Apep_gif():
+    
+    N = 200
+    phases = np.linspace(0.5, 1.5, N)
+    star = wrb.apep.copy()
+    star['histmax'] = 0.7
+    
+    vmin, vmax = 0., 0.7
+    
+    particles, weights = gm.gui_funcs[1](star)
+    X_orig, Y_orig, H = smooth_histogram2d(particles, weights, star)
+    H = gm.add_stars(X_orig[0, :], Y_orig[:, 0], H, star)
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pcolormesh(X_orig, Y_orig, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+    
+    # xlim = ax.get_xlim()
+    # ylim = ax.get_ylim()
+    
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    
+    every = 1
+    length = 10
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    # nt = 10
+    frames = jnp.arange(0, N, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    import matplotlib
+
+    cmap = matplotlib.cm.get_cmap('hot')
+    
+    rgba = cmap(0.)
+    
+    def animate(i):
+        if i%(N // 10) == 0:
+            print(i/N * 100, "%", sep='')
+        ax.clear()
+        ax.set_facecolor(rgba)
+            
+        star['phase'] = phases[i]
+        particles, weights = gm.gui_funcs[1](star)
+        weights = np.array(weights)
+        weights[:len(weights)//2] /= 2
+        X, Y, H = smooth_histogram2d_w_bins(particles, weights, star, X_orig[0, :], Y_orig[:, 0])
+        H = gm.add_stars(X[0, :], Y[:, 0], H, star)
+        
+        # mesh.set_array(H)
+        # mesh._coordinates = np.array([X, Y])
+        ax.pcolormesh(X, Y, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+        
+        ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=rf"$\phi = {phases[i]%1:.2f}$")
+        # ax.set(xlim=xlim, ylim=ylim)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    # writer = animation.FFMpegWriter(fps=fps)
+    ani.save("Images/Apep_evolution.gif", writer='ffmpeg', fps=fps)
+    
+    
+    
     
 def WR48a_plot():
     star = wrb.WR48a.copy()
@@ -725,66 +848,7 @@ def smooth_hist_gif():
     ani.save(f"Images/Hist_Comparison_Gif.gif", writer='pillow', fps=fps)
     
     
-def visir_gif():
-    from glob import glob
-    from astropy.io import fits
-    pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
-    
-    years = {2016:0, 2017:1, 2018:2, 2024:3}
-    directory = "Data\\VLT"
-    fnames = glob(directory + "\\*.fits")
-    
-    year_data = {}
-    
-    years_list = [2016, 2017, 2018, 2024]
-    
-    for year in years_list:
-        vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
-        
-        data = vlt_data[0].data
-        length = data.shape[0]
-        
-        X = jnp.linspace(-1., 1., length) * pscale * length/2 / 1000
-        Y = X.copy()
-        
-        xs, ys = jnp.meshgrid(X, Y)
-        
-        data = jnp.array(data)
-        # data = data - jnp.median(data)
-        data = data - jnp.percentile(data, 84)
-        data = data/jnp.max(data)
-        data = jnp.maximum(data, 0)
-        data = jnp.abs(data)**0.5
-        
-        year_data[year] = [xs, ys, data]
-        
-    every = 1
-    length = 2
-    # now calculate some parameters for the animation frames and timing
-    # nt = int(stardata['period'])    # roughly one year per frame
-    nt = 4
-    # nt = 10
-    frames = jnp.arange(0, nt, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
-    fps = len(frames) // length  # fps for the final animation
-    
-    fig, ax = plt.subplots(figsize=(6, 6))
-    # ax.set_facecolor('k')
-    ax.set_axis_off()
-    
-    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
-    
-    def animate(i):
-        print(i)
-        ax.cla()
-        xs, ys, data = year_data[years_list[i]]
-        ax.pcolormesh(xs, ys, data, cmap='hot')
-        ax.set(aspect='equal', xlim=(-8, 8), ylim=(-8, 8))
-        ax.text(5, 6.5, f"{years_list[i]}", c='w', fontsize=20)
-        return fig, 
-    
-    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
-    # writer = animation.FFMpegWriter(fps=fps)
-    ani.save("Images/Apep_VISIR_gif.gif", writer='ffmpeg', fps=fps)
+
     
 
 def variation_gaussian():
@@ -1193,6 +1257,7 @@ def main():
     # Apep_VISIR_expansion()
     # visir_gif()
     # apep_orbit()
+    Apep_gif()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
@@ -1201,7 +1266,7 @@ def main():
     # Apep_flipbook(pages=88)
     
     # smooth_hist_demo()
-    smooth_hist_gif()
+    # smooth_hist_gif()
     # smooth_hist_gradient()
     
     # variation_gaussian()
