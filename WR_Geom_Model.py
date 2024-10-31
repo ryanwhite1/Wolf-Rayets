@@ -1313,7 +1313,7 @@ def plume_velocity_map(particles, weights, stardata, velocity='LOS'):
         cbar_label = 'Radial Velocity (km/s)'
     elif velocity == "POS":
         velocity_mult = plane_dist
-        cmap = 'plasma'
+        cmap = 'Greys'
         cbar_label = 'Recoverable Velocity in POS (km/s)'
     # plane_radii /= max(plane_radii)
     

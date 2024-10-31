@@ -658,25 +658,18 @@ def Apep_gif():
     # writer = animation.FFMpegWriter(fps=fps)
     ani.save("Images/Apep_evolution.gif", writer='ffmpeg', fps=fps)
     
-def Apep_Radial_Velocity():
+def Apep_Velocity_Map(velocity='LOS'):
     apep = wrb.apep.copy()
     
     particles, weights = gm.dust_plume(apep)
     X, Y, H = gm.smooth_histogram2d(particles, weights, apep)
     
-    particle_speeds, fig_args = gm.plume_velocity_map(particles, weights, apep, velocity='LOS')
+    particle_speeds, fig_args = gm.plume_velocity_map(particles, weights, apep, velocity=velocity)
     
     cmap = fig_args['cmap']
     cbar_label = fig_args['cbar_label']
     
-    fig, ax = plt.subplots()
-    # n = 5
-    # scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], 
-    #                      alpha=0.1 * weights[::n], cmap=cmap, rasterized=True)
-    # ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
-    # ax.set_facecolor('k')
-    # fig.colorbar(scatter, label=cbar_label)
-    
+    fig, ax = plt.subplots(figsize=(4, 4))
     
     x = particles[0, :]
     y = particles[1, :]
@@ -693,37 +686,29 @@ def Apep_Radial_Velocity():
     y_indices = jnp.floor(ypos / side_width).astype(int)
     
     im_size = len(xedges) - 1 
-    # H = np.zeros((im_size, im_size))
     H = jnp.zeros((im_size, im_size))
     
-    # for i in range(im_size):
-    #     for j in range(im_size):
-    #         H[i, j] = np.sum(particle_speeds[np.argwhere((x_indices == i) & (y_indices == j))])
-    # H[x_indices, y_indices] += particle_speeds
-    
+    # weights = weights if velocity == 'LOS' else 1
+    weights = np.ceil(weights)
     H = H.at[x_indices, y_indices].add(particle_speeds * weights)
     h, x_, y_ = np.histogram2d(x, y, bins=(xedges, yedges))
     h = np.where(h == 0, 1, h)
-    # print(h)
     H = H / h
     
-    
     H = H.T
-    
-    H = gaussian_filter(H, sigma=2)
+    sigma = 2
+    H = gaussian_filter(H, sigma=sigma)
     
     vmax = np.max(abs(H[~np.isnan(H)])) # get the maximum of the non-nan values for colourmap normalization
+    vmin = -vmax if velocity == 'LOS' else 0
         
     ax.set_facecolor('k')
-    # H, xedges, yedges = np.histogram2d(particles[0, :], particles[1, :], bins=X[0, :], weights=particle_speeds)
-    colour = ax.pcolormesh(xedges, yedges, H, cmap=cmap, vmin=-vmax, vmax=vmax, shading='flat', rasterized=True)
-    # colour = ax.imshow(H[::-1, :], cmap=cmap, vmin=-vmax, vmax=vmax, interpolation='gaussian')
-    # colour = ax.pcolormesh(xedges, yedges, H, cmap=cmap)
+    colour = ax.pcolormesh(xedges, yedges, H, cmap=cmap, vmin=vmin, vmax=vmax, shading='flat', rasterized=True)
     ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
-    fig.colorbar(colour, label=cbar_label)
+    fig.colorbar(colour, label=cbar_label, shrink=0.8)
     
-    fig.savefig('Images/Apep_radial_velocity_map.png', dpi=400, bbox_inches='tight')
-    fig.savefig('Images/Apep_radial_velocity_map.pdf', dpi=400, bbox_inches='tight')
+    fig.savefig(f'Images/Apep_velocity_map_{velocity}.png', dpi=400, bbox_inches='tight')
+    fig.savefig(f'Images/Apep_velocity_map_{velocity}.pdf', dpi=400, bbox_inches='tight')
     
     
 def WR48a_plot():
@@ -1386,7 +1371,8 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
-    Apep_Radial_Velocity()
+    Apep_Velocity_Map()
+    Apep_Velocity_Map(velocity='POS')
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
