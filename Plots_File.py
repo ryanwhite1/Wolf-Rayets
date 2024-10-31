@@ -673,6 +673,69 @@ def WR48a_plot():
     
     fig.savefig(f'Images/WR48a_geometry.png', dpi=400, bbox_inches='tight')
     fig.savefig(f'Images/WR48a_geometry.pdf', dpi=400, bbox_inches='tight')
+
+def WR48a_gif():
+    
+    N = 200
+    phases = np.linspace(0.5, 1.5, N)
+    star = wrb.WR48a.copy()
+    star['histmax'] = 0.7
+    stars = {'star1amp':0.4, 'star1sd':-0.85, 'star2amp':0.4, 'star2sd':-0.85}
+    for param in list(stars.keys()):
+        star[param] = stars[param]
+    
+    vmin, vmax = 0., 0.7
+    
+    particles, weights = gm.gui_funcs[1](star)
+    X_orig, Y_orig, H = smooth_histogram2d(particles, weights, star)
+    H = gm.add_stars(X_orig[0, :], Y_orig[:, 0], H, star)
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    ax.pcolormesh(X_orig, Y_orig, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+    
+    # xlim = ax.get_xlim()
+    # ylim = ax.get_ylim()
+    
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    
+    every = 1
+    length = 10
+    # now calculate some parameters for the animation frames and timing
+    # nt = int(stardata['period'])    # roughly one year per frame
+    # nt = 10
+    frames = jnp.arange(0, N, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    import matplotlib
+
+    cmap = matplotlib.cm.get_cmap('hot')
+    
+    rgba = cmap(0.)
+    
+    def animate(i):
+        if i%(N // 10) == 0:
+            print(i/N * 100, "%", sep='')
+        ax.clear()
+        ax.set_facecolor(rgba)
+            
+        star['phase'] = phases[i]
+        particles, weights = gm.gui_funcs[1](star)
+        # weights = np.array(weights)
+        # weights[:len(weights)//2] /= 2
+        X, Y, H = smooth_histogram2d_w_bins(particles, weights, star, X_orig[0, :], Y_orig[:, 0])
+        H = gm.add_stars(X[0, :], Y[:, 0], H, star)
+        
+        # mesh.set_array(H)
+        # mesh._coordinates = np.array([X, Y])
+        ax.pcolormesh(X, Y, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+        
+        ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=rf"$\phi = {phases[i]%1:.2f}$")
+        # ax.set(xlim=xlim, ylim=ylim)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    # writer = animation.FFMpegWriter(fps=fps)
+    ani.save("Images/WR48a_evolution.gif", writer='ffmpeg', fps=fps, dpi=300)
     
 
 def smooth_hist_demo():
@@ -1263,7 +1326,7 @@ def main():
     # Apep_image_fit()
     # apep_tertiary_movement()
     
-    Apep_flipbook(pages=93)
+    # Apep_flipbook(pages=93)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
@@ -1277,6 +1340,7 @@ def main():
     
     # WR48a_lightcurve()
     # WR48a_plot()
+    WR48a_gif()
     
 
 
