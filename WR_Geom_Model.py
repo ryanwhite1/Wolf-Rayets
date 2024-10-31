@@ -1284,8 +1284,13 @@ def ring_velocities(stardata, n_orb, n_rings):
     v_mult = temp[:, 1]
     return oa_mult, v_mult
 
-def plume_velocity_map(particles, weights, stardata):
+def plume_velocity_map(particles, weights, stardata, velocity='LOS'):
     '''TODO: will need to update the `particle_speeds` line to actually calculate the speed of each particle once anisotropy is included
+    Parameters
+    ----------
+    velocity : str
+        One of {"LOS", "POS"} which indicates velocity map for particle velocity along the line of sight (radial) or
+        in the plane of the sky (tangential)
     '''
     n_t = 1000       # circles per orbital period
     n_points = 400   # points per circle
@@ -1299,41 +1304,56 @@ def plume_velocity_map(particles, weights, stardata):
     
     radii = jnp.linalg.norm(particles, axis=0)
     # radii /= max(radii)
-    plane_radii = jnp.linalg.norm(particles[:2, :], axis=0)
+    plane_dist = jnp.linalg.norm(particles[:2, :], axis=0)
+    radial_dist = particles[2, :]
+    
+    if velocity == "LOS":
+        velocity_mult = -radial_dist # negative sign to ensure that negative radial velocity means toward us
+        cmap = 'bwr'
+        cbar_label = 'Radial Velocity (km/s)'
+    elif velocity == "POS":
+        velocity_mult = plane_dist
+        cmap = 'plasma'
+        cbar_label = 'Recoverable Velocity in POS (km/s)'
     # plane_radii /= max(plane_radii)
     
-    _, anisotropy_speeds = ring_velocities(stardata, n_orb, n_t)
-    anisotropy_speeds = np.repeat(anisotropy_speeds, n_points)
+    fig_args = {'cmap':cmap, 'cbar_label':cbar_label}
     
-    particle_speeds = anisotropy_speeds * stardata['windspeed1'] * plane_radii / radii
+    # _, anisotropy_speeds = ring_velocities(stardata, n_orb, n_t)
+    # anisotropy_speeds = np.repeat(anisotropy_speeds, n_points)
     
-    fig, ax = plt.subplots()
-    n = 10
-    scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], alpha=0.1 * weights[::n], cmap='plasma')
-    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
-    ax.set_facecolor('k')
-    fig.colorbar(scatter, label='Recoverable Velocity in POS (km/s)')
+    anisotropy_speeds = 1
     
-    return particle_speeds
+    particle_speeds = anisotropy_speeds * stardata['windspeed1'] * velocity_mult / radii
+    
+    # fig, ax = plt.subplots()
+    # n = 10
+    # scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], alpha=0.1 * weights[::n], cmap=cmap)
+    # ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    # ax.set_facecolor('k')
+    # fig.colorbar(scatter, label='Recoverable Velocity in POS (km/s)')
+    
+    return particle_speeds, fig_args
+
     
 
 # print(ring_velocities(wrb.apep_aniso.copy(), 1, 400))
 
-system = wrb.apep.copy()
-# system['eccentricity'] = 0.767234
-# # # system = wrb.WR112.copy()
-# # # system['lum_power'] = 1
-# # system = wrb.WR140.copy()
-# # system = wrb.apep_aniso.copy()
-# # # apep['comp_reduction'] = 0
-# # # # # for i in range(10):
-# # # t1 = time.time()
-particles, weights = dust_plume(system)
-# # particles, weights = gui_funcs[2](system)
-# X, Y, H = smooth_histogram2d(particles, weights, system)
-# # print(time.time() - t1)
-# # H = add_stars(X[0, :], Y[:, 0], H, system)
-# plot_spiral(X, Y, H)
+# system = wrb.apep.copy()
+# # system['eccentricity'] = 0.767234
+# # # # system = wrb.WR112.copy()
+# # # # system['lum_power'] = 1
+# # # system = wrb.WR140.copy()
+# # # system = wrb.apep_aniso.copy()
+# # # # apep['comp_reduction'] = 0
+# # # # # # for i in range(10):
+# # # # t1 = time.time()
+# particles, weights = dust_plume(system)
+# # # particles, weights = gui_funcs[2](system)
+# # X, Y, H = smooth_histogram2d(particles, weights, system)
+# # # print(time.time() - t1)
+# # # H = add_stars(X[0, :], Y[:, 0], H, system)
+# # plot_spiral(X, Y, H)
 
 # velocities = plume_velocity_map(particles, weights, system)
 

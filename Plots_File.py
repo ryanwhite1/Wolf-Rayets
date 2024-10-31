@@ -658,7 +658,27 @@ def Apep_gif():
     # writer = animation.FFMpegWriter(fps=fps)
     ani.save("Images/Apep_evolution.gif", writer='ffmpeg', fps=fps)
     
+def Apep_Radial_Velocity():
+    apep = wrb.apep.copy()
     
+    particles, weights = gm.dust_plume(apep)
+    X, Y, H = smooth_histogram2d(particles, weights, apep)
+    
+    particle_speeds, fig_args = gm.plume_velocity_map(particles, weights, apep, velocity='LOS')
+    
+    cmap = fig_args['cmap']
+    cbar_label = fig_args['cbar_label']
+    
+    fig, ax = plt.subplots()
+    n = 5
+    scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], 
+                         alpha=0.1 * weights[::n], cmap=cmap, rasterized=True)
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    ax.set_facecolor('k')
+    fig.colorbar(scatter, label=cbar_label)
+    
+    fig.savefig('Images/Apep_radial_velocity_map.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Apep_radial_velocity_map.pdf', dpi=400, bbox_inches='tight')
     
     
 def WR48a_plot():
@@ -1321,6 +1341,7 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
+    Apep_Radial_Velocity()
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
@@ -1338,7 +1359,7 @@ def main():
     
     # WR140_lightcurve()
     
-    WR48a_lightcurve()
+    # WR48a_lightcurve()
     # WR48a_plot()
     # WR48a_gif()
     
