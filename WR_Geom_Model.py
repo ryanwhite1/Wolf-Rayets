@@ -1209,7 +1209,7 @@ def generate_lightcurve(stardata, n=100, shells=1):
     phases = jnp.linspace(0, 1, n)
     fluxes = np.zeros(n)
     
-    im_size = 256
+    im_size = 600
     
     for i in range(n):
         starcopy = stardata.copy()

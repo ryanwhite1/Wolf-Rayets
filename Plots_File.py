@@ -1338,9 +1338,9 @@ def main():
     
     # WR140_lightcurve()
     
-    # WR48a_lightcurve()
+    WR48a_lightcurve()
     # WR48a_plot()
-    WR48a_gif()
+    # WR48a_gif()
     
 
 
