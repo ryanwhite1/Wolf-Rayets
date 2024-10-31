@@ -662,7 +662,7 @@ def Apep_Radial_Velocity():
     apep = wrb.apep.copy()
     
     particles, weights = gm.dust_plume(apep)
-    X, Y, H = smooth_histogram2d(particles, weights, apep)
+    X, Y, H = gm.smooth_histogram2d(particles, weights, apep)
     
     particle_speeds, fig_args = gm.plume_velocity_map(particles, weights, apep, velocity='LOS')
     
@@ -670,12 +670,57 @@ def Apep_Radial_Velocity():
     cbar_label = fig_args['cbar_label']
     
     fig, ax = plt.subplots()
-    n = 5
-    scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], 
-                         alpha=0.1 * weights[::n], cmap=cmap, rasterized=True)
-    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    # n = 5
+    # scatter = ax.scatter(particles[0, ::n], particles[1, ::n], c=particle_speeds[::n], 
+    #                      alpha=0.1 * weights[::n], cmap=cmap, rasterized=True)
+    # ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    # ax.set_facecolor('k')
+    # fig.colorbar(scatter, label=cbar_label)
+    
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    xedges = X[0, :]
+    yedges = Y[:, 0]
+    
+    side_width = xedges[1] - xedges[0]
+    
+    xpos = x - jnp.min(xedges)
+    ypos = y - jnp.min(yedges)
+    
+    x_indices = jnp.floor(xpos / side_width).astype(int)
+    y_indices = jnp.floor(ypos / side_width).astype(int)
+    
+    im_size = len(xedges) - 1 
+    # H = np.zeros((im_size, im_size))
+    H = jnp.zeros((im_size, im_size))
+    
+    # for i in range(im_size):
+    #     for j in range(im_size):
+    #         H[i, j] = np.sum(particle_speeds[np.argwhere((x_indices == i) & (y_indices == j))])
+    # H[x_indices, y_indices] += particle_speeds
+    
+    H = H.at[x_indices, y_indices].add(particle_speeds * weights)
+    h, x_, y_ = np.histogram2d(x, y, bins=(xedges, yedges))
+    h = np.where(h == 0, 1, h)
+    # print(h)
+    H = H / h
+    
+    
+    H = H.T
+    
+    H = gaussian_filter(H, sigma=2)
+    
+    vmax = np.max(abs(H[~np.isnan(H)])) # get the maximum of the non-nan values for colourmap normalization
+        
     ax.set_facecolor('k')
-    fig.colorbar(scatter, label=cbar_label)
+    # H, xedges, yedges = np.histogram2d(particles[0, :], particles[1, :], bins=X[0, :], weights=particle_speeds)
+    colour = ax.pcolormesh(xedges, yedges, H, cmap=cmap, vmin=-vmax, vmax=vmax, shading='flat', rasterized=True)
+    # colour = ax.imshow(H[::-1, :], cmap=cmap, vmin=-vmax, vmax=vmax, interpolation='gaussian')
+    # colour = ax.pcolormesh(xedges, yedges, H, cmap=cmap)
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    fig.colorbar(colour, label=cbar_label)
     
     fig.savefig('Images/Apep_radial_velocity_map.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_radial_velocity_map.pdf', dpi=400, bbox_inches='tight')
