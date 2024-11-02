@@ -1206,10 +1206,13 @@ def smooth_hist_gradient():
         ax.axvline(yedges[i], c='tab:grey', lw=0.5, ls='--', rasterized=True)
     ax.set(aspect='equal', xlabel=r'$x$', ylabel=r'$y$')
     
-def WR140_lightcurve():
+def WR140_lightcurve(n=100, shells=2, magscale=True):
     from matplotlib.ticker import MultipleLocator
+    from matplotlib.scale import LogScale
     
-    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=100, shells=2)
+    
+    
+    phases, fluxes = gm.generate_lightcurve(wrb.WR140, n=n, shells=shells)
     
     fig, ax = plt.subplots(figsize=(4, 6.75))
     
@@ -1222,11 +1225,19 @@ def WR140_lightcurve():
     
     fluxes = np.tile(fluxes, 3)
     
-    ax.plot(phases, fluxes)
-    
     xlim = (-0.1, 1.1)
     xlim = (-0.12, 0.62)
-    ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=xlim)
+    
+    if magscale:
+        ax.set(xlabel='Phase', ylabel=r'Change in Magnitude ($\Delta m$)', xlim=xlim)
+        # magscale = LogScale(ax, base=2.512)
+        # ax.set_yscale(magscale)
+        ax.plot(phases, np.emath.logn(2.512, fluxes))
+    
+    else:
+        ax.plot(phases, fluxes)
+        ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=xlim)
+    
     ax.xaxis.set_minor_locator(MultipleLocator(0.1))
     
     fig.savefig('Images/WR140_Light_Curve.png', dpi=400, bbox_inches='tight')
