@@ -1243,10 +1243,11 @@ def WR140_lightcurve(n=100, shells=2, magscale=True):
     fig.savefig('Images/WR140_Light_Curve.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/WR140_Light_Curve.pdf', dpi=400, bbox_inches='tight')
     
-def WR48a_lightcurve():
+def WR48a_lightcurve(n=100, shells=5, magscale=True):
     ''' Thanks to https://stackoverflow.com/questions/21920233/matplotlib-log-scale-tick-label-number-formatting for the y axis tick labels
     '''
     from matplotlib.ticker import FuncFormatter
+    from matplotlib.scale import LogScale
     phases, fluxes = gm.generate_lightcurve(wrb.WR48a, n=100, shells=5)
     
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -1273,27 +1274,35 @@ def WR48a_lightcurve():
     right_p = 1.05
     
     
-    scattersize = 8
-    ax.plot(phases, fluxes)
-    # ax.scatter(phases, fluxes, s=scattersize)
-    ax.set(xlabel='Phase', ylabel='Flux', yscale='log')
-    # for x in [0.1, 1.1]:
-    #     ax.axvline(x, ls='--', c='tab:red')
-    ax.grid(True)
-    ax.set(xlim=(left_p, right_p))
-    ax.minorticks_on()
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
-    ax.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+    if magscale:
+        ax.plot(phases, np.emath.logn(2.512, fluxes))
+        ax.set(xlabel='Phase', ylabel=r'Change in Magnitude ($\Delta m$)')
+        ax.grid(axis='x')
+        ax.set(xlim=(left_p, right_p))
+        ax.minorticks_on()
+        
+        ax2 = ax.twiny()
+        ax2.minorticks_on()
+        ax2.plot(phases * wrb.WR48a['period'] + peri_year, np.emath.logn(2.512, fluxes))
+        ax2.set(xlim=(left_p * wrb.WR48a['period'] + peri_year, right_p * wrb.WR48a['period'] + peri_year))
+        
+    else:
+        ax.plot(phases, fluxes)
+        ax.set(xlabel='Phase', ylabel='Flux', yscale='log')
+        ax.grid(True)
+        ax.set(xlim=(left_p, right_p))
+        ax.minorticks_on()
+        ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+        ax.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+        
+        
+        ax2 = ax.twiny()
+        ax2.minorticks_on()
     
-    
-    ax2 = ax.twiny()
-    ax2.minorticks_on()
-    
-    # ax2.scatter(phases * wrb.WR48a['period'] + peri_year, fluxes, s=scattersize)
-    ax2.plot(phases * wrb.WR48a['period'] + peri_year, fluxes)
-    ax2.set(yscale='log', xlim=(left_p * wrb.WR48a['period'] + peri_year, right_p * wrb.WR48a['period'] + peri_year))
-    ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
-    ax2.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+        ax2.plot(phases * wrb.WR48a['period'] + peri_year, fluxes)
+        ax2.set(yscale='log', xlim=(left_p * wrb.WR48a['period'] + peri_year, right_p * wrb.WR48a['period'] + peri_year))
+        ax2.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
+        ax2.yaxis.set_minor_formatter(FuncFormatter(lambda y, _: '{:g}'.format(y)))
     
     fig.savefig('Images/WR48a_Light_Curve.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/WR48a_Light_Curve.pdf', dpi=400, bbox_inches='tight')
@@ -1407,9 +1416,9 @@ def main():
     # effects_compare()
     # anisotropy_compare()
     
-    WR140_lightcurve()
+    # WR140_lightcurve()
     
-    # WR48a_lightcurve()
+    WR48a_lightcurve()
     # WR48a_plot()
     # WR48a_gif()
     
