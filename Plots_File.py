@@ -1020,6 +1020,8 @@ def effects_compare():
     
     
     test = wrb.WR48a.copy()
+    test['az_sd'] = 60
+    test['az_amp'] = -1
     
     
     test_ = test.copy()
@@ -1371,8 +1373,8 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
-    Apep_Velocity_Map()
-    Apep_Velocity_Map(velocity='POS')
+    # Apep_Velocity_Map()
+    # Apep_Velocity_Map(velocity='POS')
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
@@ -1385,7 +1387,7 @@ def main():
     # smooth_hist_gradient()
     
     # variation_gaussian()
-    
+    effects_compare()
     # anisotropy_compare()
     
     # WR140_lightcurve()
