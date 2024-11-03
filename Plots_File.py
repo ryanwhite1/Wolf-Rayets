@@ -503,7 +503,7 @@ def apep_tertiary_movement():
     fig.savefig('Images/Apep_Tertiary_Movement.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Apep_Tertiary_Movement.pdf', dpi=400, bbox_inches='tight')
     
-def Apep_flipbook(pages=93):
+def Apep_flipbook(pages=98):
     import matplotlib.colors as colors
     norm = colors.Normalize(vmin=0., vmax=1.)
     apep = wrb.apep.copy()
@@ -1436,14 +1436,14 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
-    Apep_Velocity_Map()
+    # Apep_Velocity_Map()
     # Apep_Velocity_Map(velocity='POS')
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
     # apep_tertiary_movement()
     
-    # Apep_flipbook(pages=93)
+    Apep_flipbook(pages=98)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
