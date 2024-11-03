@@ -669,7 +669,7 @@ def Apep_Velocity_Map(velocity='LOS'):
     cmap = fig_args['cmap']
     cbar_label = fig_args['cbar_label']
     
-    fig, ax = plt.subplots(figsize=(4, 4))
+    fig, ax = plt.subplots(figsize=(3.5, 3.5))
     
     x = particles[0, :]
     y = particles[1, :]
@@ -690,7 +690,8 @@ def Apep_Velocity_Map(velocity='LOS'):
     
     # weights = weights if velocity == 'LOS' else 1
     weights = np.ceil(weights)
-    H = H.at[x_indices, y_indices].add(particle_speeds * weights)
+    weighted_particles = particle_speeds * weights
+    H = H.at[x_indices, y_indices].add(weighted_particles)
     h, x_, y_ = np.histogram2d(x, y, bins=(xedges, yedges))
     h = np.where(h == 0, 1, h)
     H = H / h
@@ -710,6 +711,34 @@ def Apep_Velocity_Map(velocity='LOS'):
     fig.savefig(f'Images/Apep_velocity_map_{velocity}.png', dpi=400, bbox_inches='tight')
     fig.savefig(f'Images/Apep_velocity_map_{velocity}.pdf', dpi=400, bbox_inches='tight')
     
+    if velocity == "LOS":
+        fig, axes = plt.subplots(ncols=3, figsize=(8, 4), gridspec_kw={'wspace':0, 'width_ratios':[0.485, 0.485, 0.03],})
+        
+        for i, sign in enumerate([-1, 1]):
+            H = jnp.zeros((im_size, im_size)) 
+            use_args = np.argwhere(sign * weighted_particles > 0).flatten()
+            H = H.at[x_indices[use_args], y_indices[use_args]].add(weighted_particles[use_args])
+            h, x_, y_ = np.histogram2d(x[use_args], y[use_args], bins=(xedges, yedges))
+            h = np.where(h == 0, 1, h)
+            H = H / h
+            
+            H = H.T
+            sigma = 2
+            H = gaussian_filter(H, sigma=sigma)
+            
+            # vmax = np.max(abs(H[~np.isnan(H)])) # get the maximum of the non-nan values for colourmap normalization
+            # vmin = -vmax if velocity == 'LOS' else 0
+                
+            axes[i].set_facecolor('k')
+            axes[i].pcolormesh(xedges, yedges, H, cmap=cmap, vmin=vmin, vmax=vmax, shading='flat', rasterized=True)
+            ylabel = 'Relative Dec (")' if i == 0 else ""
+            axes[i].set(aspect='equal', xlabel='Relative RA (")', ylabel=ylabel)
+            if i == 1:
+                axes[i].get_yaxis().set_visible(False)
+        fig.colorbar(colour, cax=axes[2], label=cbar_label)
+        fig.savefig(f'Images/Apep_velocity_map_{velocity}_separated.png', dpi=400, bbox_inches='tight')
+        fig.savefig(f'Images/Apep_velocity_map_{velocity}_separated.pdf', dpi=400, bbox_inches='tight')
+        
     
 def WR48a_plot():
     star = wrb.WR48a.copy()
@@ -1403,7 +1432,7 @@ def main():
     # apep_orbit()
     # Apep_gif()
     # Apep_Velocity_Map()
-    # Apep_Velocity_Map(velocity='POS')
+    Apep_Velocity_Map(velocity='POS')
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
@@ -1421,7 +1450,7 @@ def main():
     
     # WR140_lightcurve()
     
-    WR48a_lightcurve()
+    # WR48a_lightcurve()
     # WR48a_plot()
     # WR48a_gif()
     

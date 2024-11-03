@@ -1311,11 +1311,11 @@ def plume_velocity_map(particles, weights, stardata, velocity='LOS'):
     if velocity == "LOS":
         velocity_mult = -radial_dist # negative sign to ensure that negative radial velocity means toward us
         cmap = 'bwr'
-        cbar_label = 'Radial Velocity (km/s)'
+        cbar_label = r'Radial Velocity (km\,s$^{-1}$)'
     elif velocity == "POS":
         velocity_mult = plane_dist
         cmap = 'Greys'
-        cbar_label = 'Recoverable Velocity in POS (km/s)'
+        cbar_label = r'Recoverable Velocity in POS (km\,s$^{-1}$)'
     # plane_radii /= max(plane_radii)
     
     fig_args = {'cmap':cmap, 'cbar_label':cbar_label}
