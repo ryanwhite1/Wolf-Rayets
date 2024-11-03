@@ -711,12 +711,17 @@ def Apep_Velocity_Map(velocity='LOS'):
     fig.savefig(f'Images/Apep_velocity_map_{velocity}.png', dpi=400, bbox_inches='tight')
     fig.savefig(f'Images/Apep_velocity_map_{velocity}.pdf', dpi=400, bbox_inches='tight')
     
+    titles = ["Integrated", "Negative Only", "Positive Only"]
+    
     if velocity == "LOS":
-        fig, axes = plt.subplots(ncols=3, figsize=(8, 4), gridspec_kw={'wspace':0, 'width_ratios':[0.485, 0.485, 0.03],})
+        fig, axes = plt.subplots(ncols=4, figsize=(8, 3), gridspec_kw={'wspace':0, 'width_ratios':[0.322, 0.322, 0.322, 0.014],})
         
-        for i, sign in enumerate([-1, 1]):
+        for i, sign in enumerate([0, -1, 1]):
             H = jnp.zeros((im_size, im_size)) 
-            use_args = np.argwhere(sign * weighted_particles > 0).flatten()
+            if i == 0:
+                use_args = np.arange(len(weighted_particles))
+            else:
+                use_args = np.argwhere(sign * weighted_particles > 0).flatten()
             H = H.at[x_indices[use_args], y_indices[use_args]].add(weighted_particles[use_args])
             h, x_, y_ = np.histogram2d(x[use_args], y[use_args], bins=(xedges, yedges))
             h = np.where(h == 0, 1, h)
@@ -732,10 +737,10 @@ def Apep_Velocity_Map(velocity='LOS'):
             axes[i].set_facecolor('k')
             axes[i].pcolormesh(xedges, yedges, H, cmap=cmap, vmin=vmin, vmax=vmax, shading='flat', rasterized=True)
             ylabel = 'Relative Dec (")' if i == 0 else ""
-            axes[i].set(aspect='equal', xlabel='Relative RA (")', ylabel=ylabel)
-            if i == 1:
+            axes[i].set(aspect='equal', xlabel='Relative RA (")', ylabel=ylabel, title=titles[i])
+            if i > 0:
                 axes[i].get_yaxis().set_visible(False)
-        fig.colorbar(colour, cax=axes[2], label=cbar_label)
+        fig.colorbar(colour, cax=axes[3], label=cbar_label)
         fig.savefig(f'Images/Apep_velocity_map_{velocity}_separated.png', dpi=400, bbox_inches='tight')
         fig.savefig(f'Images/Apep_velocity_map_{velocity}_separated.pdf', dpi=400, bbox_inches='tight')
         
@@ -1431,8 +1436,8 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
-    # Apep_Velocity_Map()
-    Apep_Velocity_Map(velocity='POS')
+    Apep_Velocity_Map()
+    # Apep_Velocity_Map(velocity='POS')
     
     # Apep_JWST_mosaic()
     # Apep_image_fit()
