@@ -658,6 +658,63 @@ def Apep_gif():
     # writer = animation.FFMpegWriter(fps=fps)
     ani.save("Images/Apep_evolution.gif", writer='ffmpeg', fps=fps)
     
+def Apep_gif_pretty():
+    
+    N = 200
+    phases = np.linspace(0.5, 1.5, N)
+    star = wrb.apep.copy()
+    star['histmax'] = 0.7
+    
+    vmin, vmax = 0., 0.7
+    
+    particles, weights = gm.gui_funcs[2](star)
+    X_orig, Y_orig, H = smooth_histogram2d(particles, weights, star)
+    H = gm.add_stars(X_orig[0, :], Y_orig[:, 0], H, star)
+    
+    fig, ax = plt.subplots(figsize=(6, 6))
+    
+    ax.pcolormesh(X_orig, Y_orig, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+    
+    ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+    
+    ax.set_axis_off()
+    fig.subplots_adjust(left=0, bottom=0, right=1, top=1, wspace=None, hspace=None)
+    
+    every = 1
+    length = 10
+    # now calculate some parameters for the animation frames and timing
+    frames = jnp.arange(0, N, every)    # iterable for the animation function. Chooses which frames (indices) to animate.
+    fps = len(frames) // length  # fps for the final animation
+    
+    import matplotlib
+
+    cmap = matplotlib.cm.get_cmap('hot')
+    
+    rgba = cmap(0.)
+    
+    def animate(i):
+        if i%(N // 10) == 0:
+            print(i/N * 100, "%", sep='')
+        ax.clear()
+        ax.set_facecolor(rgba)
+            
+        star['phase'] = phases[i]
+        particles, weights = gm.gui_funcs[2](star)
+        weights = np.array(weights)
+        weights[:len(weights)//2] /= 2
+        X, Y, H = smooth_histogram2d_w_bins(particles, weights, star, X_orig[0, :], Y_orig[:, 0])
+        H = gm.add_stars(X[0, :], Y[:, 0], H, star)
+        
+        ax.pcolormesh(X, Y, H, cmap='hot', vmin=vmin, vmax=vmax, rasterized=True)
+        
+        ax.set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")')
+        ax.text(20, 35, rf"$\phi = {phases[i]%1:.2f}$", c='w', fontsize=20)
+        # ax.set(xlim=xlim, ylim=ylim)
+        return fig, 
+    
+    ani = animation.FuncAnimation(fig, animate, frames=frames, blit=True, repeat=False)
+    ani.save("Images/Apep_evolution_pretty.gif", writer='ffmpeg', fps=fps)
+    
 def Apep_Velocity_Map(velocity='LOS'):
     apep = wrb.apep.copy()
     
@@ -1436,6 +1493,7 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
+    Apep_gif_pretty()
     # Apep_Velocity_Map()
     # Apep_Velocity_Map(velocity='POS')
     
@@ -1443,7 +1501,7 @@ def main():
     # Apep_image_fit()
     # apep_tertiary_movement()
     
-    Apep_flipbook(pages=98)
+    # Apep_flipbook(pages=98)
     
     # smooth_hist_demo()
     # smooth_hist_gif()
