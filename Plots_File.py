@@ -1261,6 +1261,9 @@ def WR48a_lightcurve(n=100, shells=5, magscale=True):
     
     fluxes = np.tile(fluxes, 3)
     
+    sigma = 1
+    fluxes = gaussian_filter(fluxes, sigma=sigma)
+    
     # ax.scatter(phases, fluxes)
     # ax.set(xlabel='Phase', ylabel='Flux', yscale='log', xlim=(-0.1, 1.2))
     # for x in [0.1, 1.1]:
