@@ -1550,6 +1550,7 @@ def book_chapter_plot():
     ylim = ax2.get_ylim()
     ax2.set_xlim(factor * np.array(xlim))
     ax2.set_ylim(factor * np.array(ylim))
+    ax2.set(aspect='equal')
     
     
     mark_inset(ax, ax2, loc1=1, loc2=3, fc="none", ec="0.5")
