@@ -1479,6 +1479,150 @@ def apep_orbit():
     print(np.mean(mass))
     
     
+def book_chapter_plot():
+    
+    starcopy = wrb.apep.copy()
+    starcopy = wrb.WR104.copy()
+    
+    starcopy['m1'] = starcopy['m2'] = 50
+    starcopy['eccentricity'] = 0.
+    starcopy['open_angle'] = 90
+    starcopy['inclination'] = 30
+    starcopy['asc_node'] = 0
+    starcopy['arg_peri'] = 200
+    starcopy['windspeed1'] = 500
+    # starcopy['phase'] = 0.6 
+    staramp, starsd = 0.5, -4.
+    starcopy['star1amp'] = staramp
+    starcopy['star1sd'] = starsd
+    starcopy['star2amp'] = staramp
+    starcopy['star2sd'] = starsd
+    starcopy['nuc_dist'] = 0.5
+    
+    # starcopy["comp_incl"] = 100
+    # starcopy['comp_az'] = 200
+    # starcopy['star3dist'] = 100
+    # starcopy['star3amp'] = 0
+    
+    starcopy['histmax'] = 0.5
+    
+    
+    pos1, pos2 = gm.orbital_positions(starcopy)
+    pos1, pos2 = gm.transform_orbits(pos1, pos2, starcopy)
+    
+    
+    particles, weights = gm.gui_funcs[0](starcopy)
+    X, Y, H = smooth_histogram2d(particles, weights, starcopy)
+    # H = gm.add_stars(X[0, :], Y[:, 0], H, starcopy)
+    
+    fig, ax = plt.subplots(figsize=(6, 5))
+    
+    from mpl_toolkits.axes_grid1.inset_locator import zoomed_inset_axes, inset_axes
+    from mpl_toolkits.axes_grid1.inset_locator import mark_inset
+    
+    # left, bottom, width, height = [0.2, 0.65, 0.2, 0.2]
+    # ax2 = fig.add_axes([left, bottom, width, height])
+    
+    # ax2 = zoomed_inset_axes(ax, 10, loc=2)
+    ax2 = inset_axes(ax, width="30%", height="30%", loc=2)
+    
+    
+    ax2.set_xticks([])
+    ax2.set_yticks([])
+    ax2.xaxis.set_tick_params(labelbottom=False)
+    ax2.yaxis.set_tick_params(labelleft=False)
+    
+    
+    
+    
+    ax.set_axis_off()
+    # ax.plot(pos1[0, :], pos1[1, :])
+    ax.pcolormesh(X, Y, H, cmap='gist_heat_r', rasterized=True)
+    ax.set(aspect='equal')
+    
+    for axis in [ax, ax2]:
+        axis.plot(pos1[0, :], pos1[1, :])
+    ax2.scatter([pos1[0, -1], pos2[0, -1]], [pos1[1, -1], pos2[1, -1]],
+                c = ['tab:blue', 'k'])
+    
+    factor = 1.5
+    xlim = ax2.get_xlim()
+    ylim = ax2.get_ylim()
+    ax2.set_xlim(factor * np.array(xlim))
+    ax2.set_ylim(factor * np.array(ylim))
+    
+    
+    mark_inset(ax, ax2, loc1=1, loc2=3, fc="none", ec="0.5")
+    
+    ax2.text(xlim[0] + 0.45 * (xlim[1] - xlim[0]), ylim[0] + 1 * (ylim[1] - ylim[0]), "WR Star")
+    ax2.text(xlim[0] + -0.1 * (xlim[1] - xlim[0]), ylim[0] + -0.2 * (ylim[1] - ylim[0]), "OB Star")
+    
+    fig.savefig('Images/Skeleton_CWB.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Skeleton_CWB.pdf', dpi=400, bbox_inches='tight')
+    
+    
+    
+    
+    # now for 2nd figure
+    
+    starcopy['inclination'] = 0
+    starcopy['phase'] = 0.  
+    starcopy['arg_peri'] = 180
+    starcopy['windspeed1'] = 50
+    starcopy['histmax'] = 1
+    
+    fig, ax = plt.subplots(figsize=(4, 4))
+    
+    pos1, pos2 = gm.orbital_positions(starcopy)
+    pos1, pos2 = gm.transform_orbits(pos1, pos2, starcopy)
+    
+    particles, weights = gm.gui_funcs[0](starcopy)
+    
+    last = int(2e5)
+    
+    
+    particles = particles[:, -last:]
+    weights = weights[-last:]
+    
+    # weights = weights[::-1]
+    # weights *= np.linspace(0, 1, len(weights))
+    
+    X, Y, H = smooth_histogram2d(particles, weights, starcopy)
+    
+    ax.pcolormesh(X, Y, H, cmap='gist_heat_r', rasterized=True)
+    ax.set(aspect='equal')
+    
+    line = ax.plot(pos1[0, :], pos1[1, :], ls='--')
+    ax.scatter([pos1[0, -1], pos2[0, -1]], [pos1[1, -1], pos2[1, -1]],
+                c = ['k', 'tab:blue'])
+    
+    for sign in [1, -1]:
+        ax.arrow(0 + sign * 1e-4, sign * 0.00067, dx = -sign * 5e-5, dy=0, width=5e-5,
+                 shape='full', lw=0)
+    
+    y = np.linspace(-1, 1, 100)
+    x = y**2
+    factor = 1e-3
+    shift = -0.0005
+    ax.plot(-x * factor * 1.1 + shift, y * factor, c='k', alpha=0.5)
+    
+    ax.text(0.0009, 0, "WR Star")
+    ax.text(-0.0012, 0, "OB")
+    ax.text(-0.0012, 0.001, "Wind Shock")
+    
+    ax.errorbar([-0.0011], [-0.0015], xerr=0.0005, capsize=5, c='k', alpha=0.5)
+    ax.text(-0.00212, -0.002, "Nucleation Distance")
+    
+    ax.set_xlim(xmin=-0.0025)
+    ax.set_ylim(ymin=-0.0025)
+    
+    ax.set_axis_off()
+    
+    fig.savefig('Images/Skeleton_CWB_Basic.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/Skeleton_CWB_Basic.pdf', dpi=400, bbox_inches='tight')
+    
+    
+    
 
     
 
@@ -1493,7 +1637,7 @@ def main():
     # visir_gif()
     # apep_orbit()
     # Apep_gif()
-    Apep_gif_pretty()
+    # Apep_gif_pretty()
     # Apep_Velocity_Map()
     # Apep_Velocity_Map(velocity='POS')
     
@@ -1516,6 +1660,8 @@ def main():
     # WR48a_lightcurve()
     # WR48a_plot()
     # WR48a_gif()
+    
+    book_chapter_plot()
     
 
 

@@ -195,28 +195,28 @@ WR48a2 = {"m1":15.,                  # solar masses
         'star1amp':0., 'star1sd':-1., 'star2amp':0., 'star2sd':-1., 'star3amp':0., 'star3sd':-1., 'star3dist':0.}
 
 # below are rough params for WR 104
-WR104 = {"m1":10,                # solar masses
-        "m2":20,                # solar masses
+WR104 = {"m1":10.,                # solar masses
+        "m2":20.,                # solar masses
         "eccentricity":0.06, 
-        "inclination":180-15,       # degrees
-        "asc_node":90,         # degrees
-        "arg_peri":0,           # degrees
-        "open_angle":60,       # degrees (full opening angle)
+        "inclination":180-15.,       # degrees
+        "asc_node":90.,         # degrees
+        "arg_peri":0.,           # degrees
+        "open_angle":60.,       # degrees (full opening angle)
         "period":241.5/365.25,           # years
-        "distance":2580,        # pc
-        "windspeed1":1200,       # km/s
-        "windspeed2":2000,      # km/s
-        "turn_on":-180,         # true anomaly (degrees)
-        "turn_off":180,         # true anomaly (degrees)
+        "distance":2580.,        # pc
+        "windspeed1":1200.,       # km/s
+        "windspeed2":2000.,      # km/s
+        "turn_on":-180.,         # true anomaly (degrees)
+        "turn_off":180.,         # true anomaly (degrees)
         "gradual_turn":5.,       # gradual turn off/on (deg) -- standard deviation of gaussian fall off
         "oblate":0.,
         "nuc_dist":0.1, "opt_thin_dist":0.2,           # nucleation and optically thin distance (AU)
-        'term_windspeed':880, 'accel_rate':-2.02,
+        'term_windspeed':880., 'accel_rate':-2.02,
         "orb_sd":0., "orb_amp":0., "orb_min":180, "az_sd":0., "az_amp":0., "az_min":90, 
         "comp_incl":0, "comp_az":0, "comp_open":0, "comp_reduction":0., "comp_plume":0,
         "comp_plume_sd":0., "comp_plume_max":0.,
         "phase":0.7, 
-        "sigma":6,              # sigma for gaussian blur
+        "sigma":6.,              # sigma for gaussian blur
         "histmax":0.2, "lum_power":1., 
         "spin_inc":0., "spin_Omega":0., 
         "windspeed_polar":2400, "aniso_vel_mult":-6.2, "aniso_vel_power":3.53, "open_angle_polar":180, "aniso_OA_mult":-6.05, "aniso_OA_power":3.53,
