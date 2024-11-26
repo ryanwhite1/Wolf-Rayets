@@ -1481,7 +1481,7 @@ def apep_orbit():
     
 def book_chapter_plot():
     
-    starcopy = wrb.apep.copy()
+    # starcopy = wrb.apep.copy()
     starcopy = wrb.WR104.copy()
     
     starcopy['m1'] = starcopy['m2'] = 50
@@ -1621,6 +1621,59 @@ def book_chapter_plot():
     
     fig.savefig('Images/Skeleton_CWB_Basic.png', dpi=400, bbox_inches='tight')
     fig.savefig('Images/Skeleton_CWB_Basic.pdf', dpi=400, bbox_inches='tight')
+    
+    
+    
+    
+    
+    
+    # square 2x2 plot
+    
+    fig, axes = plt.subplots(ncols=2, nrows=2, gridspec_kw={"wspace":0, "hspace":0},
+                             figsize=(7, 7))
+    
+    cwb1 = wrb.WR104.copy()
+    cwb2 = wrb.WR112.copy()
+    cwb3 = wrb.WR140.copy()
+    cwb4 = wrb.apep.copy()
+    
+    cwb1['phase'] = 0.3
+    
+    cwb3['histmax'] = 0.3 
+    
+    cwb4['histmax'] = 0.3
+    cwb4['comp_reduction'] = 0
+    
+    cwbs = [cwb1, cwb2, cwb3, cwb4]
+    
+    for i, cwb in enumerate(cwbs):
+        numshells = 1 if i > 0 else 2 
+        
+        particles, weights = gm.gui_funcs[numshells - 1](cwb)
+        X, Y, H = smooth_histogram2d(particles, weights, cwb)
+        
+        ax = axes[i%2, min(i//2, 1)]
+        
+        ax.pcolormesh(X, Y, H, cmap='gist_heat_r', rasterized=True)
+        # ax.set(aspect='equal')
+        
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.xaxis.set_tick_params(labelbottom=False)
+        ax.yaxis.set_tick_params(labelleft=False)
+        
+        xlim = ax.get_xlim()
+        xlim = np.array(xlim)
+        ax.set_xlim(1.1 * xlim)
+        
+        ylim = ax.get_ylim()
+        ylim = np.array(ylim)
+        ax.set_ylim(1.1 * ylim)
+        
+    fig.savefig("Images/Mosaic.png", dpi=400, bbox_inches='tight')
+    fig.savefig("Images/Mosaic.pdf", dpi=400, bbox_inches='tight')
+    
+    
     
     
     
