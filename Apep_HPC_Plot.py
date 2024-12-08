@@ -21,8 +21,9 @@ plt.rcParams['mathtext.fontset'] = 'cm'
 sim_run_2 = 'HPC/sim_run_2/173006276018319360_chains'
 sim_run_1 = 'HPC/sim_run_1/173001196050679744'
 cavity_sim_run_1 = 'HPC/cavity_sim_run_1/173001335740681824'
+run_2 = 'HPC/run_2/173308768621160672'
 
-use_run = cavity_sim_run_1
+use_run = run_2
 
 with open(use_run, 'rb') as file:
     data = pickle.load(file)
@@ -36,9 +37,14 @@ param_labels = {"eccentricity":r"$e$",
           "turn_on":r"$\nu_{\rm t\_on}$",
           "turn_off":r"$\nu_{\rm t\_off}$",
           "sigma":"Blur",
+          "windspeed1":"r$v_{\rm wind}$",
           "comp_az":r"$\alpha_{\rm tert}$",
           "comp_incl":r"$\beta_{\rm tert}$",
           "comp_open":r"$\theta_{\rm OA,tert}$"}
+
+for year in [2016, 2017, 2018, 2024]:
+    for name in ["err_a_", "err_b_", "offset_x_", "offset_y_"]:
+        param_labels[f"{name}{year}"] = f"{name}{year}"
 
 labels = [param_labels[label] for label in data.keys()]
 

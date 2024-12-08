@@ -37,7 +37,7 @@ from matplotlib.figure import Figure
 import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-starcopy = wrb.WR104.copy()
+starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 3
 
 # n = 256     # standard

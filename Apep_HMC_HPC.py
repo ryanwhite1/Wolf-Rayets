@@ -126,20 +126,66 @@ def apep_model():
     params['phase'] = numpyro.sample("phase", dists.Uniform(0., 0.99))
     params['sigma'] = numpyro.sample("sigma", dists.Uniform(1., 10.))
     
+    # err_lum_factor = numpyro.sample("err_a", dists.LogUniform(1e-1, 4))
+    # err_const = numpyro.sample("err_b", dists.LogUniform(1e-4, 1))
+    err_lum_factor = numpyro.sample("err_a", dists.Uniform(1e-1, 5.))
+    # err_const = numpyro.sample("err_b", dists.Uniform(0., 1.))
+    err_const = 0.05
     
     
-    for year in vlt_years:
-        year_params = params.copy()
-        year_params['phase'] -= (2024 - year) / params['period']
-        samp_particles, samp_weights = gm.dust_plume(year_params)
-        _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-        samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-        # samp_H.at[280:320, 280:320].set(0.)
-        samp_H = samp_H.flatten()
-        # samp_H = jnp.nan_to_num(samp_H, 1e4)
-        data = flattened_vlt_data[year]
-        with numpyro.plate('plate', len(data)):
-            numpyro.sample(f'obs_{year}', dists.Normal(samp_H, 0.08), obs=data)
+    # for year in vlt_years:
+    #     year_params = params.copy()
+    #     year_params['phase'] -= (2024 - year) / params['period']
+    #     samp_particles, samp_weights = gm.dust_plume(year_params)
+        
+    #     # # offset params to ensure the model lines up with the image:
+    #     # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
+    #     # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
+        
+    #     # samp_particles = samp_particles.at[0, :].add(offset_x)
+    #     # samp_particles = samp_particles.at[1, :].add(offset_y)
+        
+    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    #     samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    #     # samp_H.at[280:320, 280:320].set(0.)
+    #     samp_H = samp_H.flatten()
+    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    #     data = flattened_vlt_data[year]
+        
+        
+    #     # now we need to deal with the error in the images:
+    #     # err_lum_factor = numpyro.sample(f"err_a_{year}", dists.LogUniform(1e-3, 4))
+    #     # err_const = numpyro.sample(f"err_b_{year}", dists.LogUniform(1e-6, 1))
+        
+    #     err = jnp.sqrt(err_lum_factor * data + err_const**2)
+    #     # err = 0.2
+        
+    #     with numpyro.plate('plate', len(data)):
+    #         numpyro.sample(f'obs_{year}', dists.Normal(samp_H, err), obs=data)
+            
+    year = 2016
+    year_params = params.copy()
+    year_params['phase'] -= (2024 - year) / params['period']
+    samp_particles, samp_weights = gm.dust_plume(year_params)
+    
+    # # offset params to ensure the model lines up with the image:
+    # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
+    # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
+    
+    # samp_particles = samp_particles.at[0, :].add(offset_x)
+    # samp_particles = samp_particles.at[1, :].add(offset_y)
+    
+    _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    # samp_H.at[280:320, 280:320].set(0.)
+    samp_H = samp_H.flatten()
+    # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    data = flattened_vlt_data[year]
+    
+    err = jnp.sqrt(err_lum_factor * data + err_const**2)
+    
+    with numpyro.plate('plate', len(data)):
+        numpyro.sample('obs', dists.Normal(samp_H, err), obs=data)
 
 
 
@@ -148,6 +194,16 @@ rand_time = int(time.time() * 1e8)
 rng_key = jax.random.PRNGKey(rand_time)
 
 init_val = wrb.apep.copy()
+
+for year in vlt_years:
+    init_val[f"err_a_{year}"] = 1.
+    init_val[f"err_b_{year}"] = 1e-2
+    init_val[f"offset_x_{year}"] = 0.
+    init_val[f"offset_y_{year}"] = 0.
+    
+init_val['err_a'] = 2. 
+init_val['err_b'] = 1e-1
+init_val['sigma'] = 4.
 
 # num_chains = min(10, len(jax.devices()))
 num_chains = 1
@@ -159,11 +215,14 @@ sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
                                                 ),
                               num_chains=num_chains,
                               num_samples=1000,
-                              num_warmup=400,
+                              num_warmup=200,
                               progress_bar=True)
 t1 = time.time()
 print("Running HMC Now.")
-sampler.run(rng_key)
+
+sampler.warmup(rng_key, collect_warmup=True)
+
+# sampler.run(rng_key)
 print("HMC Finished successfully.")
 t2 = time.time()
 print("Time taken = ", t2 - t1)
@@ -180,3 +239,31 @@ with open(f'HPC/run_{run_num}/{rand_time}_last_state', 'wb') as file:
     pickle.dump(sampler.last_state, file)
 with open(f'HPC/run_{run_num}/{rand_time}_sampler', 'wb') as file:
     pickle.dump(sampler, file)
+    
+
+
+
+
+
+
+
+import corner
+
+corner.corner(results)
+
+
+ndim = len(results.keys())
+params = list(results.keys())
+
+fig, axes = plt.subplots(figsize=(7, 2 * ndim), nrows=ndim, sharex=True, gridspec_kw={'hspace':0})
+
+for i in range(ndim):
+    param_vals = results[params[i]]
+    if len(param_vals.shape) > 1:
+        for j in range(param_vals.shape[0]):
+            axes[i].scatter(np.arange(len(param_vals[j, :])), param_vals[j, :], s=1, rasterized=True)
+    else:
+        axes[i].scatter(np.arange(len(param_vals)), param_vals, s=1, rasterized=True)
+    # axes[i].set(ylabel=param_labels[params[i]])
+    axes[i].set(ylabel=params[i])
+axes[-1].set(xlabel='Walker Iteration')
