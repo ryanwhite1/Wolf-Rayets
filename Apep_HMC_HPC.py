@@ -128,64 +128,65 @@ def apep_model():
     
     # err_lum_factor = numpyro.sample("err_a", dists.LogUniform(1e-1, 4))
     # err_const = numpyro.sample("err_b", dists.LogUniform(1e-4, 1))
-    err_lum_factor = numpyro.sample("err_a", dists.Uniform(1e-1, 5.))
+    # err_lum_factor = numpyro.sample("err_a", dists.Uniform(1e-1, 5.))
     # err_const = numpyro.sample("err_b", dists.Uniform(0., 1.))
+    err_lum_factor = 1.
     err_const = 0.05
     
     
-    # for year in vlt_years:
-    #     year_params = params.copy()
-    #     year_params['phase'] -= (2024 - year) / params['period']
-    #     samp_particles, samp_weights = gm.dust_plume(year_params)
+    for year in vlt_years:
+        year_params = params.copy()
+        year_params['phase'] -= (2024 - year) / params['period']
+        samp_particles, samp_weights = gm.dust_plume(year_params)
         
-    #     # # offset params to ensure the model lines up with the image:
-    #     # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
-    #     # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
+        # # offset params to ensure the model lines up with the image:
+        # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
+        # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
         
-    #     # samp_particles = samp_particles.at[0, :].add(offset_x)
-    #     # samp_particles = samp_particles.at[1, :].add(offset_y)
+        # samp_particles = samp_particles.at[0, :].add(offset_x)
+        # samp_particles = samp_particles.at[1, :].add(offset_y)
         
-    #     _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-    #     samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-    #     # samp_H.at[280:320, 280:320].set(0.)
-    #     samp_H = samp_H.flatten()
-    #     # samp_H = jnp.nan_to_num(samp_H, 1e4)
-    #     data = flattened_vlt_data[year]
+        _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+        samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+        # samp_H.at[280:320, 280:320].set(0.)
+        samp_H = samp_H.flatten()
+        # samp_H = jnp.nan_to_num(samp_H, 1e4)
+        data = flattened_vlt_data[year]
         
         
-    #     # now we need to deal with the error in the images:
-    #     # err_lum_factor = numpyro.sample(f"err_a_{year}", dists.LogUniform(1e-3, 4))
-    #     # err_const = numpyro.sample(f"err_b_{year}", dists.LogUniform(1e-6, 1))
+        # now we need to deal with the error in the images:
+        # err_lum_factor = numpyro.sample(f"err_a_{year}", dists.LogUniform(1e-3, 4))
+        # err_const = numpyro.sample(f"err_b_{year}", dists.LogUniform(1e-6, 1))
         
-    #     err = jnp.sqrt(err_lum_factor * data + err_const**2)
-    #     # err = 0.2
+        err = jnp.sqrt(err_lum_factor * data + err_const**2)
+        # err = 0.2
         
-    #     with numpyro.plate('plate', len(data)):
-    #         numpyro.sample(f'obs_{year}', dists.Normal(samp_H, err), obs=data)
+        with numpyro.plate('plate', len(data)):
+            numpyro.sample(f'obs_{year}', dists.Normal(samp_H, err), obs=data)
             
-    year = 2016
-    year_params = params.copy()
-    year_params['phase'] -= (2024 - year) / params['period']
-    samp_particles, samp_weights = gm.dust_plume(year_params)
+    # year = 2016
+    # year_params = params.copy()
+    # year_params['phase'] -= (2024 - year) / params['period']
+    # samp_particles, samp_weights = gm.dust_plume(year_params)
     
-    # # offset params to ensure the model lines up with the image:
-    # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
-    # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
+    # # # offset params to ensure the model lines up with the image:
+    # # offset_x = numpyro.sample(f"offset_x_{year}", dists.Uniform(-6., 6.))
+    # # offset_y = numpyro.sample(f"offset_y_{year}", dists.Uniform(-6., 6.))
     
-    # samp_particles = samp_particles.at[0, :].add(offset_x)
-    # samp_particles = samp_particles.at[1, :].add(offset_y)
+    # # samp_particles = samp_particles.at[0, :].add(offset_x)
+    # # samp_particles = samp_particles.at[1, :].add(offset_y)
     
-    _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
-    # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
-    # samp_H.at[280:320, 280:320].set(0.)
-    samp_H = samp_H.flatten()
-    # samp_H = jnp.nan_to_num(samp_H, 1e4)
-    data = flattened_vlt_data[year]
+    # _, _, samp_H = smooth_histogram2d_w_bins(samp_particles, samp_weights, year_params, xbins, ybins)
+    # # samp_H = gm.add_stars(xbins, ybins, samp_H, year_params)
+    # # samp_H.at[280:320, 280:320].set(0.)
+    # samp_H = samp_H.flatten()
+    # # samp_H = jnp.nan_to_num(samp_H, 1e4)
+    # data = flattened_vlt_data[year]
     
-    err = jnp.sqrt(err_lum_factor * data + err_const**2)
+    # err = jnp.sqrt(err_lum_factor * data + err_const**2)
     
-    with numpyro.plate('plate', len(data)):
-        numpyro.sample('obs', dists.Normal(samp_H, err), obs=data)
+    # with numpyro.plate('plate', len(data)):
+    #     numpyro.sample('obs', dists.Normal(samp_H, err), obs=data)
 
 
 
@@ -210,7 +211,6 @@ num_chains = 1
 print("Num Chains = ", num_chains)
 
 sampler = numpyro.infer.MCMC(numpyro.infer.NUTS(apep_model,
-                                                max_tree_depth=5,
                                                 init_strategy=numpyro.infer.initialization.init_to_value(values=init_val)
                                                 ),
                               num_chains=num_chains,
