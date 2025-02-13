@@ -188,6 +188,17 @@ def make_zero(tan):
 ### below couple of functions from Shashank!
 @jax.custom_jvp
 def zero_safe_arctan2(x, y):
+    '''Arctan2 function that has a manually defined (and safe) gradient function.
+
+    Parameters
+    ----------
+    x : float
+    y : float
+
+    Returns
+    -------
+    float
+    '''
     return jnp.arctan2(x, y)
 
 
@@ -206,6 +217,16 @@ def zero_safe_arctan2_jvp(primals, tangents):
 
 @jax.custom_jvp
 def zero_safe_sqrt(x):
+    '''Sqrt function that has a manually defined (and safe) gradient function.
+    
+    Parameters
+    ----------
+    x : float
+
+    Returns
+    -------
+    float
+    '''
     return jnp.sqrt(x)
 
 @zero_safe_sqrt.defjvp
@@ -220,15 +241,25 @@ def zero_safe_sqrt_jvp(primals, tangents):
     return primal_out, tangent_out  # Return only primal and tangent
 
 def true_from_eccentric_anomaly(E, ecc):
+    '''
+    Calculate true anomaly from the eccentric anomaly and orbital eccentricity
+
+    Parameters
+    ----------
+    E : float (or jnp.array of [1 x N])
+        Eccentric anomaly at this point in the orbit.
+    ecc : float
+        Eccentricity of the orbit.
+
+    Returns
+    -------
+    float (or jnp.array of [1 x N])
+        True anomoly converted from each supplied eccentric anomaly..
+
+    '''
     return 2. * zero_safe_arctan2(zero_safe_sqrt(1. + ecc) * jnp.sin(E / 2.), zero_safe_sqrt(1. - ecc) * jnp.cos(E / 2.))
 
 
-
-# def nonlinear_accel(x, t, rt, amax):
-#     xuse = x[0]
-#     sqrtx = jnp.sqrt(1 - rt/xuse) * jnp.heaviside(xuse - rt, 0)
-#     t_est = (xuse * sqrtx + rt * jnp.arctanh(sqrtx)) * AU2km / jnp.sqrt(2 * amax/yr2s * rt * AU2km)
-#     return jnp.abs(t_est - t)
 
 def nonlinear_accel(t, stardata):
     '''Non-linear acceleration parameterised by the age of the ring using an exponential decay function approaching terminal velocity.
@@ -242,35 +273,46 @@ def nonlinear_accel(t, stardata):
         The final windspeed of the plume at t->inf
     t : float
         The age of the current ring in seconds
+    
+    Returns
+    -------
+    float
+        The velocity of the ring, accounting for acceleration.
     '''
     
     return stardata['term_windspeed'] + (stardata['windspeed1'] - stardata['term_windspeed']) * jnp.exp(-10**stardata['accel_rate'] * t / yr2s)
 
 def spin_orbit_mult(true_anom, direction, stardata):
-    # derotate = rotate_x(jnp.deg2rad(stardata['spin_inc'])) @ (rotate_z(jnp.deg2rad(stardata['spin_Omega'])) @ direction)
-    # inclination = jnp.arccos(derotate[2] / jnp.linalg.norm(derotate)) - jnp.pi / 2
-    # open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.sin(inclination)**2
-    # vel_mult = 1 + stardata['spin_vel_mult'] * jnp.sin(inclination)**2
-    # return jnp.max(jnp.array([open_angle_mult, 0])), vel_mult
-    
-    # inclination = jnp.pi / 2 + jnp.deg2rad(stardata['spin_inc']) * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega']))
-    
-    # inclination = jnp.rad2deg(inclination)
-    
-    # # dist = jnp.min(jnp.abs(jnp.array([inclination - 180, inclination])))
-    # dist = jnp.min(jnp.abs(jnp.array([180 - inclination, inclination])))
-    
+    '''
+    Calculate multipliers for the velocity and ring opening angle to emulate the (possible) effects of
+    wind anisotropy.
+
+    Parameters
+    ----------
+    true_anom : TYPE
+        DESCRIPTION.
+    direction : TYPE
+        DESCRIPTION.
+    stardata : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    open_angle_mult : TYPE
+        DESCRIPTION.
+    vel_mult : TYPE
+        DESCRIPTION.
+
+    '''
     dist = jnp.abs(stardata['spin_inc'] * jnp.sin(true_anom - jnp.deg2rad(stardata['spin_Omega'])))
-    # dist = inclination - 90
     
-    
+    # -------------------- Below are a couple of tests with different types of curves. To be ignored! -------------------- #
     # # gaussians for the open-angle/velocity-latitude curve
     # spin_oa_sd = jnp.max(jnp.array([stardata['spin_oa_sd'], 0.01]))
     # spin_vel_sd = jnp.max(jnp.array([stardata['spin_vel_sd'], 0.01]))
     # open_angle_mult = 1 - stardata['spin_oa_mult'] * jnp.exp(- (dist / spin_oa_sd)**2)
     # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     # vel_mult = 1 + stardata['spin_vel_mult'] * jnp.exp(- (dist / spin_vel_sd)**2)
-    
     
     # # test with a power law
     # x = jnp.abs(dist / 90 - 1)
@@ -279,20 +321,19 @@ def spin_orbit_mult(true_anom, direction, stardata):
     # open_angle_mult = 1 - stardata['spin_oa_mult'] * x**(1 / spin_oa_sd)
     # open_angle_mult = jnp.max(jnp.array([open_angle_mult, 0.001]))
     # vel_mult = 1 + stardata['spin_vel_mult'] * x**(1 / spin_vel_sd)
+    # -------------------------------------------------------------------------------------------------------------------- #
     
+    # use tanh functions instead (this is what's described in the thesis/paper)
     vel_mult = 1 + (stardata['windspeed_polar'] / stardata['windspeed1'] - 1.) * jnp.tanh(10**stardata['aniso_vel_mult'] * dist**stardata['aniso_vel_power'])
     open_angle_mult = 1 + (stardata['open_angle_polar'] / stardata['open_angle'] - 1.) * jnp.tanh(10**stardata['aniso_OA_mult'] * dist**stardata['aniso_OA_power'])
-    
 
-    
-    # open_angle_mult = 1 
-    # vel_mult = 1
     return open_angle_mult, vel_mult
     
 
 def dust_circle(i_nu, stardata, theta, plume_direction, widths):
     ''' Creates a single ring of particles (a dust ring) in our dust plume. Applies weighting criteria as a proxy of 
     dust brightness or absence. 
+    
     Parameters
     ----------
     i, nu : list of [int, float]
@@ -529,6 +570,23 @@ def dust_circle(i_nu, stardata, theta, plume_direction, widths):
 
 def calculate_semi_major(period_s, m1, m2):
     '''
+    Calculates semi-major axis of an orbit given body masses (in M_odot) and orbital period (in seconds).
+
+    Parameters
+    ----------
+    period_s : float
+        The orbital period (in units of s) of the binary.
+    m1 : float
+        Mass of primary star (in M_odot).
+    m2 : float
+        Mass of secondary star (in M_odot).
+
+    Returns
+    -------
+    a1 : float
+        Semi-major axis of primary star w.r.t. the centre of mass.
+    a2 : float
+        Semi-major axis of secondary star w.r.t. the centre of mass.
     '''
     m1_kg = m1 * M_odot                                 # mass of stars in kg
     m2_kg = m2 * M_odot
@@ -543,37 +601,38 @@ def calculate_semi_major(period_s, m1, m2):
 
 
 def dust_plume_sub(theta, times, n_orbits, period_s, stardata):
+    '''
+    Sub-routine for the 'dust_plume' function. This function creates the particle cloud given the stellar parameters,
+    number of shells, etc.
+
+    Parameters
+    ----------
+    theta : jnp.array (1 x N_points)
+        Standard angular coordinates for the particles within each ring.
+    times : jnp.array (1 x N_time)
+        Ages (in units of seconds) for each of the generated rings. This relies on the orbital period, as well as 
+        the number of shells that are being generated.
+    n_orbits : int
+        The number of shells to generate.
+    period_s : float
+        The orbital period (in units of s) of the binary.
+    stardata : dict
+        The all-encompassing dictionary of binary/plume parameters.
+
+    Returns
+    -------
+    jnp.array of float (3 x N_particles)
+        The cartesian coordinates of each particle in *angular* units from our perspective. The first two axes
+        correspond to the projection of the plume in the plane of the sky. 
+    weights : jnp.array of float (1 x N_particles)
+        A weighting for each particle in the point cloud (used mainly for the imaging step). Each number should be
+        between 0 and 1.
+
+    '''
     
     n_time = len(times)
     n_t = int(n_time / n_orbits)
     ecc = stardata['eccentricity']
-    # E, true_anomaly = kepler_solve(times, period_s, ecc)
-    
-    # E = kepler(2 * jnp.pi * times / period_s, jnp.array([ecc]))
-    # true_anomaly = true_from_eccentric_anomaly(E, ecc)
-    
-    # a1, a2 = calculate_semi_major(period_s, stardata['m1'], stardata['m2'])
-    # r1 = a1 * (1 - ecc * jnp.cos(E)) * 1e-3     # radius in km 
-    # r2 = a2 * (1 - ecc * jnp.cos(E)) * 1e-3
-    # # ws_ratio = stardata['windspeed1'] / stardata['windspeed2']
-    
-    # positions1 = jnp.array([jnp.cos(true_anomaly), 
-    #                         jnp.sin(true_anomaly), 
-    #                         jnp.zeros(n_time)])
-    # positions2 = jnp.copy(positions1)
-    # positions1 *= r1      # position in the orbital frame
-    # positions2 *= -r2     # position in the orbital frame
-    
-    # widths = stardata['windspeed1'] * period_s * (n_orbits - jnp.arange(n_time) / n_t)
-    
-    # plume_direction = positions1 - positions2               # get the line of sight from first star to the second in the orbital frame
-    
-        
-    # particles = vmap(lambda i_nu: dust_circle(i_nu, stardata, theta, plume_direction, widths))((jnp.arange(n_time), true_anomaly))
-    
-    
-    
-    
     
     ecc_factor = jnp.sqrt((1. - ecc) / (1. + ecc))
     
