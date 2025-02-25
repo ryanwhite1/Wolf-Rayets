@@ -38,10 +38,10 @@ import matplotlib.colors as colors
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 starcopy = wrb.apep.copy()
-starcopy['n_orbits'] = 3
+starcopy['n_orbits'] = 1
 
-# n = 256     # standard
-n = 600     # VISIR
+n = 256     # standard
+# n = 600     # VISIR
 # n = 898     # JWST
 @jit
 def smooth_histogram2d(particles, weights, stardata):
@@ -150,8 +150,8 @@ titles = ['Model', 'Reference', 'Difference']
 w = 1/3.08
 fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
-# X_ref, Y_ref, H_ref = standard_sim_reference()
-X_ref, Y_ref, H_ref = Apep_VISIR_reference()
+X_ref, Y_ref, H_ref = standard_sim_reference()
+# X_ref, Y_ref, H_ref = Apep_VISIR_reference()
 # X_ref, Y_ref, H_ref = Apep_JWST_reference()
 reference_mesh = axes[1].pcolormesh(X_ref, Y_ref, H_ref, cmap='hot')
 maxside2 = np.max(np.abs(np.array([X_ref, Y_ref])))
