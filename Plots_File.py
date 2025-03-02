@@ -1675,6 +1675,33 @@ def book_chapter_plot():
     
     
     
+def WR104_proposal_plot():
+    system = wrb.WR104.copy()
+    
+    system['n_orbits'] = 3
+    system['inclination'] = 180
+    system['asc_node'] = 78
+    system['phase'] = 1.11
+    
+    particles, weights = gm.gui_funcs[system['n_orbits'] - 1](system)
+    X, Y, H = smooth_histogram2d(particles, weights, system)
+    H = gm.add_stars(X[0, :], Y[:, 0], H, system)
+    
+    fig, axes = plt.subplots(ncols=2, figsize=(10, 5), gridspec_kw={'wspace':0}, sharey=True)
+    axes[0].pcolormesh(X, Y, H, cmap='gist_heat_r', rasterized=True)
+    
+    system['inclination'] = 140
+    particles, weights = gm.gui_funcs[system['n_orbits'] - 1](system)
+    X, Y, H = smooth_histogram2d(particles, weights, system)
+    H = gm.add_stars(X[0, :], Y[:, 0], H, system)
+    
+    axes[1].pcolormesh(X, Y, H, cmap='gist_heat_r', rasterized=True)
+    
+    axes[0].set(aspect='equal', xlabel='Arcseconds', ylabel='Arcseconds')
+    axes[1].set(xlabel='Arcseconds')
+    
+    fig.savefig('Images/WR104.png', dpi=400, bbox_inches='tight')
+    fig.savefig('Images/WR104.pdf', dpi=400, bbox_inches='tight')
     
     
 
@@ -1715,7 +1742,9 @@ def main():
     # WR48a_plot()
     # WR48a_gif()
     
-    book_chapter_plot()
+    # book_chapter_plot()
+    
+    WR104_proposal_plot()
     
 
 
