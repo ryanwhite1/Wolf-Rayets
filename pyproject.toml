@@ -1,0 +1,21 @@
+[project]
+name = "xenomorph"
+version = "0.0.1"
+description = "Modelling Wolf-Rayet colliding wind nebulae morphology with differentiable spiral geometry."
+readme = "README.md"
+requires-python =">=3.10"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Ryan White", email = "ryan.white.astro@gmail.com"}
+]
+keywords = ["python", "jax", "autodiff", "differentiable", "simulation", "telescope", "xenomorph"]
+urls = {repository = "https://github.com/ryanwhite1/xenomorph"}
+dependencies = ["jax", "jaxlib", "numpy", "matplotlib", "numpyro", "astropy", "tqdm", "scipy"]
+classifiers=[
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

@@ -15,7 +15,6 @@ from scipy.ndimage import gaussian_filter
 import jax.scipy.signal as signal
 from matplotlib import animation
 import time
-import emcee
 from astropy.io import fits
 from glob import glob
 import os
