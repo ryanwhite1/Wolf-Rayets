@@ -20,8 +20,8 @@ from astropy.io import fits
 from glob import glob
 import os
 
-import WR_Geom_Model as gm
-import WR_binaries as wrb
+import src.xenomorph.geometry as gm
+import src.xenomorph.systems as wrb
 
 ### --- GUI Plot --- ###
 

@@ -5,6 +5,13 @@ Created on Sun Mar 17 13:05:33 2024
 @author: ryanw
 """
 
+defined_systems = ['apep', 'WR48a', 'WR104', 'WR112', 'WR125', 'WR137', 'WR140']
+
+def print_systems():
+    ''' Prints the pre-defined WR CWB systems.
+    '''
+    print(defined_systems)
+
 # below are rough params for Apep 
 apep = {"m1":15.,                # solar masses
         "m2":10.,                # solar masses

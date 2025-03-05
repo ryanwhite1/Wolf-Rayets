@@ -22,7 +22,7 @@ import time
 # import jaxoplanet
 # import jaxopt
 
-import WR_binaries as wrb
+import src.xenomorph.systems as wrb
 
 # we need 64 bit math for the semi-major axis calculations
 jax.config.update("jax_enable_x64", True)

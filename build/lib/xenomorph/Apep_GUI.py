@@ -15,12 +15,13 @@ from scipy.ndimage import gaussian_filter
 import jax.scipy.signal as signal
 from matplotlib import animation
 import time
+import emcee
 from astropy.io import fits
 from glob import glob
 import os
 
-import WR_Geom_Model as gm
-import WR_binaries as wrb
+import src.xenomorph.geometry as gm
+import src.xenomorph.systems as wrb
 
 ### --- GUI Plot --- ###
 
@@ -38,9 +39,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 starcopy = wrb.apep.copy()
 starcopy['n_orbits'] = 1
-
-starcopy = wrb.WR104.copy()
-starcopy['n_orbits'] = 3
 
 n = 256     # standard
 # n = 600     # VISIR
@@ -61,6 +59,38 @@ def smooth_histogram2d(particles, weights, stardata):
 def smooth_histogram2d_w_bins(particles, weights, stardata, xbins, ybins):
     im_size = n
     return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
+@jit
+def smooth_histogram2d_600(particles, weights, stardata):
+    im_size = 600
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+@jit
+def smooth_histogram2d_w_bins_600(particles, weights, stardata, xbins, ybins):
+    im_size = 600
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
+@jit
+def smooth_histogram2d_898(particles, weights, stardata):
+    im_size = 898
+    
+    x = particles[0, :]
+    y = particles[1, :]
+    
+    xbound, ybound = jnp.max(jnp.abs(x)), jnp.max(jnp.abs(y))
+    bound = jnp.max(jnp.array([xbound, ybound])) * (1. + 2. / im_size)
+    
+    xedges, yedges = jnp.linspace(-bound, bound, im_size+1), jnp.linspace(-bound, bound, im_size+1)
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xedges, yedges, im_size)
+@jit
+def smooth_histogram2d_w_bins_898(particles, weights, stardata, xbins, ybins):
+    im_size = 898
+    return gm.smooth_histogram2d_base(particles, weights, stardata, xbins, ybins, im_size)
 
 
 def standard_sim_reference():
@@ -70,13 +100,14 @@ def standard_sim_reference():
     
     return X, Y, H_original
 
-def Apep_VISIR_reference():
+def Apep_VISIR_reference(year):
     pscale = 1000 * 23/512 # mas/pixel, (Yinuo's email said 45mas/px, but I think the FOV is 23x23 arcsec for a 512x512 image?)
     
+    years = {2016:0, 2017:1, 2018:2, 2024:3}
     directory = "Data\\VLT"
     fnames = glob(directory + "\\*.fits")
     
-    vlt_data = fits.open(fnames[-1])    # for the 2024 epoch
+    vlt_data = fits.open(fnames[years[year]])    # for the 2024 epoch
     
     data = vlt_data[0].data
     length = data.shape[0]
@@ -125,61 +156,73 @@ def Apep_JWST_reference():
     data = jnp.abs(data)**0.5 
     
     return xs, ys, data
-    
-
-# X_ref, Y_ref, H_ref = Apep_VISIR_reference()
-# fig, ax = plt.subplots()
-# ax.plot(np.arange(H_ref.shape[0]), H_ref[:, 300])
-
-# fig, ax = plt.subplots()
-# ax.imshow(H_ref)
-# ax.invert_yaxis()
-
-# X_ref, Y_ref, H_ref = Apep_JWST_reference()
-# fig, ax = plt.subplots()
-# ax.plot(np.arange(H_ref.shape[0]), H_ref[:, 300])
-
-# fig, ax = plt.subplots()
-# ax.imshow(H_ref)
-# ax.invert_yaxis()
-
-# starcopy['phase'] -= (2024 - 2016) / starcopy['period']
 
 root = tkinter.Tk()
 root.wm_title("Embedding in Tk")
 
-titles = ['Model', 'Reference', 'Difference']
+titles = [['Model', '2016', '2017'], ['2018', '2024', 'JWST']]
 w = 1/3.08
-fig, axes = plt.subplots(figsize=(12, 4), ncols=3, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
+fig, axes = plt.subplots(figsize=(16, 6), ncols=3, nrows=2, gridspec_kw={'wspace':0, 'width_ratios':[w, w, 1-2*w]})
 
-X_ref, Y_ref, H_ref = standard_sim_reference()
+# X_ref, Y_ref, H_ref = standard_sim_reference()
 # X_ref, Y_ref, H_ref = Apep_VISIR_reference()
-# X_ref, Y_ref, H_ref = Apep_JWST_reference()
-reference_mesh = axes[1].pcolormesh(X_ref, Y_ref, H_ref, cmap='hot')
-maxside2 = np.max(np.abs(np.array([X_ref, Y_ref])))
-axes[1].set(xlim=(-maxside2, maxside2), ylim=(-maxside2, maxside2))
+X_jwst, Y_jwst, H_jwst = Apep_JWST_reference()
+jwst_mesh = axes[-1, -1].pcolormesh(X_jwst, Y_jwst, H_jwst, cmap='hot')
+maxside_jwst = np.max(np.abs(np.array([X_jwst, Y_jwst])))
+axes[-1, -1].set(xlim=(-maxside_jwst, maxside_jwst), ylim=(-maxside_jwst, maxside_jwst))
 
 
 X, Y, H_original = standard_sim_reference()
-mesh = axes[0].pcolormesh(X, Y, H_original, cmap='hot')
-axes[0].set(aspect='equal', xlabel='Relative RA (")', ylabel='Relative Dec (")', title=titles[0])
+mesh = axes[0, 0].pcolormesh(X, Y, H_original, cmap='hot')
+axes[0, 0].set(aspect='equal', ylabel='Relative Dec (")', title=titles[0][0])
 
-
-H_ref_ravel = H_ref.ravel()
+starcopy_3shell = starcopy.copy()
+starcopy_3shell['histmax'] = 0.10
+particles, weights = gm.gui_funcs[2](starcopy_3shell)
+X_3shell, Y_3shell, H_3shell = smooth_histogram2d_898(particles, weights, starcopy_3shell)
+H_3shell = gm.add_stars(X_3shell[0, :], Y_3shell[:, 0], H_3shell, starcopy_3shell)
+# jwst_mesh = jwst_mesh.ravel()
 norm = colors.Normalize(vmin=-1., vmax=1.)
-diff_mesh = axes[2].pcolormesh(X_ref, Y_ref, H_original - H_ref, cmap='seismic', norm=norm)
-for i in range(1, 3):
-    axes[i].set(aspect='equal', xlabel='Relative RA (")', title=titles[i])
-    axes[i].tick_params(axis='y',
-                        which='both',
-                        left=False,
-                        labelleft=False)
-the_divider = make_axes_locatable(axes[2])
+jwst_diff_mesh = axes[-1, -1].pcolormesh(X_jwst, Y_jwst, H_3shell - H_jwst, cmap='seismic', norm=norm)
+the_divider = make_axes_locatable(axes[-1, -1])
 color_axis = the_divider.append_axes("right", size="5%", pad=0.1)
-fig.colorbar(diff_mesh, cax=color_axis)
+fig.colorbar(jwst_diff_mesh, cax=color_axis)
 
-for i in range(2):
-    axes[i].set_facecolor('k')
+
+for j in [0, 1]:
+    for i in range(0, 3):
+        if j != 0:
+            axes[j, i].set(aspect='equal', xlabel='Relative RA (")', title=titles[j][i])
+        else:
+            axes[j, i].set(aspect='equal', title=titles[j][i])
+        if i != 0:
+            axes[j, i].tick_params(axis='y',
+                                which='both',
+                                left=False,
+                                labelleft=False)
+            
+year_inds = {2016:[0, 1], 2017:[0, 2], 2018:[1, 0], 2024:[1, 1], 'jwst':[1, 2]}
+
+references = {'jwst':[X_jwst, Y_jwst, H_jwst, jwst_diff_mesh]}
+
+for i, year in enumerate([2016, 2017, 2018, 2024]):
+    a, b = year_inds[year]
+    
+    X_ref, Y_ref, H_ref = Apep_VISIR_reference(year)
+    
+    
+    
+    year_starcopy = starcopy.copy()
+    year_starcopy['phase'] += (year - 2024) / year_starcopy['period']
+    particles, weights = gm.dust_plume(year_starcopy)
+    X_year, Y_year, H_year = smooth_histogram2d_w_bins_600(particles, weights, year_starcopy, X_ref[0, :], Y_ref[:, 0])
+    # H_year = gm.add_stars(X_ref[0, :], Y_ref[:, 0], H_year, starcopy)
+    
+    year_diff_mesh = axes[a, b].pcolormesh(X_ref, Y_ref, H_year - H_ref, cmap='seismic', norm=norm)
+    
+    references[year] = [X_year, Y_ref, H_ref, year_diff_mesh]
+
+
 
 canvas = FigureCanvasTkAgg(fig, master=root)  # A tk.DrawingArea.
 canvas.draw()
@@ -198,7 +241,8 @@ button_quit = tkinter.Button(master=root, text="Quit", command=root.destroy)
 def update_frequency(param, new_val, X=X, Y=Y):
     starcopy[param] = float(new_val)
     
-    particles, weights = gm.gui_funcs[int(starcopy['n_orbits']) - 1](starcopy)
+    # update the simulation panel
+    particles, weights = gm.dust_plume(starcopy)
     
     X_new, Y_new, H = smooth_histogram2d(particles, weights, starcopy)
     H = gm.add_stars(X_new[0, :], Y_new[:, 0], H, starcopy)
@@ -206,21 +250,50 @@ def update_frequency(param, new_val, X=X, Y=Y):
     new_H = H.ravel()
     mesh.update({'array':new_H})
     
-    X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins(particles, weights, starcopy, X_ref[0, :], Y_ref[:, 0])
-    H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
-    H_diff = H_diff.ravel()
-    
-    diff_mesh.update({'array':H_diff - H_ref_ravel})
-    
     new_coords = mesh._coordinates
     new_coords[:, :, 0] = X_new
     new_coords[:, :, 1] = Y_new
     mesh._coordinates = new_coords
     
     maxside1 = np.max(np.abs(np.array([X_new, Y_new])))
-    axes[0].set(xlim=(-maxside1, maxside1), ylim=(-maxside1, maxside1))
+    axes[0, 0].set(xlim=(-maxside1, maxside1), ylim=(-maxside1, maxside1))
+    
+    # now go through and update each visir panel
+    for i, year in enumerate([2016, 2017, 2018, 2024]):
+        
+        starcopy_year = starcopy.copy()
+        starcopy_year['phase'] += (year - 2024) / starcopy['period']
+        
+        particles, weights = gm.dust_plume(starcopy_year)
+        
+        X_ref, Y_ref = references[year][:2]
+        X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins_600(particles, weights, starcopy_year, X_ref[0, :], Y_ref[:, 0])
+        H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
+        H_diff = H_diff.ravel()
+        
+        references[year][3].update({'array':H_diff - references[year][2].ravel()})
+        
+        diff_maxside = np.max([maxside1, np.max(np.abs(np.array([X_ref, Y_ref])))])
+        a, b = year_inds[year]
+        axes[a, b].set(xlim=(-diff_maxside, diff_maxside), ylim=(-diff_maxside, diff_maxside))
+    
+    
+    # now update the jwst panel
+    starcopy_jwst = starcopy.copy()
+    starcopy_jwst['histmax'] = 0.10
+    particles, weights = gm.gui_funcs[2](starcopy_jwst)
+    
+    X_ref, Y_ref = references['jwst'][:2]
+    X_diff, Y_diff, H_diff = smooth_histogram2d_w_bins_898(particles, weights, starcopy_jwst, X_ref[0, :], Y_ref[:, 0])
+    H_diff = gm.add_stars(X_diff[0, :], Y_diff[:, 0], H_diff, starcopy)
+    H_diff = H_diff.ravel()
+    
+    references['jwst'][3].update({'array':H_diff - references['jwst'][2].ravel()})
+    
     diff_maxside = np.max([maxside1, np.max(np.abs(np.array([X_ref, Y_ref])))])
-    axes[2].set(xlim=(-diff_maxside, diff_maxside), ylim=(-diff_maxside, diff_maxside))
+    a, b = year_inds['jwst']
+    axes[a, b].set(xlim=(-diff_maxside, diff_maxside), ylim=(-diff_maxside, diff_maxside))
+    
 
     # required to update canvas and attached toolbar!
     canvas.draw()
@@ -410,7 +483,7 @@ sliders = [ecc, inc, asc_node, arg_peri, phase, period, m1, m2,
             aniso_OA_power, star1amp, star1sd, star2amp, star2sd, star3amp, star3sd, star3dist
             ]
 
-num_in_row = 8
+num_in_row = 12
 toolbar.grid(row=0, columnspan=num_in_row)
 canvas.get_tk_widget().grid(row=1, column=0, columnspan=num_in_row)
 for i, slider in enumerate(sliders):
